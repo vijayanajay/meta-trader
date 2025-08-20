@@ -27,10 +27,11 @@ This document outlines the requirements for the "Self-Improving Quant Engine," a
     -   The system produces a clear, final report summarizing the performance of all tested strategies and identifying the best one.
 
 -   **Key Performance Indicators (KPIs):**
+    -   **Edge Score:** The primary metric for ranking strategies, calculated as `(Net Profit % / Exposure Time %) * (abs(Sharpe Ratio) / abs(Sortino Ratio))`.
     -   Sharpe Ratio of generated strategies.
+    -   Sortino Ratio of generated strategies.
     -   Maximum Drawdown [%] of generated strategies.
-    -   Number of successful, uninterrupted iterations per run.
-    -   Final Return [%] vs. Baseline Return [%].
+    -   Final Return [%] vs. Baseline Return [%] on validation data.
 
 ## Scope and Requirements (MVP / Current Version)
 

@@ -209,7 +209,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `state_manager.py` and its tests are implemented and integrated into the orchestrator.
 *   **Time estimate:** 2 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
@@ -231,7 +231,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The data split and final validation logic are implemented and committed.
 *   **Time estimate:** 3 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
@@ -240,7 +240,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Rationale:** To improve the quality of the feedback signal given to the LLM. A richer report with a custom score and details on failures provides more context, enabling the LLM to make more intelligent suggestions.
 *   **Items to implement:**
     *   In the `ReportGenerator` service:
-        *   Calculate a custom "Edge Score" (e.g., `Sharpe Ratio * Win Rate`).
+        *   Calculate a custom "Edge Score" using the formula: `(Net Profit % / Exposure Time %) * (abs(Sharpe Ratio) / abs(Sortino Ratio))`.
         *   Extract details of the 5 worst trades (e.g., largest drawdowns) from the backtest results.
         *   Add these new fields (`edge_score`, `worst_trades`) to the JSON report structure.
     *   Update the Pydantic models in `core/models.py`.
@@ -253,7 +253,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The report generator is updated and tested.
 *   **Time estimate:** 3 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
