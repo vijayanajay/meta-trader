@@ -66,7 +66,9 @@ This document outlines the requirements for the "Self-Improving Quant Engine," a
 ### Integration Requirements (High-Level)
 
 -   **Integration Point 1:** A financial data provider API (e.g., `yfinance` library).
--   **Integration Point 2:** A Large Language Model API (e.g., OpenAI, Anthropic, Google Gemini).
+-   **Integration Point 2:** A Large Language Model API. The system is designed to be compatible with multiple providers through environment variable configuration.
+    -   **Primary Provider:** OpenAI (e.g., `gpt-4-turbo`).
+    -   **Alternative Provider:** OpenRouter, which enables access to a variety of models. The recommended model is `moonshotai/kimi-k2:free`.
 
 ### Testing Requirements (High-Level)
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
@@ -10,15 +12,19 @@ __all__ = ["fetch_and_split_data"]
 
 logger = logging.getLogger(__name__)
 
+CACHE_DIR = Path("data")
+CACHE_FILE = CACHE_DIR / "stock_data.parquet"
+CACHE_EXPIRY_HOURS = 24
 
-# impure: Performs network I/O to yfinance
+
+# impure: Performs file I/O and network I/O to yfinance
 def fetch_and_split_data(
     ticker: str,
     train_years: int = 8,
     validation_years: int = 2,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Fetches historical stock data and splits it into training and validation sets.
+    Fetches historical stock data, caches it, and splits it into training and validation sets.
 
     Args:
         ticker: The stock ticker symbol to fetch.
@@ -28,21 +34,36 @@ def fetch_and_split_data(
     Returns:
         A tuple containing the training DataFrame and the validation DataFrame.
     """
-    total_years = train_years + validation_years
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=int(total_years * 365.25))
+    CACHE_DIR.mkdir(exist_ok=True)
+    data: pd.DataFrame | None = None
 
-    logger.info(f"Fetching {total_years} years of data for {ticker}...")
-    try:
-        data = yf.download(ticker, start=start_date, end=end_date, progress=False)
-        if data.empty:
-            raise ValueError(f"No data found for ticker {ticker}.")
-    except Exception as e:
-        logger.error(f"Failed to download data for {ticker}: {e}")
-        raise
+    if CACHE_FILE.exists():
+        expiry_time = datetime.now() - timedelta(hours=CACHE_EXPIRY_HOURS)
+        file_mod_time = datetime.fromtimestamp(CACHE_FILE.stat().st_mtime)
+        if file_mod_time > expiry_time:
+            logger.info(f"Loading data from fresh cache file: {CACHE_FILE}")
+            data = pd.read_parquet(CACHE_FILE)
+        else:
+            logger.info("Cache file is stale. Fetching new data.")
+
+    if data is None:
+        total_years = train_years + validation_years
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=int(total_years * 365.25))
+
+        logger.info(f"Fetching {total_years} years of data for {ticker}...")
+        try:
+            data = yf.download(ticker, start=start_date, end=end_date, progress=False)
+            if data.empty:
+                raise ValueError(f"No data found for ticker {ticker}.")
+            data.to_parquet(CACHE_FILE)
+            logger.info(f"Saved new data to cache: {CACHE_FILE}")
+        except Exception as e:
+            logger.error(f"Failed to download data for {ticker}: {e}")
+            raise
 
     # Split data
-    split_date = end_date - timedelta(days=int(validation_years * 365.25))
+    split_date = data.index.max() - timedelta(days=int(validation_years * 365.25))
     train_data = data[data.index < split_date]
     validation_data = data[data.index >= split_date]
 
