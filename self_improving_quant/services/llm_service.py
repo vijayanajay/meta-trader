@@ -1,10 +1,43 @@
+import json
+import logging
 import os
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any
 
 import openai
 from dotenv import load_dotenv
 
+from self_improving_quant.core.models import IterationReport
+
 __all__ = ["LLMService"]
+
+logger = logging.getLogger(__name__)
+
+
+def _format_history(history: list[IterationReport], max_entries: int = 5) -> str:
+    """Formats the last N iteration reports into a string for the LLM prompt."""
+    if not history:
+        return "No history available. This is the first iteration."
+
+    recent_history = history[-max_entries:]
+    formatted_entries = []
+    for report in recent_history:
+        entry = {
+            "iteration": report.iteration,
+            "status": report.status,
+            "error_message": report.error_message,
+            "strategy": report.strategy.model_dump(),
+            "performance": {
+                "edge_score": f"{report.edge_score:.4f}" if report.edge_score is not None else "N/A",
+                "return_pct": f"{report.return_pct:.2f}%",
+                "max_drawdown_pct": f"{report.max_drawdown_pct:.2f}%",
+                "sharpe_ratio": f"{report.sharpe_ratio:.2f}",
+                "win_rate_pct": f"{report.win_rate_pct:.2f}%",
+            },
+        }
+        formatted_entries.append(json.dumps(entry, indent=2))
+
+    return "\n\n---\n\n".join(formatted_entries)
 
 
 class LLMService:
@@ -13,19 +46,19 @@ class LLMService:
     It can be configured to use either OpenAI or an OpenRouter-compatible API.
     """
 
-    # impure: Loads .env, reads environment variables
-    def __init__(self) -> None:
+    # impure: Loads .env, reads environment variables, reads prompt file
+    def __init__(self, prompt_path: Path | str = "self_improving_quant/prompts/quant_analyst.txt") -> None:
         """Initializes the LLM service client based on environment variables."""
         load_dotenv()
         provider = os.getenv("LLM_PROVIDER", "openai").lower()
 
-        api_key: Optional[str]
-        base_url: Optional[str] = None
-        model: Optional[str]
+        api_key: str | None
+        base_url: str | None = None
+        model: str | None
 
         if provider == "openrouter":
             api_key = os.getenv("OPENROUTER_API_KEY")
-            base_url = os.getenv("OPENROUTER_BASE_URL")
+            base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
             model = os.getenv("OPENROUTER_MODEL")
         elif provider == "openai":
             api_key = os.getenv("OPENAI_API_KEY")
@@ -41,9 +74,14 @@ class LLMService:
         self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
         self.provider = provider
+        try:
+            self.base_prompt = Path(prompt_path).read_text()
+        except FileNotFoundError:
+            logger.error(f"Prompt file not found at: {prompt_path}")
+            raise
 
     # impure: Performs network I/O to an LLM API
-    def get_strategy_suggestion(self, history: List[Dict[str, Any]]) -> str:
+    def get_strategy_suggestion(self, history: list[IterationReport]) -> str:
         """
         Gets a strategy suggestion from the configured LLM.
 
@@ -53,32 +91,29 @@ class LLMService:
         Returns:
             The raw JSON string response from the LLM.
         """
-        # In a real implementation, this would load and format a prompt from `prompts/`
-        prompt = "Based on the following history, suggest a new trading strategy:\n" + str(history)
+        history_str = _format_history(history)
+        prompt = self.base_prompt.format(history=history_str)
 
-        # Per H-28, log cost-related info. Using print as logger isn't available here.
-        print(f"INFO: Calling LLM. Provider: {self.provider}, Model: {self.model}")
+        logger.info(f"Calling LLM. Provider: {self.provider}, Model: {self.model}")
 
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "You are a quantitative analyst. Respond with JSON."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7,
+            response_format={"type": "json_object"},
         )
 
-        # Per H-28, log token usage.
         if completion.usage:
-            print(
-                f"INFO: LLM call successful. Tokens: "
+            logger.info(
+                f"LLM call successful. Tokens: "
                 f"Prompt={completion.usage.prompt_tokens}, "
                 f"Completion={completion.usage.completion_tokens}"
             )
 
         response = completion.choices[0].message.content
         if not response:
-            # Per H-12, avoid silent failures.
             raise ValueError("LLM returned an empty response.")
 
         return response

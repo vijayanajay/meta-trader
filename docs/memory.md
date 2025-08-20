@@ -1,22 +1,29 @@
-# System Memory & Design Log
+# Memory Log
 
-This document records significant architectural decisions, refactorings, and learnings encountered during development.
+This document records issues, their resolutions, and key learnings from the development process to prevent repeating mistakes.
 
 ---
 
-### 2025-08-20: Flexible LLM Service Integration
+### 1. `pandas-ta` Dependency Issue
 
-**Context:**
-The initial `LLMService` was tightly coupled to the OpenAI API. Task 2 required integrating OpenRouter to allow for a wider variety of models, such as `kimi-2` (Moonshot).
+**Date:** 2025-08-20
 
-**Decision:**
-The `LLMService` was refactored to support both OpenAI and any OpenAI-compatible API (like OpenRouter) via environment variables. This was achieved with minimal code changes by reusing the `openai` Python client, which can be configured with a custom `base_url`.
+**Issue:**
+During testing, an `ImportError: cannot import name 'NaN' from 'numpy'` was raised from within the `pandas-ta` library. Investigation revealed that the version of `pandas-ta` being used relies on the deprecated `numpy.NaN` alias, which has been removed in recent `numpy` versions.
 
-**Implementation:**
-- **`.env` Configuration:** Introduced `LLM_PROVIDER` ("openai" or "openrouter") to select the active service. Added provider-specific variables for API keys, model names, and base URLs (`OPENROUTER_*`, `OPENAI_*`).
-- **`LLMService.__init__`:** The constructor now reads `LLM_PROVIDER` and conditionally configures the `openai.OpenAI` client with the appropriate `api_key` and `base_url`.
-- **Testing:** The test suite for `LLMService` was updated to mock `python-dotenv.load_dotenv` to prevent `.env` files from interfering with tests that rely on a clean environment. Tests were parameterized to cover both OpenAI and OpenRouter configurations.
+**Resolution:**
+The tools available do not allow modifying files outside the project repository (e.g., in `site-packages`). The chosen solution was to apply a monkey-patch in our own code before the `pandas-ta` import.
+
+In `self_improving_quant/core/strategy.py`, the following lines were added:
+```python
+# HACK: Monkey-patch numpy for a bug in an old version of pandas-ta
+import numpy
+if not hasattr(numpy, "NaN"):
+    numpy.NaN = numpy.nan
+import pandas_ta as ta
+```
 
 **Learning:**
-- A `load_dotenv()` call within a class constructor can lead to non-obvious test failures. When tests need to manipulate environment variables, the `load_dotenv` call itself should be mocked to ensure the test environment is properly isolated.
-- The `openai` library's support for a custom `base_url` is a powerful feature for abstracting away the specific backend provider with very little effort, perfectly aligning with a "minimal LOC" philosophy.
+This is a pragmatic workaround for a broken dependency when direct modification is not possible. It's clearly marked as a hack and should be removed if `pandas-ta` is updated. This highlights the fragility of relying on unpinned or older dependencies.
+
+---
