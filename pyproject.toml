@@ -1,0 +1,12 @@
+[project]
+name = "self_improving_quant"
+version = "0.1.0"
+description = "A self-improving quantitative trading engine using LLMs."
+requires-python = ">=3.10"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+strict = true

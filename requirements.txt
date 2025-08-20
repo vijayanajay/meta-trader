@@ -1,0 +1,10 @@
+pandas
+pandas-ta
+Backtesting
+yfinance
+python-dotenv
+openai
+pytest
+asteval
+mypy
+pydantic
