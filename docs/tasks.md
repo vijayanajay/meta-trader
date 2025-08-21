@@ -126,7 +126,55 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The report generation module and its tests are implemented and committed.
 *   **Time estimate:** 2.5 hours
-*   **Status:** Completed
+*   **Status:** Incomplete - Blocked
+
+---
+
+### Task 4.1 — Fix Core Pipeline Integrity
+
+*   **Rationale:** The core pipeline of Epic 1 is broken. The `Backtester` service has an incorrect interface that does not provide the `trades` data required by the `ReportGenerator`. This task is critical to making Epic 1 functional.
+*   **Items to implement:**
+    *   Modify `services/backtester.py`: The `run()` method must return a tuple of `(stats, trades)`.
+    *   Update `tests/test_backtester.py` to reflect the new return type.
+    *   Update `services/report_generator.py`: Ensure the `generate()` method correctly receives and uses the `trades` DataFrame.
+*   **Acceptance Criteria (AC):**
+    *   The `Backtester` and `ReportGenerator` services can be chained together successfully.
+    *   A complete `PerformanceReport`, including the `TradeSummary`, can be generated from a backtest run.
+*   **Definition of Done (DoD):**
+    *   The interface bug is fixed and verified with an integration test.
+*   **Time estimate:** 1.5 hours
+*   **Status:** Not Started
+
+---
+
+### Task 4.2 — Enforce Code Quality Gates
+
+*   **Rationale:** The project currently fails its own quality gate (`mypy --strict`), violating `H-1`. This must be fixed to maintain code quality and ensure the reliability of the experimental framework.
+*   **Items to implement:**
+    *   Add `pandas-stubs` to `requirements.txt` to ensure correct type checking for `pandas`.
+    *   Add type hints (`-> None`) to all test functions in `tests/` to make them compliant with `mypy --strict`.
+*   **Acceptance Criteria (AC):**
+    *   Running `mypy --strict .` from the project root passes with zero errors.
+*   **Definition of Done (DoD):**
+    *   All type errors are resolved.
+*   **Time estimate:** 1 hour
+*   **Status:** Not Started
+
+---
+
+### Task 4.3 — Refactor Premature Abstractions
+
+*   **Rationale:** The codebase contains numerous placeholder files and premature orchestration logic in `main.py`, violating the MVP-first approach (`H-5`, `H-26`). This adds clutter and misrepresents the project's true progress.
+*   **Items to implement:**
+    *   **Delete** the following placeholder files: `core/orchestrator.py`, `services/llm_service.py`, `services/strategy_engine.py`, `services/state_manager.py`.
+    *   **Refactor** `src/main.py` to be a simple script that only validates the functionality of Epic 1 (i.e., runs the baseline strategy and generates a report). Remove all references to the deleted services.
+*   **Acceptance Criteria (AC):**
+    *   The `src` directory is clean and contains only the code necessary for a functional Epic 1.
+    *   `python src/main.py` runs without error.
+*   **Definition of Done (DoD):**
+    *   All placeholder files are deleted and `main.py` is refactored.
+*   **Time estimate:** 1 hour
+*   **Status:** Not Started
 
 ---
 

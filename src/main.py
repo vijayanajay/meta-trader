@@ -1,76 +1,50 @@
 """
 Main entry point for the Self-Improving Quant Engine.
 """
-from core import Orchestrator, Config
-from services import (
-    ConfigService,
-    StateManager,
-    DataService,
-    StrategyEngine,
-    Backtester,
-    ReportGenerator,
-    LLMService,
-)
+# NOTE: This is a temporary, simplified main for Epic 1 validation.
+# It will be replaced by the full orchestrator in Epic 2.
+from services import ConfigService, DataService, Backtester, ReportGenerator
+from core.strategy import SmaCross
+from core.models import StrategyDefinition
 
 
 def main() -> None:
     """
-    Main function to initialize and run the application.
+    Runs a simple, single backtest of the baseline strategy.
     """
-    print("--- Self-Improving Quant Engine ---")
-    print("Initializing services...")
-
-    # 1. Load Configuration
+    print("--- Running Baseline Backtest (Epic 1 Validation) ---")
     config_service = ConfigService()
-    try:
-        config: Config = config_service.load_config()
-        print("Configuration loaded successfully.")
-        # For brevity, let's not print the whole config object unless debugging
-        # print(config)
-    except FileNotFoundError as e:
-        print(f"FATAL: Configuration file not found. {e}")
-        return
-    except Exception as e:
-        print(f"FATAL: Error loading configuration. {e}")
-        return
+    config = config_service.load_config()
 
-
-    # 2. Initialize Services based on the loaded configuration
-    state_manager = StateManager(state_file_path=config.app.run_state_file)
     data_service = DataService(data_dir=config.app.data_dir)
-    strategy_engine = StrategyEngine()
     backtester = Backtester()
     report_generator = ReportGenerator()
 
-    # Simple logic to select the right API key based on the provider
-    api_key = ""
-    if config.llm.provider == "openrouter":
-        api_key = config.llm.openrouter_api_key
-    elif config.llm.provider == "openai":
-        api_key = config.llm.openai_api_key
+    # For now, we test the first ticker only
+    if not config.app.tickers:
+        print("FATAL: No tickers specified in config.ini")
+        return
+    ticker = config.app.tickers[0]
+    print(f"Fetching data for {ticker}...")
+    train_data, _ = data_service.get_data(ticker)
 
-    llm_service = LLMService(
-        provider=config.llm.provider,
-        api_key=api_key,
-        model=config.llm.openrouter_model if config.llm.provider == "openrouter" else config.llm.openai_model,
-        base_url=config.llm.openrouter_base_url if config.llm.provider == "openrouter" else None,
+    print("Running backtest on baseline SMA Crossover strategy...")
+    stats, trades = backtester.run(train_data, SmaCross)
+
+    # Create a dummy strategy definition for the report
+    baseline_def = StrategyDefinition(
+        strategy_name="SMA_Crossover_Baseline",
+        indicators=[],
+        buy_condition="SMA50 > SMA200",
+        sell_condition="SMA50 < SMA200",
     )
 
-    # 3. Initialize Orchestrator
-    orchestrator = Orchestrator(
-        config=config,
-        state_manager=state_manager,
-        data_service=data_service,
-        strategy_engine=strategy_engine,
-        backtester=backtester,
-        report_generator=report_generator,
-        llm_service=llm_service,
-    )
+    report = report_generator.generate(stats, trades, baseline_def)
 
-    # 4. Run the main loop
-    print("\nStarting Orchestrator...")
-    orchestrator.run()
-    print("\n--- Run Finished ---")
+    print("\n--- Baseline Performance Report ---")
+    print(f"Sharpe Ratio: {report.sharpe_ratio:.2f}")
+    print(f"Total Trades: {report.trade_summary.total_trades}")
+    print("--- Run Finished ---")
 
 
 if __name__ == "__main__":

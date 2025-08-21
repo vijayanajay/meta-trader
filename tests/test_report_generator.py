@@ -46,14 +46,16 @@ def mock_trades_df() -> pd.DataFrame:
         "ExitPrice": [105, 105, 110, 110],
         "PnL": [50, 50, 25, 25],
         "ReturnPct": [0.05, 0.045, 0.047, -0.043], # 3 wins, 1 loss
-        "Duration": [5, 5, 5, 5],
+        "Duration": pd.to_timedelta([5, 5, 5, 5], unit='d'),
     }
     return pd.DataFrame(data)
 
 
 def test_generate_report_happy_path(
-    mock_strategy_def, mock_stats_series, mock_trades_df
-):
+    mock_strategy_def: StrategyDefinition,
+    mock_stats_series: pd.Series,
+    mock_trades_df: pd.DataFrame,
+) -> None:
     """
     Tests that a report is generated correctly for a typical backtest result.
     """
@@ -81,7 +83,9 @@ def test_generate_report_happy_path(
     assert summary.avg_trade_duration_bars == 5
 
 
-def test_generate_report_no_trades(mock_strategy_def, mock_stats_series):
+def test_generate_report_no_trades(
+    mock_strategy_def: StrategyDefinition, mock_stats_series: pd.Series
+) -> None:
     """
     Tests report generation when the backtest produces no trades.
     """
@@ -96,13 +100,15 @@ def test_generate_report_no_trades(mock_strategy_def, mock_stats_series):
     assert summary.max_consecutive_losses == 0
 
 
-def test_generate_report_no_losses(mock_strategy_def, mock_stats_series):
+def test_generate_report_no_losses(
+    mock_strategy_def: StrategyDefinition, mock_stats_series: pd.Series
+) -> None:
     """
     Tests report generation when there are no losing trades.
     """
     all_wins_data = {
         "ReturnPct": [0.05, 0.045, 0.047, 0.02],
-        "Duration": [5, 5, 5, 5],
+        "Duration": pd.to_timedelta([5, 5, 5, 5], unit='d'),
     }
     all_wins_df = pd.DataFrame(all_wins_data)
     report = ReportGenerator.generate(mock_stats_series, all_wins_df, mock_strategy_def)
@@ -113,13 +119,16 @@ def test_generate_report_no_losses(mock_strategy_def, mock_stats_series):
     assert np.isnan(summary.avg_loss_pct) # mean of empty series is NaN
     assert summary.max_consecutive_losses == 0
 
-def test_generate_report_no_wins(mock_strategy_def, mock_stats_series):
+
+def test_generate_report_no_wins(
+    mock_strategy_def: StrategyDefinition, mock_stats_series: pd.Series
+) -> None:
     """
     Tests report generation when there are no winning trades.
     """
     all_losses_data = {
         "ReturnPct": [-0.05, -0.045, -0.047, -0.02],
-        "Duration": [5, 5, 5, 5],
+        "Duration": pd.to_timedelta([5, 5, 5, 5], unit='d'),
     }
     all_losses_df = pd.DataFrame(all_losses_data)
     report = ReportGenerator.generate(mock_stats_series, all_losses_df, mock_strategy_def)

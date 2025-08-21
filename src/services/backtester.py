@@ -2,7 +2,7 @@
 This service wraps the backtesting.py library to provide a simple interface
 for running backtests on trading strategies.
 """
-from typing import Type, cast
+from typing import Type, cast, Tuple
 import pandas as pd
 from backtesting import Backtest, Strategy
 
@@ -20,7 +20,7 @@ class Backtester:
         strategy_class: Type[Strategy],
         cash: int = 100_000,
         commission: float = 0.002,
-    ) -> pd.Series:
+    ) -> Tuple[pd.Series, pd.DataFrame]:
         """
         Runs a backtest for a given strategy and dataset.
 
@@ -31,10 +31,14 @@ class Backtester:
             commission: The commission rate for trades.
 
         Returns:
-            A pandas Series containing the backtest results.
+            A tuple containing:
+            - A pandas Series with the backtest results.
+            - A pandas DataFrame with the list of trades.
         """
         bt = Backtest(data, strategy_class, cash=cash, commission=commission)
         stats = bt.run()
 
-        # Cast the result to pd.Series to satisfy mypy, as backtesting.py lacks stubs
-        return cast(pd.Series, stats)
+        # The _trades attribute is not in the official documentation, but it's where
+        # the trades DataFrame is stored. We cast the results to satisfy mypy.
+        trades = stats["_trades"]
+        return cast(pd.Series, stats), cast(pd.DataFrame, trades)
