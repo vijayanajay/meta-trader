@@ -53,7 +53,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The developer setup guide is written and committed.
 *   **Time estimate:** 1 hour
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
@@ -103,7 +103,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `strategy.py`, `backtester.py`, and their tests are implemented and committed.
 *   **Time estimate:** 2 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 

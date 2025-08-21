@@ -24,7 +24,7 @@ The core architecture is built around a deterministic backtesting engine with a 
     ```
 
 4.  **Install the project in editable mode:**
-    This step is important as it makes the `src` package available to the interpreter and correctly registers it with local tools.
+    This step is crucial. It creates a special link to your source code (`src`) so that when you run `python src/main.py`, the Python interpreter can find your project's modules (e.g., `core`, `services`). Without this, absolute imports like `from core.orchestrator import Orchestrator` would fail because the `src` directory is not automatically in Python's path. Editable mode solves this by making the project importable everywhere in your environment.
     ```bash
     pip install -e .
     ```
