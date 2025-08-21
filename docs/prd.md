@@ -4,7 +4,7 @@ Here is the Product Requirements Document (PRD) for the project, based on your d
 
 ***
 
-# Self-Improving Quant Engine PRD
+# Self-Improving Quant Engine PRDa
 
 ## Intro
 
