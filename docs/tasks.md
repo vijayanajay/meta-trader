@@ -126,6 +126,23 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The report generation module and its tests are implemented and committed.
 *   **Time estimate:** 2.5 hours
+*   **Status:** Completed
+
+---
+
+### Task 4.5 — Document Mypy Setup and Typing Best Practices
+
+*   **Rationale:** To solidify the project's commitment to static typing and prevent future developers from struggling with the same `mypy --strict` issues that were resolved during Task 4. This captures important institutional knowledge.
+*   **Items to implement:**
+    *   Create a new section in `README.md` or a new `docs/typing_guide.md` file.
+    *   Document the `mypy` configuration in `pyproject.toml`, explaining why overrides for libraries like `backtesting` and `pandas-ta` are necessary.
+    *   Provide a clear example of how to handle untyped return values from these libraries using `typing.cast`.
+    *   Explain the `# type: ignore[misc]` comment used in `strategy.py` for subclassing untyped classes, and when it is appropriate to use it.
+*   **Acceptance Criteria (AC):**
+    *   A developer can read the guide and understand how to work with the strict `mypy` environment without needing to re-discover the solutions for common third-party library issues.
+*   **Definition of Done (DoD):**
+    *   The typing guide is written and committed.
+*   **Time estimate:** 1 hour
 *   **Status:** Not Started
 
 ---

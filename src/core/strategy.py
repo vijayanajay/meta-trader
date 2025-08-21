@@ -7,7 +7,7 @@ from backtesting.lib import crossover
 import pandas_ta as ta
 
 
-class SmaCross(Strategy):
+class SmaCross(Strategy):  # type: ignore[misc]
     """
     A simple moving average crossover strategy.
 

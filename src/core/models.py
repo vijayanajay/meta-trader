@@ -2,9 +2,17 @@
 Pydantic models for the application's configuration and data structures.
 """
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Dict, Any
 
-__all__ = ["LLMSettings", "AppSettings", "Config"]
+__all__ = [
+    "LLMSettings",
+    "AppSettings",
+    "Config",
+    "Indicator",
+    "StrategyDefinition",
+    "TradeSummary",
+    "PerformanceReport",
+]
 
 
 class LLMSettings(BaseModel):
@@ -42,3 +50,56 @@ class Config(BaseModel):
     """
     llm: LLMSettings
     app: AppSettings
+
+
+# ==============================================================================
+# Models for Strategy Definition and Performance Reporting
+# ==============================================================================
+
+
+class Indicator(BaseModel):
+    """
+    Defines a single technical indicator to be calculated.
+    """
+    name: str
+    function: str
+    params: Dict[str, Any]
+
+
+class StrategyDefinition(BaseModel):
+    """
+    Defines the structure for an LLM-proposed trading strategy.
+    This is the JSON schema the LLM is expected to return.
+    """
+    strategy_name: str
+    indicators: List[Indicator]
+    buy_condition: str
+    sell_condition: str
+
+
+class TradeSummary(BaseModel):
+    """
+    The information-dense statistical summary of trades from a backtest,
+    as specified in FR4.
+    """
+    total_trades: int
+    win_rate_pct: float
+    profit_factor: float
+    avg_win_pct: float
+    avg_loss_pct: float
+    max_consecutive_losses: int
+    avg_trade_duration_bars: int
+
+
+class PerformanceReport(BaseModel):
+    """
+    A comprehensive report object containing all information about a single
+    backtest iteration. This is the primary object appended to the history
+    and fed back to the LLM.
+    """
+    strategy: StrategyDefinition
+    sharpe_ratio: float
+    sortino_ratio: float
+    max_drawdown_pct: float
+    annual_return_pct: float
+    trade_summary: TradeSummary
