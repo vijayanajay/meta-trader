@@ -14,25 +14,27 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Items to implement:**
     *   Create the directory structure as defined in `architecture.md`.
     *   Initialize a Git repository with a `.gitignore` file.
-    *   Create `pyproject.toml` and `requirements.txt` with initial dependencies (`pandas`, `python-dotenv`, `configparser`, `pytest`, `mypy`).
+    *   Create `pyproject.toml` to define the project and configure tools like `mypy`.
+    *   Create `requirements.txt` with initial dependencies (`pandas`, `python-dotenv`, `configparser`, `pytest`, `mypy`, `pandas-stubs`).
     *   Create `.env.example` for API keys (H-15).
     *   Create `config.ini` with placeholder values for tickers, iterations, and file paths (H-16).
     *   Implement `services/config_service.py` to load and parse `config.ini`.
     *   Implement `core/models.py` with a Pydantic model for the configuration object to ensure type safety.
     *   Create the CLI entry point `main.py` that loads the config and prints it.
+    *   Create placeholder classes for all core components (`Orchestrator`, `LLMService`, etc.).
 *   **Tests to cover:**
     *   Create `tests/test_config_service.py`.
     *   Test that the service correctly parses a sample `config.ini` into the Pydantic model.
     *   Test that it raises an error for missing required sections or keys.
 *   **Acceptance Criteria (AC):**
     *   The project structure matches `architecture.md`.
-    *   Dependencies install via `pip install -r requirements.txt`.
-    *   Running `python main.py` successfully loads and displays the configuration.
-    *   Code passes `mypy --strict` (H-1).
+    *   The project is installable in editable mode (`pip install -e .`).
+    *   Running `python src/main.py` successfully initializes all components.
+    *   Code passes `mypy --strict` (H-1) and all `pytest` checks.
 *   **Definition of Done (DoD):**
     *   The initial project structure and configuration service are committed to the repository.
 *   **Time estimate:** 2 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
@@ -144,13 +146,13 @@ This document provides a detailed, sequential list of tasks required to build th
 
 *   **Rationale:** To create a dedicated, mockable service for all LLM API interactions, managing API keys securely and constructing the precise prompts that guide the AI's suggestions.
 *   **Items to implement:**
-    *   Add `openai` (or equivalent) to `requirements.txt`.
+    *   Add the client library for the chosen LLM provider (e.g., `openai` or `openrouter-client`) to `requirements.txt`.
     *   Create `services/llm_service.py`.
     *   Implement an `LLMService` class with a method `get_suggestion(history: list[PerformanceReport])` that:
-        *   Loads the LLM API key from environment variables (H-15).
+        *   Loads the LLM provider and API key from environment variables (H-15).
         *   Loads a base prompt from `prompts/quant_analyst.txt`.
         *   Formats the `history` of reports into a string for context.
-        *   Constructs the final prompt and sends it to the LLM API (mark `# impure`).
+        *   Constructs the final prompt and sends it to the configured LLM API (e.g., OpenRouter with model `moonshotai/kimi-k2:free`) (mark `# impure`).
         *   Logs token counts for the request and response (H-22, H-23).
         *   Includes retry logic for transient API errors.
         *   Returns the raw JSON string from the LLM response.

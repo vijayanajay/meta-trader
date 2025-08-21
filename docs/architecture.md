@@ -47,7 +47,7 @@ graph TD
     User[CLI User] -- "python main.py" --> Orchestrator
     ConfigService -- "Reads config.ini" --> LocalFS[(Local Filesystem)]
     DataService -- "Fetches OHLCV Data" --> ExternalDataProvider[External Data Provider API<br/>(e.g., yfinance)]
-    LLMService -- "Sends Reports, Gets JSON" --> ExternalLLM[External LLM API<br/>(e.g., OpenAI)]
+    LLMService -- "Sends Reports, Gets JSON" --> ExternalLLM[External LLM API<br/>(e.g., OpenRouter)]
     StateManager -- "Reads/Writes run_state.json" --> LocalFS
     DataService -- "Caches data.parquet" --> LocalFS
     Orchestrator -- "Outputs Final Report" --> LocalFS
@@ -64,7 +64,7 @@ graph TD
 | **Strategy Engine** | The core of the "Security by Design" principle. Translates the LLM's JSON configuration into a backtest-ready DataFrame. | A `pandas` DataFrame, a strategy JSON object. | The same DataFrame with new columns for each indicator and the final buy/sell signals. | It iterates through the `indicators` in the JSON, calling the corresponding `pandas-ta` function. It then uses a sandboxed evaluator like `asteval` to safely evaluate the `buy_condition` and `sell_condition` strings against the DataFrame columns. |
 | **Backtester** | A thin wrapper around the `backtesting.py` library. Executes the backtest and returns the results. | A `pandas` DataFrame with signal columns. | A results object from `backtesting.py`. | Encapsulates all library-specific logic, making it easy to swap out the backtesting engine in the future if needed. |
 | **Report Generator** | Creates the dense, structured report that serves as the learning signal for the LLM. | `backtesting.py` results object, strategy JSON. | A structured report object (e.g., a Pydantic model or dict). | Calculates all primary/secondary KPIs and the crucial "Statistical Trade Summary" as defined in the PRD. |
-| **LLM Service** | Manages all communication with the LLM API. Constructs the prompt, sends the request, and validates the response. | The cumulative history of reports. | A validated strategy JSON object. | Uses a prompt template. For long histories, it will employ a simple summarization: full details for the last 5 iterations, and only the metrics and strategy JSON for older ones. It also handles API retries with exponential backoff. |
+| **LLM Service** | Manages all communication with the LLM API. Constructs the prompt, sends the request, and validates the response. | The cumulative history of reports. | A validated strategy JSON object. | Uses a provider like OpenRouter (with a model like `moonshotai/kimi-k2:free`) or OpenAI. Uses a prompt template. For long histories, it will employ a simple summarization: full details for the last 5 iterations, and only the metrics and strategy JSON for older ones. It also handles API retries with exponential backoff. |
 
 ## 5. Data Flow & The Learning Loop
 

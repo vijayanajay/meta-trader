@@ -1,0 +1,17 @@
+[project]
+name = "self_improving_quant"
+version = "0.1.0"
+description = "A self-improving quantitative trading engine."
+authors = [{ name = "Jules", email = "jules@example.com" }]
+
+[tool.setuptools]
+packages = ["src", "src/core", "src/services"]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["src"]
+strict = true
+
+[[tool.mypy.overrides]]
+module = "backtesting"
+ignore_missing_imports = true
