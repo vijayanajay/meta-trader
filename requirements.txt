@@ -1,5 +1,7 @@
-pandas
-pandas-ta
+pandas==2.2.2
+numpy<2.0.0
+pandas-ta==0.3.14b0
+setuptools
 Backtesting
 yfinance
 python-dotenv

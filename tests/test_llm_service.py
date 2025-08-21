@@ -41,8 +41,11 @@ def test_get_strategy_suggestion_formats_prompt(mock_read_text: MagicMock, mock_
         "LLM_PROVIDER": "openai", "OPENAI_API_KEY": "key", "OPENAI_MODEL": "model"
     }
     mock_llm_instance = mock_openai_client.return_value
+    mock_usage = MagicMock()
+    mock_usage.total_tokens = 123
     mock_llm_instance.chat.completions.create.return_value = MagicMock(
-        choices=[MagicMock(message=MagicMock(content='{"a": 1}'))]
+        choices=[MagicMock(message=MagicMock(content='{"a": 1}'))],
+        usage=mock_usage
     )
 
     with patch.dict(os.environ, mock_env, clear=True):

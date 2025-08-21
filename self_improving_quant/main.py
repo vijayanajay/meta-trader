@@ -2,12 +2,12 @@ import argparse
 import logging
 
 from self_improving_quant.core.orchestrator import Orchestrator
+from self_improving_quant.utils.logging_config import setup_logging
 
-# Basic logging setup
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 def main() -> None:
     """Main entry point for the CLI."""
+    setup_logging()
     parser = argparse.ArgumentParser(description="Self-Improving Quant Engine")
     parser.add_argument("--ticker", type=str, default="RELIANCE.NS", help="Stock ticker to trade.")
     parser.add_argument("--iterations", type=int, default=5, help="Number of improvement iterations.")

@@ -1,6 +1,8 @@
+import hashlib
 import json
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +14,8 @@ from self_improving_quant.core.models import IterationReport
 __all__ = ["LLMService"]
 
 logger = logging.getLogger(__name__)
+LOGS_DIR = Path("logs")
+AUDIT_LOG_FILE = LOGS_DIR / "llm_audit.jsonl"
 
 
 def _format_history(history: list[IterationReport], max_entries: int = 5) -> str:
@@ -74,11 +78,21 @@ class LLMService:
         self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
         self.provider = provider
+        self.prompt_version = "1.0"  # Hardcoded for now, could be part of prompt filename
         try:
             self.base_prompt = Path(prompt_path).read_text()
         except FileNotFoundError:
             logger.error(f"Prompt file not found at: {prompt_path}")
             raise
+
+        # Ensure logs directory exists
+        LOGS_DIR.mkdir(exist_ok=True)
+
+    # impure
+    def _audit_log(self, log_data: dict[str, Any]) -> None:
+        """Appends a structured log entry to the audit file."""
+        with open(AUDIT_LOG_FILE, "a") as f:
+            f.write(json.dumps(log_data) + "\n")
 
     # impure: Performs network I/O to an LLM API
     def get_strategy_suggestion(self, history: list[IterationReport]) -> str:
@@ -93,6 +107,7 @@ class LLMService:
         """
         history_str = _format_history(history)
         prompt = self.base_prompt.format(history=history_str)
+        temperature = 0.7
 
         logger.info(f"Calling LLM. Provider: {self.provider}, Model: {self.model}")
 
@@ -101,19 +116,31 @@ class LLMService:
             messages=[
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.7,
+            temperature=temperature,
             response_format={"type": "json_object"},
         )
-
-        if completion.usage:
-            logger.info(
-                f"LLM call successful. Tokens: "
-                f"Prompt={completion.usage.prompt_tokens}, "
-                f"Completion={completion.usage.completion_tokens}"
-            )
 
         response = completion.choices[0].message.content
         if not response:
             raise ValueError("LLM returned an empty response.")
+
+        token_count = completion.usage.total_tokens if completion.usage else 0
+        prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
+
+        # [H-22] Log the audit trail
+        self._audit_log(
+            {
+                "timestamp": datetime.utcnow().isoformat(),
+                "provider": self.provider,
+                "model": self.model,
+                "prompt_version": self.prompt_version,
+                "prompt_hash": prompt_hash,
+                "prompt": prompt,  # For full reproducibility
+                "temperature": temperature,
+                "token_count": token_count,
+                "response": response,
+            }
+        )
+        logger.info(f"LLM call successful. Tokens used: {token_count}")
 
         return response

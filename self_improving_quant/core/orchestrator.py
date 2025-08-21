@@ -11,6 +11,7 @@ from self_improving_quant.core.models import IterationReport, StrategyDefinition
 from self_improving_quant.core.strategy import create_strategy_class
 from self_improving_quant.services.data_service import fetch_and_split_data
 from self_improving_quant.services.llm_service import LLMService
+from self_improving_quant.services.parser_service import SecureStrategyParser
 from self_improving_quant.services.state_manager import load_state, save_state
 
 __all__ = ["Orchestrator"]
@@ -42,6 +43,7 @@ class Orchestrator:
         self.ticker = ticker
         self.num_iterations = num_iterations
         self.llm_service = LLMService()
+        self.parser = SecureStrategyParser()
         # H-27: Load state on initialization
         self.history: list[IterationReport] = load_state()
 
@@ -68,8 +70,11 @@ class Orchestrator:
 
         for i in range(start_iteration, self.num_iterations):
             logger.info(f"--- Iteration {i} ---")
+
+            # The core loop: evaluate signals, create strategy, run backtest
+            processed_train_data = self.parser.evaluate_signals(train_data.copy(), current_strategy)
             strategy_class = create_strategy_class(current_strategy)
-            stats = _run_backtest(strategy_class, train_data)
+            stats = _run_backtest(strategy_class, processed_train_data)
 
             edge_score = _calculate_edge_score(stats)
             report = IterationReport(iteration=i, strategy=current_strategy, **stats, edge_score=edge_score)
@@ -80,11 +85,12 @@ class Orchestrator:
             save_state(self.history)
 
             llm_response_str = self.llm_service.get_strategy_suggestion(self.history)
-            try:
-                current_strategy = StrategyDefinition.model_validate(json.loads(llm_response_str))
-            except (ValidationError, json.JSONDecodeError) as e:
-                logger.error(f"Failed to parse LLM response: {e}")
-                break  # End run on bad parse
+            next_strategy = self.parser.parse_llm_response(llm_response_str)
+
+            if next_strategy is None:
+                logger.error("Could not parse a valid strategy from LLM response. Ending run.")
+                break
+            current_strategy = next_strategy
 
         self._run_final_validation(validation_data)
 
@@ -105,8 +111,9 @@ class Orchestrator:
 
         for rank, report in enumerate(top_3):
             logger.info(f"Validating Strategy #{rank + 1} (Iteration {report.iteration})")
+            processed_validation_data = self.parser.evaluate_signals(validation_data.copy(), report.strategy)
             strategy_class = create_strategy_class(report.strategy)
-            stats = _run_backtest(strategy_class, validation_data)
+            stats = _run_backtest(strategy_class, processed_validation_data)
             edge_score = _calculate_edge_score(stats)
             logger.info(f"  Validation Edge Score: {edge_score:.4f}")
             logger.info(f"  Validation Return [%]: {stats['Return [%]']:.2f}")
