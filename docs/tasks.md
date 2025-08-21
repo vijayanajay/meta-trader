@@ -1,75 +1,84 @@
-
 # Self-Improving Quant Engine — Task Breakdown
 
-This document provides a detailed, sequential list of tasks required to build the Minimum Viable Product (MVP) of the Self-Improving Quant Engine. Each task is designed to be completed in 4 hours or less and maps directly to the requirements outlined in the `prd.md` and `architecture.md` documents.
+This document provides a detailed, sequential list of tasks required to build the Minimum Viable Product (MVP) of the Self-Improving Quant Engine. Each task is designed to be completed in 4 hours or less and maps directly to the requirements outlined in the `prd.md`, `architecture.md`, and `HARD_RULES.md` documents.
 
-## Epic 1: Core Backtesting Pipeline
+## Epic 1: Core Backtesting Pipeline & Foundation
 
-*Goal: To build a non-iterative pipeline that can fetch data for one stock, apply a hard-coded baseline strategy, run a backtest, and generate a performance report. This validates the core quantitative components.*
+*Goal: To build a non-iterative, deterministic pipeline that can be executed programmatically. This epic focuses on creating the core components that can take a hard-coded strategy, run it on historical data, and produce a structured report, all without any LLM interaction.*
 
 ---
 
-### Task 1 — Project Scaffolding & Dependency Setup
+### Task 1 — Project Scaffolding & Configuration Service
 
-*   **Rationale:** Establish a clean, reproducible project structure and environment. This is the foundation for all subsequent development.
+*   **Rationale:** Establish a clean, reproducible project structure and a centralized configuration system, adhering to architectural and quality standards from the outset.
 *   **Items to implement:**
     *   Create the directory structure as defined in `architecture.md`.
-    *   Initialize a Git repository.
-    *   Create `pyproject.toml` and a `requirements.txt` file.
-    *   Add core dependencies: `pandas`, `pandas-ta`, `backtesting.py`, `yfinance`, `python-dotenv`.
-    *   Create `.env.example` for environment variable management.
-    *   Create the CLI entry point `main.py` with a placeholder function.
+    *   Initialize a Git repository with a `.gitignore` file.
+    *   Create `pyproject.toml` and `requirements.txt` with initial dependencies (`pandas`, `python-dotenv`, `configparser`, `pytest`, `mypy`).
+    *   Create `.env.example` for API keys (H-15).
+    *   Create `config.ini` with placeholder values for tickers, iterations, and file paths (H-16).
+    *   Implement `services/config_service.py` to load and parse `config.ini`.
+    *   Implement `core/models.py` with a Pydantic model for the configuration object to ensure type safety.
+    *   Create the CLI entry point `main.py` that loads the config and prints it.
 *   **Tests to cover:**
-    *   N/A. This is a setup task.
+    *   Create `tests/test_config_service.py`.
+    *   Test that the service correctly parses a sample `config.ini` into the Pydantic model.
+    *   Test that it raises an error for missing required sections or keys.
 *   **Acceptance Criteria (AC):**
-    *   The project structure matches the architecture document.
-    *   Dependencies can be installed successfully using `pip install -r requirements.txt`.
+    *   The project structure matches `architecture.md`.
+    *   Dependencies install via `pip install -r requirements.txt`.
+    *   Running `python main.py` successfully loads and displays the configuration.
+    *   Code passes `mypy --strict` (H-1).
 *   **Definition of Done (DoD):**
-    *   The initial project structure is committed to the repository.
-*   **Time estimate:** 1 hour
+    *   The initial project structure and configuration service are committed to the repository.
+*   **Time estimate:** 2 hours
 *   **Status:** Not Started
 
 ---
 
-### Task 2 — Implement Data Service & Caching
+### Task 2 — Implement Data Service with Caching & Splitting
 
-*   **Rationale:** To create a reliable and efficient way to fetch and store historical stock data, preventing repeated API calls and ensuring data consistency across runs.
+*   **Rationale:** To create a reliable and efficient service for fetching, caching, and splitting historical stock data, preventing repeated API calls and strictly enforcing the train/validation data separation.
 *   **Items to implement:**
-    *   Create `services/data_service.py`.
-    *   Implement a function `fetch_and_cache_data(ticker, years)` that:
-        *   Checks if a `data/stock_data.parquet` file exists. If so, loads it.
-        *   If not, uses `yfinance` to download 10 years of daily data for the given ticker.
-        *   Saves the downloaded DataFrame to `data/stock_data.parquet`.
-    *   For now, this service will return the full DataFrame. The train/validation split will be added in a later task.
+    *   Add `yfinance` to `requirements.txt`.
+    *   Create `services/data_service.py` (H-6, H-7).
+    *   Implement a `DataService` class with a method `get_data(ticker)` that:
+        *   Checks for a local Parquet cache file.
+        *   If cache is missing, uses `yfinance` to download 10 years of daily data. This function must be marked `# impure` (H-8).
+        *   Saves the downloaded DataFrame to the cache.
+        *   Deterministically splits the data into an 8-year training set and a 2-year validation set (FR2).
+        *   Returns both DataFrames.
 *   **Tests to cover:**
     *   Create `tests/test_data_service.py`.
-    *   Add a test that mocks `yfinance.download` and verifies that the service saves a Parquet file.
-    *   Add a test that verifies the service loads data from the cache file if it exists.
+    *   Mock `yfinance.download` to test caching logic without network calls.
+    *   Verify that the data split is correct (e.g., correct date ranges, no overlap).
 *   **Acceptance Criteria (AC):**
-    *   The `DataService` can successfully download and save data.
-    *   Subsequent calls for the same ticker use the cached file.
+    *   The `DataService` can download and save data.
+    *   Subsequent calls use the cached file.
+    *   The service correctly returns two distinct `train` and `validation` DataFrames (H-19).
 *   **Definition of Done (DoD):**
-    *   `data_service.py` and its unit tests are implemented and committed.
+    *   `data_service.py` and its unit tests are implemented and pass `mypy --strict`.
 *   **Time estimate:** 2.5 hours
 *   **Status:** Not Started
 
 ---
 
-### Task 3 — Implement Baseline Strategy & Backtester
+### Task 3 — Implement Baseline Strategy & Backtester Wrapper
 
-*   **Rationale:** To create the core backtesting engine and a simple, hard-coded baseline strategy (Iteration 0) that serves as the starting point for the LLM's improvements.
+*   **Rationale:** To create the core backtesting engine and a simple, hard-coded baseline strategy (Iteration 0) that serves as a reproducible benchmark for all future improvements.
 *   **Items to implement:**
+    *   Add `backtesting.py` to `requirements.txt`.
     *   Create `core/strategy.py` to define a `backtesting.py` `Strategy` class.
-    *   Implement a simple RSI Crossover strategy (e.g., buy when RSI(14) < 30, sell when RSI(14) > 70).
-    *   Create `core/backtester.py`.
-    *   Implement a function `run_backtest(data, strategy_class)` that initializes and runs `backtesting.py`'s `Backtest` object.
-    *   The function should return the results object from `backtesting.py`.
+    *   Implement the hard-coded SMA Crossover baseline strategy as defined in the PRD (FR8, H-21).
+    *   Create `services/backtester.py`.
+    *   Implement a `Backtester` service with a `run(data, strategy_class)` method that initializes and runs `backtesting.py`'s `Backtest` object.
+    *   The function must return the results object from `backtesting.py`.
 *   **Tests to cover:**
     *   Create `tests/test_backtester.py`.
     *   Add a test that runs the backtester with sample data and the baseline strategy, asserting that a results object is returned without errors.
 *   **Acceptance Criteria (AC):**
     *   A backtest can be executed programmatically on a pandas DataFrame.
-    *   The baseline RSI strategy is correctly defined.
+    *   The baseline SMA Crossover strategy is correctly defined.
 *   **Definition of Done (DoD):**
     *   `strategy.py`, `backtester.py`, and their tests are implemented and committed.
 *   **Time estimate:** 2 hours
@@ -77,54 +86,55 @@ This document provides a detailed, sequential list of tasks required to build th
 
 ---
 
-### Task 4 — Implement Initial Report Generation
+### Task 4 — Implement Report Generator
 
-*   **Rationale:** To translate the raw output from the backtesting library into a structured, machine-readable JSON format that will eventually be fed to the LLM.
+*   **Rationale:** To translate the raw output from the backtesting library into the information-dense, structured JSON format required by the PRD, which will serve as the learning signal for the LLM.
 *   **Items to implement:**
-    *   Create `core/models.py` using Pydantic to define the structure of a `Report` and `StrategyDefinition`.
-    *   Create a `ReportGenerator` component (e.g., in `services/report_service.py`).
-    *   Implement a function `generate_report(backtest_results, strategy_definition)` that extracts key metrics (Sharpe Ratio, Max Drawdown, Return [%]) from the `backtesting.py` results.
-    *   The function should return a structured JSON object (or a Pydantic model instance) matching the initial report structure.
+    *   In `core/models.py`, define Pydantic models for `StrategyDefinition`, `TradeSummary`, and `PerformanceReport` as specified in FR4.
+    *   Create `services/report_generator.py`.
+    *   Implement a `ReportGenerator` service with a method `generate(backtest_results, strategy_definition)` that:
+        *   Extracts all required metrics (Sharpe, Sortino, Max Drawdown, etc.).
+        *   Calculates the "Information-Dense Statistical Trade Summary" (FR4).
+        *   Populates and returns a `PerformanceReport` Pydantic model instance.
 *   **Tests to cover:**
-    *   Create `tests/test_report_service.py`.
-    *   Add a test that passes a mock `backtesting.py` results object and verifies the generated JSON report has the correct structure and values.
+    *   Create `tests/test_report_generator.py`.
+    *   Pass a mock `backtesting.py` results object and verify the generated report model has the correct structure and values.
 *   **Acceptance Criteria (AC):**
-    *   A structured JSON report is generated from a backtest run.
+    *   A structured, typed report object is generated from a backtest run.
+    *   All metrics from FR4 are present and correctly calculated.
 *   **Definition of Done (DoD):**
     *   The report generation module and its tests are implemented and committed.
-*   **Time estimate:** 2 hours
+*   **Time estimate:** 2.5 hours
 *   **Status:** Not Started
 
 ---
 
 ## Epic 2: LLM-Powered Iteration Engine
 
-*Goal: To integrate the LLM API, construct the dynamic prompt with historical context, and build the main loop that parses LLM responses to drive subsequent backtest iterations.*
+*Goal: To integrate the LLM, construct the dynamic prompt with historical context, and build the main loop that securely parses LLM responses to drive subsequent backtest iterations.*
 
 ---
 
-### Task 5 — Implement Secure Strategy Parser
+### Task 5 — Implement Secure Strategy Engine with `asteval`
 
-*   **Rationale:** To create a secure mechanism for interpreting LLM-generated strategy logic without using `eval()`, preventing arbitrary code execution vulnerabilities. This is a critical security requirement.
+*   **Rationale:** To create a secure mechanism for interpreting LLM-generated strategy logic without using `eval()`, preventing arbitrary code execution. This is the cornerstone of the system's security architecture.
 *   **Items to implement:**
-    *   Create `services/parser_service.py`.
-    *   Add `asteval` to `requirements.txt`.
-    *   Implement a function `parse_strategy(llm_json_response)` that:
-        *   Loads the JSON string.
-        *   Validates the presence of `indicators`, `buy_signal`, and `sell_signal`.
-        *   Returns a validated strategy definition object (e.g., a Pydantic model).
-    *   Implement a separate function `evaluate_signal(signal_string, data_frame)` that uses `asteval` to safely evaluate the buy/sell conditions against the columns of a pandas DataFrame.
+    *   Add `asteval` and `pandas-ta` to `requirements.txt`.
+    *   Create `services/strategy_engine.py`.
+    *   Implement a `StrategyEngine` service with a method `process(data, strategy_def)` that:
+        *   Iterates through the `indicators` list in the strategy definition, calculating them using `pandas-ta` and adding them as columns to the data.
+        *   Uses `asteval` to safely evaluate the `buy_condition` and `sell_condition` strings against the DataFrame columns, generating the final signal series.
+        *   Returns a new `backtesting.py` `Strategy` class dynamically created with the evaluated signals.
 *   **Tests to cover:**
-    *   Create `tests/test_parser_service.py`.
-    *   Test with valid JSON for a simple SMA crossover.
-    *   Test with malformed JSON to ensure it fails gracefully.
-    *   Test `evaluate_signal` with a sample DataFrame to ensure it correctly returns a boolean series.
-    *   Test with a malicious string (e.g., `__import__('os').system('rm -rf /')`) to ensure `asteval` prevents execution.
+    *   Create `tests/test_strategy_engine.py`.
+    *   Test with a valid JSON for a simple EMA crossover.
+    *   Test `asteval` with a malicious string (e.g., `__import__('os').system('rm -rf /')`) to ensure it fails safely (H-14).
+    *   Test with a condition that references a non-existent indicator to ensure it fails gracefully.
 *   **Acceptance Criteria (AC):**
-    *   The parser can successfully convert a valid LLM JSON response into an executable strategy definition.
-    *   The parser rejects invalid or malicious inputs.
+    *   The engine can convert a valid strategy definition into an executable `backtesting.py` strategy.
+    *   The engine rejects invalid or malicious inputs without executing them.
 *   **Definition of Done (DoD):**
-    *   `parser_service.py` and its comprehensive tests are implemented and committed.
+    *   `strategy_engine.py` and its comprehensive security tests are implemented and committed.
 *   **Time estimate:** 3.5 hours
 *   **Status:** Not Started
 
@@ -132,50 +142,77 @@ This document provides a detailed, sequential list of tasks required to build th
 
 ### Task 6 — Implement LLM Service & Prompt Management
 
-*   **Rationale:** To create a dedicated service for interacting with the LLM API, managing API keys, and constructing the prompts that guide the AI's suggestions.
+*   **Rationale:** To create a dedicated, mockable service for all LLM API interactions, managing API keys securely and constructing the precise prompts that guide the AI's suggestions.
 *   **Items to implement:**
+    *   Add `openai` (or equivalent) to `requirements.txt`.
     *   Create `services/llm_service.py`.
-    *   Add a dependency for an LLM client library (e.g., `openai`).
-    *   Implement a function `get_strategy_suggestion(history: list[dict])` that:
-        *   Loads the LLM API key from environment variables.
-        *   Loads the base prompt from `prompts/quant_analyst.txt`.
-        *   Formats the `history` of previous reports into a string.
-        *   Constructs the final prompt and sends it to the LLM API.
+    *   Implement an `LLMService` class with a method `get_suggestion(history: list[PerformanceReport])` that:
+        *   Loads the LLM API key from environment variables (H-15).
+        *   Loads a base prompt from `prompts/quant_analyst.txt`.
+        *   Formats the `history` of reports into a string for context.
+        *   Constructs the final prompt and sends it to the LLM API (mark `# impure`).
+        *   Logs token counts for the request and response (H-22, H-23).
+        *   Includes retry logic for transient API errors.
         *   Returns the raw JSON string from the LLM response.
-    *   Create the initial `prompts/quant_analyst.txt` file with instructions for the LLM to act as a quant and return JSON.
+    *   Create the initial `prompts/quant_analyst.txt` file.
 *   **Tests to cover:**
     *   Create `tests/test_llm_service.py`.
-    *   Add a test that mocks the LLM API client and verifies the service constructs the correct prompt string from a sample history.
+    *   Mock the LLM API client and verify the service constructs the correct prompt string from a sample history.
 *   **Acceptance Criteria (AC):**
     *   The service can send a well-formatted prompt to the LLM API.
-    *   API keys are handled securely via environment variables.
+    *   API keys are handled securely.
+    *   Token usage is logged.
 *   **Definition of Done (DoD):**
-    *   `llm_service.py`, the initial prompt file, and tests are implemented and committed.
+    *   `llm_service.py`, the prompt file, and tests are implemented and committed.
 *   **Time estimate:** 2.5 hours
 *   **Status:** Not Started
 
 ---
 
-### Task 7 — Implement the Core Orchestrator Loop
+### Task 7 — Implement State Manager for Resumability
 
-*   **Rationale:** To tie all the components together into the main automated feedback loop, orchestrating the flow from backtesting to LLM suggestion to the next iteration.
+*   **Rationale:** To make the system robust against interruptions. The state manager ensures that a long run can be resumed from the last successfully completed iteration, saving time and API costs.
+*   **Items to implement:**
+    *   Create `services/state_manager.py`.
+    *   Implement a `StateManager` class with:
+        *   `save_state(history, filepath)`: Writes the list of all reports to `run_state.json`. Must write to a temp file then rename to ensure atomic writes (H-20). Mark `# impure`.
+        *   `load_state(filepath)`: Reads and returns the history from `run_state.json`, or returns an empty list if the file doesn't exist. Mark `# impure`.
+*   **Tests to cover:**
+    *   Create `tests/test_state_manager.py`.
+    *   Test saving a sample history and then loading it to ensure data integrity.
+    *   Test loading when the file does not exist.
+    *   Test loading a corrupted JSON file to ensure it fails gracefully.
+*   **Acceptance Criteria (AC):**
+    *   The run state is persisted to disk atomically after every iteration.
+    *   The system can resume a run from a previously saved state.
+*   **Definition of Done (DoD):**
+    *   `state_manager.py` and its tests are implemented and committed.
+*   **Time estimate:** 2 hours
+*   **Status:** Not Started
+
+---
+
+### Task 8 — Implement the Core Orchestrator Loop
+
+*   **Rationale:** To tie all components together into the main automated feedback loop, orchestrating the flow from backtesting to LLM suggestion to the next iteration, including state management and pruning logic.
 *   **Items to implement:**
     *   Create `core/orchestrator.py`.
-    *   Implement the main `run()` function that takes the number of iterations as an argument.
-    *   Inside a `for` loop:
-        1.  Run the backtest for the current strategy.
-        2.  Generate a report for the backtest.
-        3.  Append the report to the history list.
-        4.  Call the `LLMService` with the full history to get a new suggestion.
-        5.  Call the `SecureStrategyParser` to parse the suggestion into the next strategy.
-    *   The loop should start with the hard-coded baseline strategy for Iteration 0.
+    *   Implement the main `Orchestrator` class, injecting all required services in its `__init__` (H-2).
+    *   Implement the `run()` method that:
+        1.  Calls `StateManager` to load any existing history.
+        2.  Loops for the configured number of iterations.
+        3.  Inside the loop: runs backtest, generates report, appends to history, saves state via `StateManager`.
+        4.  Implements the pruning mechanism (FR6).
+        5.  Calls `LLMService` to get the next strategy suggestion.
+        6.  Handles JSON parsing errors from the LLM gracefully (H-25).
 *   **Tests to cover:**
     *   Create `tests/test_orchestrator.py`.
-    *   This will be an integration test. Mock the `LLMService` to return a predictable sequence of valid strategy JSONs.
-    *   Assert that the orchestrator completes the specified number of iterations without crashing.
+    *   This is an integration test. Mock all services (`LLMService`, `Backtester`, etc.).
+    *   Provide a predictable sequence of mock LLM responses and assert that the orchestrator completes the loop, calls services in the correct order, and handles a "pruned" iteration correctly.
 *   **Acceptance Criteria (AC):**
     *   The system can run a multi-iteration loop automatically.
-    *   Each component is called in the correct sequence.
+    *   State is loaded at the start and saved after each iteration.
+    *   The pruning logic correctly discards failed strategies.
 *   **Definition of Done (DoD):**
     *   `orchestrator.py` and its integration test are implemented and committed.
 *   **Time estimate:** 4 hours
@@ -183,75 +220,51 @@ This document provides a detailed, sequential list of tasks required to build th
 
 ---
 
-## Epic 3: CLI & Operational Polish
+### Task 9 — Enhance Prompt Engineering with Explicit Failure Signaling
 
-*Goal: To wrap the system in a user-friendly CLI, implement robust error handling, add secure API key management, and ensure clear logging and final reporting.*
-
----
-
-### Task 8 — Implement State Manager for Resumability
-
-*   **Rationale:** To make the system robust against interruptions (e.g., crashes, network errors). The state manager ensures that a long run can be resumed from the last completed iteration, saving time and money.
+*   **Rationale:** To improve the integrity of the learning signal by explicitly informing the LLM when its suggestions fail, providing crucial negative feedback that is currently missing from the loop.
 *   **Items to implement:**
-    *   Create `services/state_manager.py`.
-    *   Implement `save_state(history)` which writes the list of all reports to `run_state.json`.
-    *   Implement `load_state()` which reads and returns the history from `run_state.json`, or returns an empty list if the file doesn't exist.
-    *   In `core/orchestrator.py`:
-        *   Call `load_state()` at the beginning of a run.
-        *   Call `save_state()` at the end of each successful iteration inside the loop.
+    *   In `services/llm_service.py`, modify the `get_suggestion` method to accept an optional "failure context" argument.
+    *   In `core/orchestrator.py`, when a strategy is "pruned", it must pass the failed strategy's JSON and its poor performance metrics as the "failure context" to the `LLMService`.
+    *   The `LLMService` will then prepend a clear, explicit message to the next prompt, such as:
+        > **"CRITICAL FEEDBACK: Your previous suggestion (Strategy JSON: {...}) was a failure. It was tested and resulted in a Sharpe Ratio of -0.5, which is below the required threshold. This result has been discarded. We are reverting to the previous best strategy. Analyze the failure and propose a substantially different approach."**
 *   **Tests to cover:**
-    *   Create `tests/test_state_manager.py`.
-    *   Test saving a sample history and then loading it to ensure the data is identical.
-    *   Test loading when the file does not exist.
+    *   Update `tests/test_llm_service.py` to verify that when a failure context is provided, this specific warning message is included in the prompt sent to the mock LLM client.
 *   **Acceptance Criteria (AC):**
-    *   The run state is persisted to disk after every iteration.
-    *   The orchestrator can resume a run from a previously saved state.
+    *   The LLM is explicitly notified of pruned iterations and the reason for the failure, improving the learning signal.
 *   **Definition of Done (DoD):**
-    *   `state_manager.py` and its tests are implemented and integrated into the orchestrator.
-*   **Time estimate:** 2 hours
+    *   The prompt generation logic is updated to include explicit negative feedback.
+*   **Time estimate:** 1.5 hours
 *   **Status:** Not Started
 
 ---
 
-### Task 9 — Implement Train/Validation Split & Final Validation
+## Epic 3: Finalization & Operational Polish
 
-*   **Rationale:** To combat overfitting and provide a more honest assessment of a strategy's performance. This is a critical step for ensuring the discovered strategies are generalizable.
-*   **Items to implement:**
-    *   In `services/data_service.py`, modify the data fetching function to split the 10 years of data into an 8-year training set and a 2-year validation set. It should return both DataFrames.
-    *   In `core/orchestrator.py`, ensure the main iteration loop *only* uses the **training set**.
-    *   After the loop completes, implement the "Final Validation" logic:
-        1.  Select the top 3-5 strategies from the history based on their performance on the training data.
-        2.  Run a backtest for each of these top strategies on the unseen **validation set**.
-        3.  Identify and report the best-performing strategy on the validation data.
-*   **Tests to cover:**
-    *   Update `tests/test_data_service.py` to verify the data is split correctly into two non-overlapping DataFrames of the expected length.
-*   **Acceptance Criteria (AC):**
-    *   The LLM's learning loop is confined to the training data.
-    *   The final output of the system is based on performance on the unseen validation data.
-*   **Definition of Done (DoD):**
-    *   The data split and final validation logic are implemented and committed.
-*   **Time estimate:** 3 hours
-*   **Status:** Not Started
+*Goal: To wrap the system in a user-friendly CLI, implement the crucial final validation step, and generate the comprehensive, human-readable reports that are the ultimate output of the tool.*
 
 ---
 
-### Task 10 — Enhance to Rich Report & Edge Score
+### Task 10 — Implement Final Validation & Reporting
 
-*   **Rationale:** To improve the quality of the feedback signal given to the LLM. A richer report with a custom score and details on failures provides more context, enabling the LLM to make more intelligent suggestions.
+*   **Rationale:** To combat overfitting by running the best-found strategy on unseen data and to generate the final, auditable artifacts that summarize the entire discovery process.
 *   **Items to implement:**
-    *   In the `ReportGenerator` service:
-        *   Calculate a custom "Edge Score" (e.g., `Sharpe Ratio * Win Rate`).
-        *   Extract details of the 5 worst trades (e.g., largest drawdowns) from the backtest results.
-        *   Add these new fields (`edge_score`, `worst_trades`) to the JSON report structure.
-    *   Update the Pydantic models in `core/models.py`.
-    *   In `core/orchestrator.py`, update the final validation logic to use the `Edge Score` for ranking strategies.
+    *   In `core/orchestrator.py`, add logic to run *after* the main loop completes.
+    *   This logic must:
+        1.  Identify the single best strategy from the history based on its Sharpe Ratio on the **training data** (H-24).
+        2.  Run this single best strategy on the unseen **validation set** (H-19).
+        3.  Generate a separate performance report for this validation run.
+        4.  Create the final output directory structure as specified in the PRD (FR7).
+        5.  Generate the `summary_report.md` with the comparison table.
+        6.  Save the `full_run_log.json`.
+        7.  Save the `backtesting.py` HTML plots for the best strategy on both train and validation data.
 *   **Tests to cover:**
-    *   Update `tests/test_report_service.py` to verify the new fields are correctly calculated and included in the report.
+    *   Update `tests/test_orchestrator.py` to assert that the final validation methods are called with the correct (validation) data after the loop.
 *   **Acceptance Criteria (AC):**
-    *   The JSON report sent to the LLM contains the Edge Score and worst trade details.
-    *   The final strategy selection is based on the Edge Score.
+    *   The validation dataset is touched only once, after all iterations are complete.
+    *   The final `summary_report.md` and all other artifacts are generated correctly in a timestamped directory.
 *   **Definition of Done (DoD):**
-    *   The report generator is updated and tested.
+    *   The final validation and report generation logic are implemented and committed.
 *   **Time estimate:** 3 hours
 *   **Status:** Not Started
 
@@ -261,40 +274,18 @@ This document provides a detailed, sequential list of tasks required to build th
 
 *   **Rationale:** To create the primary user interface for the tool, providing clear feedback during a run and presenting the final results in a human-readable format.
 *   **Items to implement:**
-    *   In `main.py`, use `argparse` or `click` to create a CLI that accepts arguments like `--ticker` and `--iterations`.
-    *   Set up a centralized logger in `utils/logging_config.py`.
-    *   Throughout the application (Orchestrator, services), add clear log messages for key stages (e.g., "Fetching data...", "Running backtest for Iteration 3...", "Awaiting LLM response...").
-    *   In the `Orchestrator`, after the final validation step, print a clean, formatted summary of the best strategy found and its performance on both the train and validation sets.
+    *   In `main.py`, use `argparse` or `click` to create the final CLI.
+    *   Set up a centralized logger (e.g., in `utils/logging_config.py`) that is configured once in `main.py` (H-10).
+    *   Throughout the application (Orchestrator, services), replace all `print()` statements with calls to the logger at appropriate levels (INFO, DEBUG, ERROR).
+    *   Ensure the console provides clear, real-time status updates (e.g., "TICKER: Running Iteration 3/10...", "Awaiting LLM response...").
+    *   The `main.py` script should instantiate all services and the `Orchestrator`, then call `orchestrator.run()`.
 *   **Tests to cover:**
-    *   N/A for direct CLI testing, but manual testing is required.
+    *   N/A for direct CLI testing, but manual end-to-end testing is required.
 *   **Acceptance Criteria (AC):**
-    *   The application can be started from the command line with parameters.
-    *   The console provides real-time status updates.
-    *   A clear summary report is printed upon completion.
-*   **Definition of Done (DoD)::**
-    *   The CLI and logging are implemented, and a full run can be initiated and monitored from the command line.
-*   **Time estimate:** 2.5 hours
-*   **Status:** Not Started
-
----
-
-### Task 12 — Implement Robustness & Cost Management Features
-
-*   **Rationale:** To make the system production-ready by handling common failures gracefully and providing visibility into operational costs.
-*   **Items to implement:**
-    *   In `core/backtester.py`, add a timeout to the backtest execution to prevent runaway calculations from bad LLM suggestions.
-    *   In `services/llm_service.py`:
-        *   Add basic retry logic (e.g., exponential backoff) for API calls.
-        *   Log the prompt and completion token count for every API call to the console.
-        *   (Optional, if time permits) Implement a simple context summarization: if `history` has >10 reports, replace the oldest 5 with a single summary entry.
-    *   In `services/parser_service.py`, add error handling for when the LLM returns syntactically incorrect JSON, marking the iteration as a failure and continuing.
-*   **Tests to cover:**
-    *   Add a test in `tests/test_parser_service.py` for malformed JSON.
-*   **Acceptance Criteria (AC):**
-    *   The system does not crash on transient API errors or invalid LLM responses.
-    *   Backtests with excessive computation time are terminated.
-    *   LLM token usage is visible to the user.
+    *   The application is started via `python main.py`.
+    *   The console provides useful, real-time status updates.
+    *   No `print()` statements exist outside of `main.py`.
 *   **Definition of Done (DoD):**
-    *   Error handling, timeouts, and cost logging are implemented.
-*   **Time estimate:** 4 hours
+    *   The CLI and logging are fully implemented, and a full run can be initiated and monitored from the command line.
+*   **Time estimate:** 2 hours
 *   **Status:** Not Started
