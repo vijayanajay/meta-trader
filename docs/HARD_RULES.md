@@ -1,71 +1,71 @@
 # HARD RULES — Self-Improving Quant Engine
 
-These 30 hard rules express the combined mindset for this project: Kailash Nadh's pragmatism (minimalism, fast iteration, robust code) and Geoffrey Hinton's experimental rigor (reproducibility, measured discovery, auditable results). Follow them strictly for v1.0 development.
+These 30 hard rules are the engineering constitution for this project. They translate the project's philosophy—Kailash Nadh's pragmatic minimalism and Geoffrey Hinton's focus on learning signal integrity—into strict, actionable directives. They are not suggestions. Adherence is mandatory for all contributions to the v1.0 codebase.
 
-──────────────────────────── 3. HARD RULES ───────────────────────────────────
+────────────────────────────
 
-[H-1] **Preserve observable behaviour:** CLI flags, config shape, filenames (`run_state.json`, `stock_data.parquet`), and emitted logs must remain stable across changes unless an explicit migration note accompanies the change.
+### I. Code Quality & Simplicity (The Nadh Principles)
 
-[H-2] **Touch only `self_improving_quant/`, `tests/`, and `docs/`.** Leave infra and root files (CI, `pyproject.toml`, lockfiles) unchanged unless a separate PR documents the reason.
+[H-1] **100% Type Hints, Strictly Enforced.** All new code must pass `mypy --strict`. No implicit `Any`. This is non-negotiable for creating a predictable, maintainable system.
 
-[H-3] **Prefer deletion over clever rewrites:** Remove unused code rather than wrap it in abstraction. Keep the codebase minimal and focused on the core loop.
+[H-2] **No Mutable Global State.** Configuration is loaded once in `main.py` and passed down via dependency injection. All services and core components must be instantiable and stateless.
 
-[H-4] **Zero new abstractions unless they eliminate ≥2 near-identical copies of logic.** Show before/after examples in the PR description to justify any new class or helper.
+[H-3] **Functions > 40 Lines Require Justification.** If a function or method exceeds 40 logical lines of code, it must be refactored unless the author can prove in the PR description that splitting it harms clarity and increases net lines of code.
 
-[H-5] **Every code suggestion or PR must show net LOC delta and a one-line rationale for the delta.** This enforces a bias toward simplicity.
+[H-4] **Zero New Abstractions Without Proof.** Do not add a new class, helper, or design pattern unless it demonstrably removes more lines of duplicated code than it adds. Provide a before/after diff in the PR to justify it.
 
-[H-6] **Green tests are non-negotiable:** No merge without passing unit tests and a short smoke run of the orchestrator with a mocked LLM.
+[H-5] **Prefer Deletion Over Abstraction.** If code is unused, remove it. Do not comment it out or wrap it in a "just-in-case" abstraction. The goal is the smallest possible codebase that fulfills the PRD.
 
-[H-7] **100% type hints.** Code must pass `mypy --strict` with no implicit `Any` except in third-party stubs.
+[H-6] **One Public Class Per Module.** A module's `__init__.py` should expose its primary public class. All helper classes or functions within that module must be private (prefixed with `_`).
 
-[H-8] **No mutable global state.** Load runtime config once (in `main.py`) and pass dependencies explicitly; prefer pure functions.
+[H-7] **Every Module Declares `__all__`.** The public API of every module must be made explicit. This prevents leaky abstractions and enforces clear boundaries between components.
 
-[H-9] **Any function or method > 40 logical lines is a smell.** Refactor or delete unless splitting demonstrably harms clarity and adds net LOC.
+[H-8] **Side Effects Must Be Labeled.** Any function that performs I/O (filesystem, network) or modifies state outside its local scope must have a `# impure` comment on the line directly above its definition.
 
-[H-10] **External dependencies limited to the chosen stack:** `pandas`, `pandas-ta`, `backtesting.py`, `yfinance`, `python-dotenv`, `asteval`, an LLM client (`openai` or equivalent), and `pytest`. Add nothing else without a written justification in the PR.
+[H-9] **No `TODO` or `FIXME` in Merged Code.** A PR is not "done" if it contains placeholders. Either complete the work or create a formal issue in the tracker and remove the comment.
 
-[H-11] **Import graph must be acyclic.** In-function imports allowed only to avoid heavy startup cost and must include a comment explaining why.
+[H-10] **`print()` Is Forbidden Outside `main.py`.** All diagnostic output, errors, and status updates must go through the centralized logger configured at application startup.
 
-[H-12] **Zero silent failures:** No bare `except:`; always catch concrete exceptions (e.g., `JSONDecodeError`, `APIError`), log via the shared logger, and re-raise or exit non-zero where appropriate.
+### II. System Architecture & Boundaries
 
-[H-13] **Network I/O is explicit and confined:** All HTTP/LLM/data downloads live only in `services/data_service.py` and `services/llm_service.py`. Core logic (`orchestrator`, `backtester`) must be importable and runnable offline.
+[H-11] **Strict Dependency Stack.** External dependencies are limited to: `pandas`, `pandas-ta`, `backtesting.py`, `yfinance`, `python-dotenv`, `asteval`, `openai` (or equivalent LLM client), `configparser`, and `pytest`. Adding a new dependency requires a formal justification and approval.
 
-[H-14] **No `TODO`, `FIXME`, or commented-out code allowed in committed diffs.** Resolve the issue, create a ticket, or remove the code before merge.
+[H-12] **Acyclic Import Graph.** Circular dependencies are a critical architectural failure and are forbidden. Use dependency injection to break cycles if necessary.
 
-[H-15] **Max one public class per module.** Helper classes/functions must be private (prefix with `_`).
+[H-13] **I/O Is Confined to `services/`.** All network and filesystem I/O is restricted to modules within the `services` directory (`data_service`, `llm_service`, `state_manager`). The `core/` logic must be pure and runnable offline.
 
-[H-16] **Pure-function bias:** Functions with side-effects (I/O, state changes) must carry a `# impure` comment immediately above the definition.
+[H-14] **Security Is Architectural, Not Optional.** The use of `eval()` or `exec()` on LLM output is forbidden. Strategy parsing **must** be implemented exclusively through the `StrategyEngine` which uses the sandboxed `asteval` library.
 
-[H-17] **Every module declares `__all__` to make its public API explicit.** Avoid `from x import *`.
+[H-15] **Secrets From Environment Only.** All API keys and sensitive credentials **must** be loaded from environment variables (via `.env`). The repository must contain a `.env.example` file. Hard-coding secrets is grounds for immediate PR rejection.
 
-[H-18] **`print()` allowed only in `main.py` or dedicated CLI output modules.** Use the shared logger elsewhere.
+[H-16] **Configuration is Centralized.** All operational parameters (tickers, iterations, file paths) must be defined in `config.ini` and loaded by the `ConfigService`. No magic numbers or hard-coded strings in the application logic.
 
-[H-19] **No `eval()`, `exec()`, or runtime monkey-patching.** Strategy parsing MUST use the sandboxed `asteval` module as specified in the architecture.
+[H-17] **Observable Behavior is Stable.** The CLI entry point, the shape of `config.ini`, and the names of key output files (`run_state.json`, `summary_report.md`) are considered a stable API. Changes require explicit mention in the PR.
 
-[H-20] **Config keys are `snake_case`.** Normalize or reject other keys at load time with a clear error message.
+[H-18] **Green Tests Are The Gate.** All unit tests must pass, and a smoke test of the full loop (with a mocked LLM) must complete successfully before a PR can be merged.
 
-[H-21] **Core library must be offline-safe:** The main orchestration loop must be runnable with mocked data and LLM services without requiring network access.
+### III. Experimental Integrity & Reproducibility (The Hinton Principles)
 
-[H-22] **LLM usage is experimental and auditable:** Every LLM call MUST log `{prompt_version, prompt_hash, model, temperature, token_count, response, timestamp}` to a local audit file.
+[H-19] **NO DATA LEAKAGE. EVER.** The LLM optimization loop **must** operate exclusively on the training dataset. The validation dataset is touched exactly once, by the `Orchestrator`, after all iterations are complete. This is the most important rule in this project.
 
-[H-23] **Deterministic baseline first:** The LLM-enabled decision path must have a deterministic, hard-coded baseline strategy (RSI Crossover) as Iteration 0 to measure marginal lift.
+[H-20] **State Is Atomic and Resumable.** The `StateManager` **must** write the `run_state.json` file atomically (e.g., write to temp then rename) after every single successful iteration. The `Orchestrator` **must** be able to resume an interrupted run from this file.
 
-[H-24] **Experiments are reproducible:** Every run writes a run-config JSON (inputs, scorer mode, prompt_version, seed) to `results/runs/` and seeds all RNGs for deterministic replay.
+[H-21] **The Baseline Is Deterministic.** Iteration 0 is always the hard-coded baseline strategy (e.g., SMA Crossover). This provides a fixed, reproducible benchmark against which all LLM improvements are measured.
 
-[H-25] **MVP-first constraint:** For v1.0, do not introduce complex agentic orchestration (e.g., CrewAI, AutoGen). The single-agent feedback loop is the sole focus.
+[H-22] **LLM Interaction Is Auditable.** Every call to the `LLMService` **must** log the essential metadata: `{model_name, timestamp, prompt_token_count, completion_token_count}`. The full prompt/response can be logged at a DEBUG level.
 
-[H-26] **No data leakage:** The LLM iteration loop MUST only operate on the training dataset. The validation dataset is touched exactly once, after all iterations are complete, for the final report. This is non-negotiable.
+[H-23] **Cost Is Explicit.** Every LLM API call **must** log its prompt and completion token count to the console at an INFO level. API usage costs must never be invisible to the user running the tool.
 
-[H-27] **State is atomic and resumable:** The `run_state.json` file must be written successfully at the end of each complete iteration. The orchestrator must be able to resume from this state file if interrupted.
+[H-24] **The Optimization Target Is Explicit.** The primary metric for ranking strategies within the loop and for selecting the final winner is the Sharpe Ratio, as defined in the PRD. This provides a clear, unambiguous objective for the learning process.
 
-[H-28] **Cost management is explicit:** Every LLM API call must log its prompt and completion token count to the console. No invisible API calls.
+[H-25] **Zero Silent Failures.** Every `try...except` block must catch specific, anticipated exceptions (e.g., `JSONDecodeError`, `requests.ConnectionError`). Bare `except:` clauses are forbidden. Failures must be logged with context and handled gracefully (retry or exit).
 
-[H-29] **Secrets are managed via environment:** All API keys MUST be loaded from environment variables (`.env` file) and never hard-coded in the source. The repo must include a `.env.example` file.
+[H-26] **MVP-First Constraint.** For v1.0, the system is a single-agent, single-loop optimizer. Do not introduce complex orchestration frameworks (e.g., CrewAI, AutoGen, LangChain agents). The focus is on perfecting the core feedback loop.
 
-[H-30] **Optimization target is explicit:** The primary metric for ranking strategies during and after the loop is the custom "Edge Score" defined in the architecture, not a vague goal like "profitability."
+[H-27] **The Core Loop Must Be Offline-Runnable.** The `Orchestrator` and `core` components must be testable without network access by mocking the `DataService` and `LLMService`.
 
----
+[H-28] **PRs Must State Their Intent.** Every PR description must include a one-line rationale and the net change in Lines of Code (LOC), enforcing a conscious decision-making process for every change.
 
-**Notes:**
-- These rules are intentionally strict to keep experiments fast, auditable, and reproducible. Follow them literally for v1.0; we can relax or extend specific items later with documented justification.
-- Suggested follow-up: add `docs/HARD_RULES.md` to the repo and implement a pre-commit hook enforcing the `TODO`/`FIXME` ban, presence of `# impure` comments, and `__all__` declarations.
+[H-29] **The Final Report Is The Ground Truth.** The `summary_report.md` is the ultimate output. It must clearly and honestly present the performance of the best strategy on both the training and the unseen validation data.
+
+[H-30] **Follow The Architecture.** The component responsibilities and data flows defined in the architecture document are not suggestions. Code must be placed in the correct module according to its function.

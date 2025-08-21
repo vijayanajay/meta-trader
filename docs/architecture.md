@@ -1,156 +1,157 @@
-# Architecture
+# Architecture Document: Self-Improving Quant Engine
 
 ## 1. Introduction
 
-This document outlines the technical architecture for the "Self-Improving Quant Engine." This revised architecture incorporates critical feedback focused on robustness, cost management, and improving the integrity of the AI-driven learning loop. The system remains a Command-Line Interface (CLI) tool for the MVP, but is now designed to be more resilient and to produce more generalizable results by directly addressing the risk of overfitting.
+This document outlines the technical architecture for the "Self-Improving Quant Engine," designed in accordance with the v2.0 PRD. The architecture's philosophy is rooted in two core principles:
 
-## 2. Architectural Goals & Constraints
+1.  **Pragmatic Simplicity (The Nadh Principle):** The system must be simple, robust, and composed of discrete, testable components. We avoid over-engineering by building a straightforward, deterministic machine that uses the LLM as a specialized, pluggable component, not as a general-purpose coder. Complexity is the enemy of reliability.
 
-The architecture is designed to meet the following key objectives and constraints:
+2.  **Integrity of the Learning Signal (The Hinton Principle):** The system's primary purpose is to facilitate learning. Therefore, the architecture must obsessively protect the integrity of the feedback loop. This means providing the LLM with dense, high-quality information, preventing data leakage (via a strict train/validation split), and ensuring the learning problem is well-defined and constrained.
 
-*   **Modularity:** Each component has a distinct responsibility, allowing for easier testing and future extension.
-*   **Security:** The system maintains its strict policy against executing LLM-generated code via `eval()`, using a sandboxed expression parser instead.
-*   **Robustness & Resumability:** The system must be able to survive interruptions and resume a run from the last completed iteration, preventing loss of work and compute.
-*   **Generalization:** The architecture explicitly incorporates a train/validation data split to combat overfitting and measure a strategy's out-of-sample performance.
-*   **Cost-Awareness:** The system must track and manage LLM API costs by monitoring token usage and employing context management strategies.
-*   **Rich Feedback:** The learning loop is enhanced with a more descriptive feedback signal, moving beyond a single metric to provide the LLM with deeper context for its suggestions.
+The result is a CLI tool that is secure by design, resilient to failure, and focused on discovering strategies that generalize to unseen data.
 
-## 3. System Architecture Overview
+## 2. Architectural Principles
 
-The system remains a sequential pipeline orchestrated by a central `Orchestrator`. However, it now includes explicit state management and a more sophisticated validation process.
+*   **Modularity:** Each component has a single, well-defined responsibility. The `DataService` knows nothing about the LLM; the `StrategyEngine` knows nothing about backtesting. This separation allows for independent development, testing, and future replacement.
+*   **Security by Design:** The system is architecturally incapable of arbitrary code execution. The LLM's output is treated as a configuration data structure (JSON), not as executable code. This eliminates an entire class of security vulnerabilities from the outset.
+*   **Determinism & Reproducibility:** For a given ticker, configuration, and model version, a run should be fully reproducible. This is achieved through deterministic data splitting and versioned data caching.
+*   **Stateless Orchestration with Resumability:** The main application logic is stateless. All state is explicitly managed by the `StateManager`, which persists the run's history to the filesystem after every successful iteration. This makes the system resilient to crashes and interruptions.
+*   **Generalization First:** The entire data flow is built around the train/validation split. The system's ultimate measure of success is not performance on data it has seen, but performance on data it has not. This is the only way to combat overfitting.
 
-### C4 Model - Level 2: Container Diagram
+## 3. System Overview (C4 Model - Level 2)
 
-The high-level component interactions remain similar, but their internal responsibilities have been significantly enhanced.
+The system is a sequential pipeline orchestrated by a central `Orchestrator`. It is designed as a collection of services that are called in a well-defined order.
 
 ```mermaid
 graph TD
     subgraph SelfImprovingQuantEngine [Self-Improving Quant Engine (Python CLI Application)]
         direction LR
         Orchestrator(Orchestrator)
+        ConfigService(Config Service)
         StateManager(State Manager)
         DataService(Data Service)
-        Backtester(Backtesting Engine)
-        ReportGenerator(Rich Report Generator)
+        StrategyEngine(Strategy Engine)
+        Backtester(Backtester)
+        ReportGenerator(Report Generator)
         LLMService(LLM Service)
-        StrategyParser(Secure Strategy Parser)
 
+        Orchestrator -- "Reads Config" --> ConfigService
         Orchestrator -- "Load/Save State" --> StateManager
         Orchestrator -- "1. Get Data" --> DataService
-        Orchestrator -- "2. Run Backtest" --> Backtester
-        Orchestrator -- "3. Generate Report" --> ReportGenerator
-        Orchestrator -- "4. Get Suggestion" --> LLMService
-        Orchestrator -- "5. Parse Suggestion" --> StrategyParser
+        Orchestrator -- "2. Build Strategy" --> StrategyEngine
+        Orchestrator -- "3. Run Backtest" --> Backtester
+        Orchestrator -- "4. Generate Report" --> ReportGenerator
+        Orchestrator -- "5. Get Suggestion" --> LLMService
     end
 
-    User[CLI User] -- "python main.py --ticker [TICKER]" --> Orchestrator
+    User[CLI User] -- "python main.py" --> Orchestrator
+    ConfigService -- "Reads config.ini" --> LocalFS[(Local Filesystem)]
     DataService -- "Fetches OHLCV Data" --> ExternalDataProvider[External Data Provider API<br/>(e.g., yfinance)]
-    LLMService -- "Sends Reports, Gets JSON Strategy" --> ExternalLLM[External LLM API<br/>(e.g., OpenAI)]
-    StateManager -- "Reads/Writes run_state.json" --> LocalFS[(Local Filesystem)]
-    DataService -- "Reads/Writes stock.parquet" --> LocalFS
-    Orchestrator -- "Outputs Final Summary" --> User
+    LLMService -- "Sends Reports, Gets JSON" --> ExternalLLM[External LLM API<br/>(e.g., OpenAI)]
+    StateManager -- "Reads/Writes run_state.json" --> LocalFS
+    DataService -- "Caches data.parquet" --> LocalFS
+    Orchestrator -- "Outputs Final Report" --> LocalFS
 ```
 
 ## 4. Component Breakdown
 
 | Component | Responsibility | Inputs | Outputs | Implementation Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| **Orchestrator** | Manages the main iteration loop, coordinates components, and orchestrates the final validation run. | CLI arguments. | Final summary report to console. | On startup, it uses the `StateManager` to check for and load a previous run. |
-| **State Manager** | Handles persistence. Reads and writes the complete run state (history of reports) to disk after each iteration. | The current list of reports. | A `run_state.json` file. | This ensures that if the process fails, it can be resumed from the last successful iteration. |
-| **Data Service** | Fetches historical data and stores it in a versioned Parquet file. Splits data into training and validation sets. | Ticker, date range. | Two `pandas` DataFrames: `train_data`, `validation_data`. | Using Parquet with metadata is more robust than a simple pickle/CSV cache. |
-| **Backtesting Engine** | Executes a backtest on the **training data**. Enforces a strict execution timeout to prevent runaway calculations. | `train_data` DataFrame, strategy definition. | A results object from `backtesting.py`. | The timeout is a critical safeguard against computationally expensive LLM suggestions. |
-| **Rich Report Generator** | Creates a detailed JSON report with a rich feedback signal. Calculates a custom **Edge Score**. | Backtest results, strategy definition. | A structured JSON object. | The report includes the Edge Score (`Sharpe Ratio * Win Rate`), drawdown details, and a summary of the 5 worst trades to give the LLM deep context. |
-| **LLM Service** | Manages LLM interaction, tracks token usage, and implements a context summarization strategy. | Cumulative history of reports. | Raw JSON string from the LLM. | For long histories, it will summarize older reports to keep the prompt within cost and token limits. Logs token count for each call. |
-| **Secure Strategy Parser** | Safely parses and validates the LLM's JSON response, including an expanded set of "tools" for risk management. | Raw JSON string from the LLM. | A validated strategy definition object. | Uses `asteval` for safe expression evaluation. Can now parse optional risk management parameters. |
+| **Orchestrator** | The brain of the system. Manages the main iteration loop for each ticker, coordinates all services, and handles the final validation run. | None (initiates the process). | Final report files to the filesystem. | Implements the pruning logic: if a strategy is poor, it reverts to the previous best state before calling the LLM. |
+| **Config Service** | Parses and validates the `config.ini` file, providing a clean, typed configuration object to the rest of the system. | `config.ini` file path. | A configuration data object. | Uses Python's `configparser`. Provides default values for non-critical settings. |
+| **State Manager** | Handles persistence for resumability. Reads and writes the entire run history to disk after each successful iteration. | The current list of all past reports. | A `run_state.json` file. | Writes to a temporary file and then renames it to ensure atomic writes, preventing state corruption if the process is killed mid-write. |
+| **Data Service** | Fetches, caches, and splits the historical market data. | Ticker, date range from config. | Two `pandas` DataFrames: `train_data`, `validation_data`. | Caches data locally in Parquet format, which is efficient and preserves data types. The train/validation split is deterministic. |
+| **Strategy Engine** | The core of the "Security by Design" principle. Translates the LLM's JSON configuration into a backtest-ready DataFrame. | A `pandas` DataFrame, a strategy JSON object. | The same DataFrame with new columns for each indicator and the final buy/sell signals. | It iterates through the `indicators` in the JSON, calling the corresponding `pandas-ta` function. It then uses a sandboxed evaluator like `asteval` to safely evaluate the `buy_condition` and `sell_condition` strings against the DataFrame columns. |
+| **Backtester** | A thin wrapper around the `backtesting.py` library. Executes the backtest and returns the results. | A `pandas` DataFrame with signal columns. | A results object from `backtesting.py`. | Encapsulates all library-specific logic, making it easy to swap out the backtesting engine in the future if needed. |
+| **Report Generator** | Creates the dense, structured report that serves as the learning signal for the LLM. | `backtesting.py` results object, strategy JSON. | A structured report object (e.g., a Pydantic model or dict). | Calculates all primary/secondary KPIs and the crucial "Statistical Trade Summary" as defined in the PRD. |
+| **LLM Service** | Manages all communication with the LLM API. Constructs the prompt, sends the request, and validates the response. | The cumulative history of reports. | A validated strategy JSON object. | Uses a prompt template. For long histories, it will employ a simple summarization: full details for the last 5 iterations, and only the metrics and strategy JSON for older ones. It also handles API retries with exponential backoff. |
 
-## 5. Data Flow and State Management
+## 5. Data Flow & The Learning Loop
 
-The system is designed for resilience and to produce generalizable results.
+This flow is executed sequentially for each ticker listed in the `config.ini`.
 
-1.  **Initialization:** The `Orchestrator` starts. It instructs the `StateManager` to look for a `run_state.json` file.
-    *   **If found:** The state (history of reports) is loaded, and the loop resumes from the next iteration.
-    *   **If not found:** A new run is initiated, starting with the hard-coded baseline strategy (Iteration 0).
-2.  **Data Split:** The `Data Service` fetches 10 years of data, saving it to a local Parquet file. It splits this into an 8-year **training set** and a 2-year **validation set**. The validation set is held aside and is not used in the main loop.
-3.  **The Iteration Loop (on Training Data):**
-    a. The `Backtesting Engine` runs the current strategy on the **training set** within a fixed timeout.
-    b. The `Rich Report Generator` creates a detailed report, including the **Edge Score**.
-    c. The new report is appended to the `history` list.
-    d. The `StateManager` saves the entire `history` list to `run_state.json`.
-    e. The `LLM Service` takes the `history`, potentially summarizing older entries, and sends it to the LLM. It logs the token count for the call.
-    f. The `Secure Strategy Parser` validates and parses the LLM's response into a new strategy definition.
-4.  **Final Validation (Out-of-Sample Testing):**
-    a. After all iterations are complete, the `Orchestrator` selects the top 3-5 strategies from the `history` based on their **Edge Score on the training data**.
-    b. It then runs these top strategies through the `Backtesting Engine` one by one, but this time using the unseen **validation set**.
-    c. The final strategy presented to the user is the one with the highest **Edge Score on the validation data**. This provides a much more honest assessment of the strategy's potential performance.
+1.  **Initialization:** The `Orchestrator` starts. It uses the `ConfigService` to load the run parameters. It creates a unique, timestamped output directory for the current run.
 
-## 6. LLM Action Space & Secure Parsing
+2.  **State Check:** The `Orchestrator` asks the `StateManager` to look for a `run_state.json` for the current ticker.
+    *   **If found:** The history of reports is loaded. The loop will resume from the next iteration number. This is a critical resilience feature.
+    *   **If not found:** An empty history is created, and the run starts from Iteration 0 using the hard-coded baseline strategy.
 
-To give the LLM more sophisticated control, its "action space" is expanded beyond simple signals. It can now suggest risk management rules.
+3.  **Data Preparation:** The `DataService` is called.
+    *   It checks for a local Parquet cache of the data. If it's missing or stale, it fetches the data from the external API and saves it.
+    *   It splits the full DataFrame into the **Training Set** (first 80%) and the **Validation Set** (last 20%). The Validation Set is now held aside and will not be touched again until the very end.
 
-### Expanded LLM Output Contract (JSON)
+4.  **The Iterative Optimization Loop (on Training Data):** The `Orchestrator` runs a loop from the current iteration number to the configured maximum.
+    a. **Strategy Creation:** The `StrategyEngine` takes the current strategy JSON and the **Training Set** and adds the necessary indicator and signal columns.
+    b. **Backtest:** The `Backtester` runs the strategy on the modified DataFrame.
+    c. **Report Generation:** The `ReportGenerator` takes the backtest results and creates the detailed report object, including the statistical trade summary.
+    d. **State Persistence:** The new report is appended to the history list, and the `StateManager` saves the entire list to `run_state.json`. This ensures that even if the LLM call fails, the progress from this iteration is saved.
+    e. **LLM Suggestion:** The `LLMService` is given the full history. It constructs the prompt, sends it to the LLM API, and receives a new strategy JSON. It validates that the response is well-formed JSON and conforms to the required schema.
+    f. **Loop:** The new JSON becomes the input for the next iteration.
 
-The LLM is prompted to return a JSON object that may include an optional `risk_management` block.
+5.  **Final Validation & Judgment (on Validation Data):** After the loop completes:
+    a. The `Orchestrator` analyzes the full history of reports and identifies the single best-performing strategy based on its Sharpe Ratio on the **Training Set**.
+    b. It takes the JSON for this winning strategy and runs it through the `StrategyEngine` and `Backtester` **one final time**, but using the unseen **Validation Set**.
+    c. The performance on this validation run is the "true" measure of the strategy's quality. It represents a more honest, out-of-sample performance estimate.
+    d. The `Orchestrator` generates the final `summary_report.md` and all associated artifacts (plots, logs) in the output directory, clearly comparing the Training vs. Validation performance.
+
+## 6. The LLM Contract & Action Space
+
+The system's reliability hinges on a strict, well-defined contract with the LLM. The LLM is not asked to be creative with structure; it is asked to fill in a template.
+
+**Required LLM JSON Output Schema:**
 
 ```json
 {
-  "rationale": "The previous strategy had high returns but also a large drawdown. I am adding a 10% stop-loss to control risk.",
+  "strategy_name": "A descriptive name, e.g., EMA_crossover_with_RSI_filter",
   "indicators": [
-    { "name": "SMA_fast", "type": "sma", "params": { "length": 20 } },
-    { "name": "SMA_slow", "type": "sma", "params": { "length": 50 } }
+    { "name": "ema_fast", "function": "ema", "params": { "length": 20 } },
+    { "name": "ema_slow", "function": "ema", "params": { "length": 50 } },
+    { "name": "rsi", "function": "rsi", "params": { "length": 14 } }
   ],
-  "buy_signal": "SMA_fast > SMA_slow",
-  "sell_signal": "SMA_fast < SMA_slow",
-  "risk_management": {
-    "stop_loss_pct": 0.10,
-    "take_profit_pct": 0.25
-  }
+  "buy_condition": "ema_fast > ema_slow AND rsi > 50",
+  "sell_condition": "ema_fast < ema_slow"
 }
 ```
 
-The `Secure Strategy Parser` will safely parse this structure. If the `risk_management` block or its keys are absent, the backtest will run without stop-loss or take-profit orders. This provides a "dictionary of tools" the LLM can choose to use.
+-   `strategy_name`: A human-readable identifier.
+-   `indicators`: A list of indicators to be calculated by `pandas-ta`. The `name` is the variable name that can be used in the conditions. `function` must be a function supported by the `StrategyEngine`.
+-   `buy_condition` / `sell_condition`: A string expression that will be safely evaluated. The only variables available in its scope will be the names of the indicators defined above and the standard OHLCV columns (`open`, `high`, `low`, `close`, `volume`).
 
-## 7. Validation and Generalization Strategy
+## 7. Error Handling & Resilience
 
-To address the critical risk of overfitting, the system's core methodology is built around a train/validation split.
+-   **API Failures:** `DataService` and `LLMService` will use exponential backoff for retries on transient network or server errors (e.g., 502, 503).
+-   **Invalid LLM Response:** If the LLM returns malformed JSON or a response that doesn't adhere to the schema after 3 retries, the iteration is marked as a failure, the error is logged, and the entire run for that ticker is halted to prevent wasted calls.
+-   **State Corruption:** On startup, if `run_state.json` is unparseable, the `StateManager` will log a critical error and the application will exit, instructing the user to either fix the file or delete it to start a fresh run.
+-   **Backtest Failure:** Any exception during the backtest (e.g., from a logically impossible strategy) is caught, logged as a failed iteration, and the loop continues to the next LLM suggestion.
 
-*   **Purpose:** The LLM's job is to find strategies that work well on the **training data**. This is the learning phase.
-*   **Insulation:** The LLM *never* sees the performance results from the validation data during its iteration loop. This prevents it from cheating and fitting to the out-of-sample period.
-*   **Final Judgment:** The validation set acts as an unbiased judge. A strategy that performs well on both training and validation data is more likely to be robust and have true predictive power. Reporting the validation score as the final result provides a more realistic performance expectation.
+## 8. Directory Structure
 
-## 8. Error Handling and Logging
-
-*   **API Failures:** `Data Service` and `LLM Service` will use exponential backoff for retries on transient errors.
-*   **State Corruption:** If `run_state.json` is malformed, the `StateManager` will log an error and prompt the user to start a new run.
-*   **Backtest Timeout:** If a backtest exceeds its allocated time (e.g., 60 seconds), it will be terminated, the iteration will be marked as a failure in the report, and the loop will continue.
-*   **Token Usage Logging:** The `LLM Service` will log the prompt and completion token count for every API call to the console, providing visibility into costs.
-
-## 9. Directory Structure
+This structure maps directly to the modular components described above, promoting clean separation of concerns.
 
 ```
 self_improving_quant/
-├── main.py                 # CLI entry point
-├── data/
-│   └── stock_data.parquet  # Stored financial data
+├── main.py                 # CLI entry point, instantiates and runs Orchestrator
+├── config.ini              # Central configuration file
 ├── core/
 │   ├── __init__.py
-│   ├── orchestrator.py     # Main control loop
-│   ├── strategy.py         # Strategy definition
-│   ├── backtester.py       # Wrapper for backtesting.py
-│   └── models.py           # Pydantic models for reports, strategies
+│   ├── orchestrator.py     # Main control loop logic
+│   └── models.py           # Pydantic models for Config, Report, Strategy JSON
 ├── services/
 │   ├── __init__.py
-│   ├── data_service.py     # Fetches and splits data
+│   ├── config_service.py   # Loads and parses config.ini
+│   ├── data_service.py     # Fetches, caches, and splits data
+│   ├── strategy_engine.py  # Translates JSON to signals
+│   ├── backtester.py       # Wrapper for backtesting.py
+│   ├── report_generator.py # Creates the structured report
 │   ├── llm_service.py      # Interacts with LLM, manages context
-│   ├── parser_service.py   # Secure strategy parser
-│   └── state_manager.py    # Handles reading/writing run state
-├── utils/
-│   ├── __init__.py
-│   └── logging_config.py   # Centralized logging configuration
+│   └── state_manager.py    # Handles reading/writing run_state.json
 ├── prompts/
-│   └── quant_analyst.txt   # The main prompt template for the LLM
-├── run_state.json          # Persisted state of the current run
-├── .env
-├── .env.example
+│   └── quant_analyst.txt   # Jinja2 template for the main LLM prompt
+├── results/                  # Output directory for all runs (ignored by git)
+│   └── RELIANCE.NS_2023-10-28_10-00-00/
+│       ├── summary_report.md
+│       ├── ...
+├── .env                    # For API keys
 ├── requirements.txt
 └── pyproject.toml
 ```
