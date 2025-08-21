@@ -17,5 +17,13 @@ module = "backtesting"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "backtesting.lib"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pandas_ta"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "yfinance"
 ignore_missing_imports = true
