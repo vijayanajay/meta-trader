@@ -40,7 +40,7 @@ def test_get_data_downloads_and_caches_if_not_exists(
 
         # Assert
         mock_download.assert_called_once_with(
-            ticker, start="2014-01-01", end="2023-12-31", progress=False, auto_adjust=True
+            ticker, start="2014-01-01", end="2023-12-31", progress=False, auto_adjust=False
         )
         assert cache_file.exists()
         assert not train_df.empty

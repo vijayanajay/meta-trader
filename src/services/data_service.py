@@ -50,7 +50,7 @@ class DataService:
         else:
             try:
                 # Disable progress bar to keep logs clean
-                data = yf.download(ticker, start=start_date, end=end_date, progress=False, auto_adjust=True)
+                data = yf.download(ticker, start=start_date, end=end_date, progress=False, auto_adjust=False)
                 if data.empty:
                     raise ValueError(f"No data found for ticker {ticker} in the given date range.")
                 data.to_parquet(cache_file)
@@ -59,6 +59,14 @@ class DataService:
             except Exception as e:
                 # Catching generic Exception is broad, but yfinance can raise various errors
                 raise IOError(f"Failed to download or save data for {ticker}: {e}") from e
+
+        # yfinance can return a MultiIndex even for a single ticker.
+        # We flatten the columns to a simple index (e.g., ('Open', 'TICK') -> 'Open').
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+
+        # Normalize column names to TitleCase as expected by backtesting.py
+        data.columns = [str(col).title() for col in data.columns]
 
         # Deterministic split: 2 years for validation, the rest for training
         end_of_data = data.index.max()

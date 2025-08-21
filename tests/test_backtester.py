@@ -31,11 +31,12 @@ def test_backtester_run(sample_data: pd.DataFrame) -> None:
     backtester = Backtester()
 
     # Act
-    results = backtester.run(sample_data, SmaCross)
+    stats, trades = backtester.run(sample_data, SmaCross)
 
     # Assert
-    assert results is not None
-    assert isinstance(results, pd.Series)
-    assert 'Sharpe Ratio' in results.index
-    assert 'Max. Drawdown [%]' in results.index
-    assert 'Return [%]' in results.index
+    assert stats is not None
+    assert isinstance(stats, pd.Series)
+    assert isinstance(trades, pd.DataFrame)
+    assert 'Sharpe Ratio' in stats.index
+    assert 'Max. Drawdown [%]' in stats.index
+    assert 'Return [%]' in stats.index

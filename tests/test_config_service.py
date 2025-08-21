@@ -32,7 +32,7 @@ sharpe_threshold = 0.5
 """
 
 
-def test_load_config_success(tmp_path: Path):
+def test_load_config_success(tmp_path: Path) -> None:
     """
     Tests that a valid configuration is loaded correctly.
     """
@@ -59,7 +59,7 @@ def test_load_config_success(tmp_path: Path):
     assert config.app.sharpe_threshold == 0.5
 
 
-def test_load_config_missing_ini_file():
+def test_load_config_missing_ini_file() -> None:
     """
     Tests that a FileNotFoundError is raised if config.ini is missing.
     """
@@ -68,7 +68,7 @@ def test_load_config_missing_ini_file():
         service.load_config()
 
 
-def test_load_config_missing_env_file_raises_validation_error(tmp_path: Path):
+def test_load_config_missing_env_file_raises_validation_error(tmp_path: Path) -> None:
     """
     Tests that a Pydantic ValidationError is raised if a required field
     from the .env file is missing.
@@ -87,7 +87,7 @@ def test_load_config_missing_env_file_raises_validation_error(tmp_path: Path):
     assert "OPENROUTER_API_KEY" in str(excinfo.value)
 
 
-def test_load_config_missing_section_in_ini_raises_key_error(tmp_path: Path):
+def test_load_config_missing_section_in_ini_raises_key_error(tmp_path: Path) -> None:
     """
     Tests that a KeyError is raised if a required section is missing from config.ini.
     """

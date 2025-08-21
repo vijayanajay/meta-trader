@@ -61,7 +61,7 @@ class ReportGenerator:
             avg_win_pct=winning_trades["ReturnPct"].mean() * 100,
             avg_loss_pct=losing_trades["ReturnPct"].mean() * 100,
             max_consecutive_losses=max_consecutive_losses,
-            avg_trade_duration_bars=int(trades["Duration"].mean()),
+            avg_trade_duration_bars=int(trades["Duration"].mean().days),
         )
 
     @staticmethod
