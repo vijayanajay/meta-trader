@@ -2,12 +2,12 @@
 The Orchestrator component that manages the main feedback loop.
 """
 from typing import TYPE_CHECKING
-from src.core.models import Config
+from core.models import Config
 
 # This block is only evaluated by type checkers, not at runtime.
 # It avoids circular import errors.
 if TYPE_CHECKING:
-    from src.services import (
+    from services import (
         StateManager,
         DataService,
         StrategyEngine,

@@ -6,7 +6,7 @@ from typing import Dict, Any, List
 from dotenv import dotenv_values
 from pathlib import Path
 
-from src.core.models import Config, LLMSettings, AppSettings
+from core.models import Config, LLMSettings, AppSettings
 
 __all__ = ["ConfigService"]
 

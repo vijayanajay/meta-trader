@@ -1,8 +1,8 @@
 """
 Main entry point for the Self-Improving Quant Engine.
 """
-from src.core import Orchestrator, Config
-from src.services import (
+from core import Orchestrator, Config
+from services import (
     ConfigService,
     StateManager,
     DataService,

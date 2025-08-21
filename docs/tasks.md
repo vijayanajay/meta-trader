@@ -38,11 +38,30 @@ This document provides a detailed, sequential list of tasks required to build th
 
 ---
 
+### Task 1.5 — Refine Project Setup & Add Developer Guide
+
+*   **Rationale:** To prevent recurring setup and import path issues by documenting the correct development environment setup and project structure conventions. This improves developer onboarding and reduces debugging time.
+*   **Items to implement:**
+    *   Create a `CONTRIBUTING.md` or update `README.md` with a "Developer Setup" section.
+    *   The guide must specify:
+        *   The requirement to use a virtual environment.
+        *   The command to install dependencies: `pip install -r requirements.txt`.
+        *   The command to install the project in editable mode: `pip install -e .`.
+        *   A clear explanation of why editable mode is necessary for the import paths (`from services...` not `from src.services...`) to work correctly.
+*   **Acceptance Criteria (AC):**
+    *   A developer can follow the guide to set up the project and run tests successfully without encountering import errors.
+*   **Definition of Done (DoD):**
+    *   The developer setup guide is written and committed.
+*   **Time estimate:** 1 hour
+*   **Status:** Not Started
+
+---
+
 ### Task 2 — Implement Data Service with Caching & Splitting
 
 *   **Rationale:** To create a reliable and efficient service for fetching, caching, and splitting historical stock data, preventing repeated API calls and strictly enforcing the train/validation data separation.
 *   **Items to implement:**
-    *   Add `yfinance` to `requirements.txt`.
+    *   Add `yfinance` and `pyarrow` to `requirements.txt`.
     *   Create `services/data_service.py` (H-6, H-7).
     *   Implement a `DataService` class with a method `get_data(ticker)` that:
         *   Checks for a local Parquet cache file.
@@ -61,7 +80,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `data_service.py` and its unit tests are implemented and pass `mypy --strict`.
 *   **Time estimate:** 2.5 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
