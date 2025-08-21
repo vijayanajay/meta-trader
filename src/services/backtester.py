@@ -1,27 +1,41 @@
 """
-Service for running trading strategy backtests.
+This service wraps the backtesting.py library to provide a simple interface
+for running backtests on trading strategies.
 """
+from typing import Type
 import pandas as pd
-from typing import Any, Type
-from backtesting import Strategy
+from backtesting import Backtest, Strategy
+
+# Define a type alias for the results series for clarity
+BacktestResult = pd.Series
 
 __all__ = ["Backtester"]
 
 
 class Backtester:
     """
-    A thin wrapper around the backtesting.py library to execute backtests.
+    A wrapper for the backtesting.py library.
     """
-    def __init__(self) -> None:
-        pass
 
-    def run(self, data: pd.DataFrame, strategy_class: Type[Strategy]) -> Any:
+    def run(
+        self,
+        data: pd.DataFrame,
+        strategy_class: Type[Strategy],
+        cash: int = 100_000,
+        commission: float = 0.002,
+    ) -> BacktestResult:
         """
-        Runs a backtest for a given strategy class on the provided data.
+        Runs a backtest for a given strategy and dataset.
+
+        Args:
+            data: A pandas DataFrame containing the OHLCV data.
+            strategy_class: The strategy class to be backtested.
+            cash: The initial cash amount for the backtest.
+            commission: The commission rate for trades.
 
         Returns:
-            The results object from the backtesting library.
+            A pandas Series containing the backtest results.
         """
-        # This is a placeholder implementation.
-        print(f"Running backtest for strategy: {strategy_class.__name__}...")
-        return None
+        bt = Backtest(data, strategy_class, cash=cash, commission=commission)
+        stats = bt.run()
+        return stats
