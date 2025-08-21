@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 from pathlib import Path
 
-from src.services.config_service import ConfigService
+from services.config_service import ConfigService
 
 # A minimal valid .env content for testing
 MINIMAL_ENV_CONTENT = """

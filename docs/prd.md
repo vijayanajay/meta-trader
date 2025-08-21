@@ -144,7 +144,7 @@ Upon completion of a run for a single ticker, the system must generate a timesta
 
 ## 6. Initial Architect Prompt
 
--   **Backend Platform:** Python 3.9+. Key libraries: `pandas`, `yfinance`, `pandas-ta`, `backtesting.py`, `openai`, `configparser`.
+-   **Backend Platform:** Python 3.9+. Key libraries: `pandas`, `yfinance`, `pandas-ta`, `backtesting.py`, `openrouter`, `configparser`.
 -   **Technical Constraints:**
     -   The strategy "action space" must be defined in a schema. The LLM's output must be validated against this schema.
     -   The system must be stateless between runs. All necessary information is read from the config file at startup.

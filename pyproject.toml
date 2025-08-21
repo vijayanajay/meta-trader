@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "A self-improving quantitative trading engine."
 authors = [{ name = "Jules", email = "jules@example.com" }]
 
-[tool.setuptools]
-packages = ["src", "src/core", "src/services"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -14,4 +14,8 @@ strict = true
 
 [[tool.mypy.overrides]]
 module = "backtesting"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "yfinance"
 ignore_missing_imports = true

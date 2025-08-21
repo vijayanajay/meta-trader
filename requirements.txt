@@ -1,13 +1,13 @@
 # Core application libraries
 pandas
 pandas-ta
-backtesting.py
+Backtesting
 yfinance
 python-dotenv
 asteval
-openai
-openrouter
+openrouter-client
 pydantic
+pyarrow
 
 # Testing and static analysis
 pytest
