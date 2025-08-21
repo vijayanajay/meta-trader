@@ -206,3 +206,11 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project-specific ignores
+/results/
+/data/
+run_state.json
+*.html
+*.csv
+*.parquet

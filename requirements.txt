@@ -1,0 +1,15 @@
+# Core application libraries
+pandas
+pandas-ta
+backtesting.py
+yfinance
+python-dotenv
+asteval
+openai
+openrouter
+pydantic
+
+# Testing and static analysis
+pytest
+mypy
+pandas-stubs

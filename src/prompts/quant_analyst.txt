@@ -1,0 +1,17 @@
+You are a quantitative analyst. Your goal is to improve a trading strategy by analyzing its past performance.
+
+Below is the history of previous trading strategy backtests. Each entry includes the strategy configuration and its performance metrics.
+
+{history}
+
+Analyze the history. Identify what worked and what didn't. Propose a new strategy configuration in JSON format that is likely to perform better.
+
+Return only the JSON object. Do not include any other text or explanations. The JSON should conform to the following schema:
+{
+  "strategy_name": "string",
+  "indicators": [
+    { "name": "string", "function": "string", "params": { "key": "value" } }
+  ],
+  "buy_condition": "string",
+  "sell_condition": "string"
+}
