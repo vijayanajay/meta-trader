@@ -2,7 +2,7 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -10,38 +10,13 @@ import openai
 from dotenv import load_dotenv
 
 from self_improving_quant.core.models import IterationReport
+from self_improving_quant.utils.retry import retry_on_failure
 
 __all__ = ["LLMService"]
 
 logger = logging.getLogger(__name__)
 LOGS_DIR = Path("logs")
 AUDIT_LOG_FILE = LOGS_DIR / "llm_audit.jsonl"
-
-
-def _format_history(history: list[IterationReport], max_entries: int = 5) -> str:
-    """Formats the last N iteration reports into a string for the LLM prompt."""
-    if not history:
-        return "No history available. This is the first iteration."
-
-    recent_history = history[-max_entries:]
-    formatted_entries = []
-    for report in recent_history:
-        entry = {
-            "iteration": report.iteration,
-            "status": report.status,
-            "error_message": report.error_message,
-            "strategy": report.strategy.model_dump(),
-            "performance": {
-                "edge_score": f"{report.edge_score:.4f}" if report.edge_score is not None else "N/A",
-                "return_pct": f"{report.return_pct:.2f}%",
-                "max_drawdown_pct": f"{report.max_drawdown_pct:.2f}%",
-                "sharpe_ratio": f"{report.sharpe_ratio:.2f}",
-                "win_rate_pct": f"{report.win_rate_pct:.2f}%",
-            },
-        }
-        formatted_entries.append(json.dumps(entry, indent=2))
-
-    return "\n\n---\n\n".join(formatted_entries)
 
 
 class LLMService:
@@ -55,6 +30,7 @@ class LLMService:
         """Initializes the LLM service client based on environment variables."""
         load_dotenv()
         provider = os.getenv("LLM_PROVIDER", "openai").lower()
+        self.max_history_entries = int(os.getenv("LLM_MAX_HISTORY_ENTRIES", "5"))
 
         api_key: str | None
         base_url: str | None = None
@@ -94,7 +70,43 @@ class LLMService:
         with open(AUDIT_LOG_FILE, "a") as f:
             f.write(json.dumps(log_data) + "\n")
 
+    def _format_history(self, history: list[IterationReport]) -> str:
+        """Formats the last N iteration reports into a string for the LLM prompt."""
+        if not history:
+            return "No history available. This is the first iteration."
+
+        recent_history = history[-self.max_history_entries :]
+        formatted_entries = []
+        for report in recent_history:
+            entry = {
+                "iteration": report.iteration,
+                "status": report.status,
+                "error_message": report.error_message,
+                "strategy": report.strategy.model_dump(),
+                "performance": {
+                    "edge_score": f"{report.edge_score:.4f}" if report.edge_score is not None else "N/A",
+                    "return_pct": f"{report.return_pct:.2f}%",
+                    "max_drawdown_pct": f"{report.max_drawdown_pct:.2f}%",
+                    "sharpe_ratio": f"{report.sharpe_ratio:.2f}",
+                    "win_rate_pct": f"{report.win_rate_pct:.2f}%",
+                },
+            }
+            formatted_entries.append(json.dumps(entry, indent=2))
+
+        return "\n\n---\n\n".join(formatted_entries)
+
     # impure: Performs network I/O to an LLM API
+    @retry_on_failure(
+        retries=3,
+        delay=10,
+        backoff=2,
+        exceptions=(
+            openai.RateLimitError,
+            openai.APITimeoutError,
+            openai.APIConnectionError,
+            openai.APIStatusError,
+        ),
+    )
     def get_strategy_suggestion(self, history: list[IterationReport]) -> str:
         """
         Gets a strategy suggestion from the configured LLM.
@@ -105,7 +117,7 @@ class LLMService:
         Returns:
             The raw JSON string response from the LLM.
         """
-        history_str = _format_history(history)
+        history_str = self._format_history(history)
         prompt = self.base_prompt.format(history=history_str)
         temperature = 0.7
 
@@ -118,10 +130,12 @@ class LLMService:
             ],
             temperature=temperature,
             response_format={"type": "json_object"},
+            timeout=120.0,  # Add a timeout for the API call itself
         )
 
         response = completion.choices[0].message.content
         if not response:
+            # This case might be worth a retry, but for now, we fail fast.
             raise ValueError("LLM returned an empty response.")
 
         token_count = completion.usage.total_tokens if completion.usage else 0
@@ -130,7 +144,7 @@ class LLMService:
         # [H-22] Log the audit trail
         self._audit_log(
             {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "provider": self.provider,
                 "model": self.model,
                 "prompt_version": self.prompt_version,

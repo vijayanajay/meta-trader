@@ -157,4 +157,22 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Rationale:** To make the system production-ready by handling common failures gracefully and providing visibility into operational costs.
 *   **Items to implement:**
     *   Add features for robustness (timeouts, retries) and cost management (context summarization).
-*   **Status:** Not Started
+*   **Notes:**
+    *   Added a reusable `retry_on_failure` decorator to `utils/retry.py`.
+    *   Applied retry logic to both `DataService` and `LLMService`.
+    *   Made LLM prompt history length configurable via `LLM_MAX_HISTORY_ENTRIES` environment variable.
+    *   Default LLM switched to OpenRouter with the `kuroko/kimi-v2` model.
+*   **Status:** Completed
+
+---
+
+### Task 13 — Environment and Dependency Audit
+
+*   **Rationale:** Initial test runs failed due to dependency conflicts (`numpy>=2.0` and missing `pkg_resources`) that were not immediately obvious. This task formalizes the resolution.
+*   **Items to implement:**
+    *   Investigate and resolve test failures related to environment setup.
+    *   Ensure the local environment can be reproduced reliably.
+*   **Notes:**
+    *   The root cause was installing dependencies with `pip install <package>` instead of `pip install -r requirements.txt`, which respects the pinned versions (e.g., `numpy<2.0.0`).
+    *   The resolution is to always use `pip install -r requirements.txt` for setting up the environment. This learning was added to `docs/memory.md`.
+*   **Status:** Completed
