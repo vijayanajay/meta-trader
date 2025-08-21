@@ -1,131 +1,154 @@
-Of course. As the Product Manager agent, my primary goal is to translate your vision into a clear, actionable set of requirements. The "Self-Improving Quant" project is a fantastic example of combining classical quantitative finance with modern AI, and a well-defined MVP is crucial for success.
+# Self-Improving Quant Engine PRD (v2.0)
 
-Here is the Product Requirements Document (PRD) for the project, based on your description and structured using the provided template.
+## 1. Intro
 
-***
+This document outlines the requirements for the "Self-Improving Quant Engine." The project's purpose is to create a robust, automated system for discovering and refining stock trading strategies.
 
-# Self-Improving Quant Engine PRDa
+The core architectural principle of this MVP is **simplicity and constraint**. We are not building a system where a Large Language Model (LLM) generates arbitrary code. Instead, we are building a deterministic backtesting engine with a well-defined, constrained "action space" (a curated set of technical indicators and logical conditions). The LLM's role is not to code, but to act as an intelligent **parameter selector**, proposing new configurations within this safe and structured framework.
 
-## Intro
+The system's feedback loop is the engine of discovery:
+1.  Backtest a strategy configuration on a **training** dataset.
+2.  Generate a dense, information-rich performance report.
+3.  Feed the history of these reports to an LLM.
+4.  The LLM proposes a new strategy **configuration (as JSON)**.
+5.  Repeat.
 
-This document outlines the requirements for the "Self-Improving Quant Engine," a system designed to automate the discovery and refinement of stock trading strategies. For its Minimum Viable Product (MVP), the system will use a feedback loop where it backtests a strategy, generates a performance report, and inputs that report into a Large Language Model (LLM). The LLM then suggests improvements for the next iteration, creating a learning cycle that aims to discover strategies superior to a simple baseline.
+This approach focuses the LLM's reasoning capabilities on the core problem of strategy discovery, eliminating security risks and the complexities of code generation and parsing.
 
-## Goals and Context
+## 2. Goals and Context
 
 -   **Project Objectives:**
-    -   To build a functional, automated framework for iteratively discovering and improving quantitative trading strategies.
-    -   To validate the use of LLMs as a "quantitative analyst" agent capable of suggesting data-driven strategy modifications.
-    -   To create a baseline system that can be expanded upon for more complex, multi-asset, and robust strategy research in the future.
+    -   To build a simple, reliable, and fully automated framework for iteratively optimizing a quantitative trading strategy's parameters.
+    -   To validate that an LLM can, given structured feedback, learn to navigate a parameter space to improve strategy performance.
+    -   To create a foundational tool that directly addresses and measures strategy overfitting from the outset.
 
 -   **Measurable Outcomes:**
-    -   The system can successfully complete a minimum of 5 automated iterations without critical failure.
-    -   The final strategy discovered by the system demonstrates a higher Sharpe Ratio than the initial baseline strategy on the same 2-year backtest period.
+    -   The system can successfully complete a 10-iteration run for a list of 3+ tickers specified in a config file without manual intervention.
+    -   The final strategy discovered for at least one ticker must demonstrate a higher Sharpe Ratio on the **training data** than the initial baseline.
+    -   The final strategy must also demonstrate a positive Sharpe Ratio on the unseen **validation data**, proving it has generalized beyond the training set.
 
 -   **Success Criteria:**
-    -   The end-to-end loop (data fetch -> backtest -> report -> LLM -> new strategy -> backtest) is fully automated.
-    -   The LLM consistently returns syntactically correct and logically plausible strategy modifications in the specified JSON format.
-    -   The system produces a clear, final report summarizing the performance of all tested strategies and identifying the best one.
+    -   The end-to-end loop is fully automated and driven by a single command.
+    -   The LLM consistently returns valid JSON that conforms to the predefined strategy schema.
+    -   **Zero use of `eval()`** or other unsafe methods for executing LLM output. The system is secure by design.
+    -   The final output provides a clear, auditable trail of the entire optimization process for each ticker.
 
 -   **Key Performance Indicators (KPIs):**
-    -   Sharpe Ratio of generated strategies.
-    -   Maximum Drawdown [%] of generated strategies.
-    -   Number of successful, uninterrupted iterations per run.
-    -   Final Return [%] vs. Baseline Return [%].
+    -   **Primary:** Sharpe Ratio (on both training and validation data).
+    -   **Secondary:** Sortino Ratio, Max Drawdown [%], Calmar Ratio.
+    -   **Generalization KPI:** `Performance Drop-off %` = `(Train Sharpe - Validation Sharpe) / abs(Train Sharpe)`. A low value indicates good generalization.
+    -   **Efficiency KPI:** Number of iterations required to surpass the baseline performance.
 
-## Scope and Requirements (MVP / Current Version)
+## 3. Scope and Requirements (MVP)
 
-### Functional Requirements (High-Level)
+### Functional Requirements (FRs)
 
--   **FR1: Data Ingestion:** The system must fetch 10 years of historical daily stock price data for a single, user-specified Indian stock ticker (e.g., `RELIANCE.NS`) from a public data source.
--   **FR2: Baseline Strategy:** The system must implement a hard-coded baseline strategy (e.g., RSI crossover) to serve as the starting point (Iteration 0).
--   **FR3: Backtesting Engine:** The system must perform a backtest of a given strategy on the most recent 2 years of the fetched data, calculating standard performance metrics.
--   **FR4: Performance Reporting:** The system must generate a structured, machine-readable report (JSON object) after each backtest, detailing the strategy used, performance metrics, and basic market context.
--   **FR5: LLM Integration & Prompting:** The system must be able to send the cumulative history of all previous reports to an LLM API. The prompt must instruct the LLM to act as a quantitative analyst and suggest a new strategy.
--   **FR6: Strategy Parsing & Execution:** The system must securely parse the structured JSON response from the LLM to extract new indicator definitions and buy/sell logic. It must then apply these to the data for the next backtest iteration.
--   **FR7: Iteration Loop:** The system must orchestrate the process from FR3 to FR6 in an automated loop for a pre-defined number of iterations.
--   **FR8: Results Persistence & Output:** The system must store the full report from every iteration. Upon completion, it must present a summary identifying the best-performing strategy found during the run.
+-   **FR1: Configuration-Driven Setup:** The system must be executed via a single entry point (e.g., `python main.py`). All parameters—tickers, iteration count, API keys, data ranges—must be loaded from a single `config.ini` file.
+
+-   **FR2: Data Ingestion & Splitting:** For each ticker, the system will fetch 10 years of historical daily price data. This data will be deterministically split into two segments:
+    -   **Training Set:** The first 8 years of data. The iterative optimization loop runs exclusively on this set.
+    -   **Validation Set:** The final 2 years of data. This set is held out and used only once at the end to test the final, best-performing strategy for overfitting.
+
+-   **FR3: Constrained Strategy Engine:** The system will use a predefined strategy template. The LLM's task is to provide the parameters for this template.
+    -   The engine will use the `pandas-ta` library to generate a curated list of technical indicators (e.g., `RSI`, `SMA`, `EMA`, `MACD`, `BBANDS`).
+    -   The strategy logic (buy/sell conditions) will be constructed programmatically based on a JSON object received from the LLM. This JSON will specify indicators, their parameters (e.g., `length: 14`), and the logical conditions (`cross_above`, `greater_than`, etc.).
+
+-   **FR4: Backtesting & Reporting:**
+    -   For each iteration, the system backtests the configured strategy on the **Training Set**.
+    -   It must generate a structured report containing:
+        1.  The exact JSON configuration of the strategy used.
+        2.  Standard performance metrics (Sharpe, Sortino, Max Drawdown, etc.) from the training run.
+        3.  An **Information-Dense Statistical Trade Summary** (as per Point 4, Option 2):
+            -   `total_trades`: Integer
+            -   `win_rate_pct`: Float
+            -   `profit_factor`: Float
+            -   `avg_win_pct`: Float
+            -   `avg_loss_pct`: Float
+            -   `max_consecutive_losses`: Integer
+            -   `avg_trade_duration_bars`: Integer
+
+-   **FR5: LLM Prompting & Interaction:** The system will manage a cumulative history of the reports from FR4. For each new iteration, it will send this history to the LLM with a prompt instructing it to:
+    -   Act as a quantitative analyst.
+    -   Analyze the performance history, noting which configurations worked and which failed.
+    -   Propose a new strategy configuration by returning **only a valid JSON object** that conforms to the system's predefined schema.
+
+-   **FR6: Iteration Loop with Pruning (Optimization):**
+    -   The system orchestrates the process from backtest (FR4) to LLM suggestion (FR5) in an automated loop for the configured number of iterations.
+    -   **Pruning Mechanism:** If a suggested strategy results in a Sharpe Ratio below a predefined threshold (e.g., 0.1) on the training data, the system will discard this result. The next prompt to the LLM will revert to the *previous best-performing strategy* and explicitly state that the last attempt was a failure, encouraging a different path.
+
+-   **FR7: Final Validation & Output Generation:**
+    -   After the loop completes, the system identifies the single best strategy based on its performance on the **Training Set**.
+    -   It then runs this single best strategy on the unseen **Validation Set**.
+    -   It generates a final, comprehensive report detailing the entire process.
+
+-   **FR8: Intelligent Baseline (Optimization):** The starting point for Iteration 0 will not be random. It will be a hard-coded, simple, well-known strategy (e.g., SMA(50) / SMA(200) crossover) to provide the LLM with a sensible performance benchmark to improve upon.
 
 ### Non-Functional Requirements (NFRs)
 
--   **Performance:** A single backtest iteration (excluding the LLM API call) should complete in under 60 seconds.
--   **Scalability:** The MVP is designed for a single user running on a single machine. It does not require horizontal scalability.
--   **Reliability/Availability:** The system must include error handling to gracefully manage common issues like API failures from the data source or LLM, or syntactically incorrect suggestions from the LLM. It should log the error and halt the process cleanly.
 -   **Security:**
-    -   All API keys (data provider, LLM) must be managed via environment variables, not hard-coded.
-    -   LLM-generated code/logic strings **must not** be executed using `eval()`. A safe expression parser must be used to prevent arbitrary code execution.
--   **Maintainability:** The codebase must be modular, with clear separation between data handling, strategy calculation, backtesting, reporting, and LLM interaction.
--   **Usability/Accessibility:** The system will be a Command-Line Interface (CLI) tool. All output, progress, and results must be logged to the console in a clear, human-readable format.
+    -   API keys must be loaded from the config file or environment variables, never hard-coded.
+    -   **The use of `eval()`, `exec()`, or any other method of executing strings from the LLM is strictly forbidden.** The system's architecture (parsing JSON into fixed function calls) inherently prevents arbitrary code execution.
+-   **Performance:** A single backtest iteration (excluding the LLM API call) must complete in under 30 seconds.
+-   **Reliability:** The system must include robust error handling for API failures (data source, LLM) and for malformed JSON responses from the LLM. It should retry a configurable number of times before halting gracefully.
+-   **Maintainability:** The codebase must be modular: `data_handler.py`, `strategy_engine.py`, `backtester.py`, `llm_interface.py`, `main.py`. The strategy definition (JSON) is fully decoupled from the execution logic.
+-   **Usability:** The system is a CLI tool. It must provide clear, real-time console output indicating its current state (e.g., "RELIANCE.NS: Running Iteration 3/10...", "Awaiting LLM response...").
 
-### User Experience (UX) Requirements (High-Level)
+### Detailed Final Report Structure (FR7)
 
--   The user interacts with the system via a CLI.
--   The system provides real-time feedback on its current stage (e.g., "Fetching data...", "Running backtest for Iteration 2...", "Awaiting LLM response...").
--   The final output is a clean summary of the best strategy found and its performance metrics.
+Upon completion of a run for a single ticker, the system must generate a timestamped output directory (e.g., `results/RELIANCE.NS_2023-10-27_15-30-00/`). This directory will be a complete, self-contained record of the discovery process and must contain:
 
-### Integration Requirements (High-Level)
+1.  **`summary_report.md`**: A human-readable Markdown file with the final results.
+    -   **Header:** Ticker, Run Duration, Total Iterations.
+    -   **Best Strategy Found:**
+        -   The final JSON configuration of the winning strategy.
+    -   **Performance Comparison Table:**
+        | Metric             | Baseline (Iter 0) | Best on Training Set | Best on Validation Set |
+        |--------------------|-------------------|----------------------|------------------------|
+        | Sharpe Ratio       | 0.45              | 1.52                 | 1.15                   |
+        | Sortino Ratio      | 0.60              | 2.10                 | 1.75                   |
+        | Max Drawdown [%]   | -25.2%            | -12.5%               | -15.8%                 |
+        | Final Return [%]   | 35%               | 120%                 | 45%                    |
+        | **Generalization** | ---               | ---                  | **Drop-off: 24.3%**    |
+    -   **Run Log:** A brief summary of each iteration (e.g., "Iter 3: Sharpe 0.95, Iter 4: Pruned (Sharpe -0.2)").
 
--   **Integration Point 1:** A financial data provider API (e.g., `yfinance` library).
--   **Integration Point 2:** A Large Language Model API (e.g., OpenAI, Anthropic, Google Gemini).
+2.  **`full_run_log.json`**: A machine-readable file containing the complete report object (strategy JSON, metrics, trade summary) for every single iteration.
 
-### Testing Requirements (High-Level)
+3.  **`charts/` directory**:
+    -   `best_strategy_training_plot.html`: The interactive plot generated by `backtesting.py` for the best strategy on the training data.
+    -   `best_strategy_validation_plot.html`: The interactive plot for the best strategy on the validation data.
 
--   Comprehensive unit tests are required for core logic modules (e.g., report generation, LLM response parsing).
--   An integration test for the full loop is required, using a mocked LLM API to ensure all components work together.
+4.  **`iterations/` directory**:
+    -   A subdirectory for each iteration (`iter_0/`, `iter_1/`, ...).
+    -   Each subdirectory contains the `backtesting.py` plot (`report.html`) and the trade log (`trades.csv`) for that specific iteration's run on the training data. This allows for detailed forensic analysis of any specific step in the process.
 
-## Epic Overview (MVP / Current Version)
+## 4. Epic Overview (MVP)
 
--   **Epic 1: Core Backtesting Pipeline** - Goal: To build a non-iterative pipeline that can fetch data for one stock, apply a hard-coded baseline strategy, run a backtest, and generate a performance report. This validates the core quantitative components.
--   **Epic 2: LLM-Powered Iteration Engine** - Goal: To integrate the LLM API, construct the dynamic prompt with historical context, and build the main loop that parses LLM responses to drive subsequent backtest iterations.
--   **Epic 3: CLI & Operational Polish** - Goal: To wrap the system in a user-friendly CLI, implement robust error handling, add secure API key management, and ensure clear logging and final reporting.
+-   **Epic 1: The Deterministic Backtesting Engine:**
+    -   Goal: Build a self-contained system that can be run programmatically. It takes a ticker and a strategy JSON as input and produces the full set of artifacts (training report, validation report, plots).
+    -   Key Tasks: `config.ini` parsing, data fetching and splitting, `pandas-ta` integration, `backtesting.py` wrapper, statistical summary generation. This epic is complete when we can manually test strategies without any LLM.
 
-## Key Reference Documents
+-   **Epic 2: The LLM Optimization Loop:**
+    -   Goal: To wrap the deterministic engine from Epic 1 in an intelligent optimization loop.
+    -   Key Tasks: Implement the main loop logic, manage the history of reports, engineer the system prompt for the LLM, handle JSON parsing and validation, and implement the pruning logic.
 
--   `docs/architecture.md`
--   `docs/tech-stack.md`
+-   **Epic 3: CLI & Operational Polish:**
+    -   Goal: To create the final user-facing tool.
+    -   Key Tasks: Build the main CLI entry point, add clear logging and console output, structure the final output directory, and write comprehensive documentation (`README.md`).
 
-## Post-MVP / Future Enhancements
+## 5. Post-MVP / Future Enhancements
 
--   **Walk-Forward Validation:** Implement a more robust testing methodology instead of a single train/test split.
--   **Multi-Asset Analysis:** Expand the system to run on a portfolio of stocks to find more generalized strategies.
--   **Human-in-the-Loop UI:** Create a simple web interface for a user to review and approve/reject LLM suggestions before they are run.
--   **LLM Self-Critique:** Add a step where the LLM critiques its own suggestion to identify potential flaws before the backtest is run.
--   **Expanded Action Space:** Allow the LLM to modify a wider range of parameters, such as indicator lengths, stop-loss/take-profit levels, and position sizing.
+-   **Expanded Action Space:** Gradually add more indicators, logical conditions, and even risk management parameters (e.g., stop-loss percentages) to the JSON schema for the LLM to control.
+-   **Walk-Forward Analysis:** Upgrade the Train/Validation split to a more robust rolling walk-forward validation method for continuous adaptation.
+-   **Multi-Ticker Strategy Generalization:** Modify the objective to find a single strategy configuration that performs well across a *portfolio* of tickers.
+-   **LLM Self-Critique:** Add a step where the LLM is asked to critique its own JSON suggestion before it's run, potentially catching logical flaws early.
 
-## Change Log
+## 6. Initial Architect Prompt
 
-| Change      | Date       | Version | Description      | Author |
-|-------------|------------|---------|------------------|--------|
-| Initial PRD | 2023-10-27 | 1.0     | First draft of MVP | PM Agent |
-
-## Initial Architect Prompt
-
-### Technical Infrastructure
-
--   **Starter Project/Template:** None. To be built from scratch.
--   **Hosting/Cloud Provider:** Not applicable for MVP. The system will be a local CLI tool.
--   **Frontend Platform:** Not applicable for MVP.
--   **Backend Platform:** Python is required due to its mature data science and quantitative finance ecosystem (`pandas`, `pandas-ta`, `backtesting.py`).
--   **Database Requirements:** No formal database is required for the MVP. Iteration history and reports can be stored in-memory and written to a local JSON or CSV file at the end of a run.
-
-### Technical Constraints
-
--   The `pandas-ta` library must be used for technical indicator calculations as specified.
--   The `backtesting.py` library is strongly recommended for its simplicity and detailed reporting.
--   Direct use of `eval()` on LLM output is strictly forbidden. A secure alternative like `asteval` or a custom-built parser is required.
--   The solution must integrate with a major LLM provider's API.
-
-### Deployment Considerations
-
--   Deployment will be via a standard Python package setup (`pyproject.toml` or `setup.py`) and published to a Git repository.
--   No CI/CD pipeline is required for the MVP.
-
-### Local Development & Testing Requirements
-
--   The project must include a `requirements.txt` or similar file for easy environment setup.
--   A simple CLI entry point should be provided to run the entire process (e.g., `python main.py --ticker RELIANCE.NS --iterations 10`).
--   Unit tests should be runnable via a single command (e.g., `pytest`).
-
-### Other Technical Considerations
-
--   The architecture should be modular to easily swap out components in the future (e.g., different backtesting engines, different LLMs).
--   Focus on clear, well-documented code, as the logic of the prompts and the parsing of responses will be complex and critical to the system's success.
+-   **Backend Platform:** Python 3.9+. Key libraries: `pandas`, `yfinance`, `pandas-ta`, `backtesting.py`, `openai`, `configparser`.
+-   **Technical Constraints:**
+    -   The strategy "action space" must be defined in a schema. The LLM's output must be validated against this schema.
+    -   The system must be stateless between runs. All necessary information is read from the config file at startup.
+-   **Local Development:**
+    -   A `requirements.txt` file is mandatory.
+    -   The entry point will be `python main.py`. No arguments are needed as all configuration is in `config.ini`.
+    -   Unit tests using `pytest` are required for core, non-stochastic components like the statistical summary generator and the strategy engine's JSON parser.
