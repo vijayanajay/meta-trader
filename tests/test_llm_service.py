@@ -41,6 +41,8 @@ def llm_service(mock_openai_client: MagicMock) -> LLMService:
 @pytest.fixture
 def sample_history() -> list[PerformanceReport]:
     """Provides a sample history of performance reports."""
+    from core.models import PerformanceMetrics
+
     return [
         PerformanceReport(
             strategy=StrategyDefinition(
@@ -53,10 +55,12 @@ def sample_history() -> list[PerformanceReport]:
                 buy_condition="sma10 > close",
                 sell_condition="sma10 < close",
             ),
-            sharpe_ratio=1.2,
-            sortino_ratio=1.8,
-            annual_return_pct=15.5,
-            max_drawdown_pct=-10.0,
+            performance=PerformanceMetrics(
+                sharpe_ratio=1.2,
+                sortino_ratio=1.8,
+                annual_return_pct=15.5,
+                max_drawdown_pct=-10.0,
+            ),
             trade_summary=TradeSummary(total_trades=10, win_rate_pct=60.0, profit_factor=2.1, avg_win_pct=2.0, avg_loss_pct=-1.5, max_consecutive_losses=2, avg_trade_duration_bars=5),
         )
     ]
@@ -83,7 +87,12 @@ def test_get_suggestion_success(
     mock_openai_client.chat.completions.create.return_value = mock_completion
 
     # Act
-    result = llm_service.get_suggestion(sample_history)
+    result = llm_service.get_suggestion(
+        ticker="TEST",
+        history=sample_history,
+        failed_strategy=None,
+        best_strategy_so_far=sample_history[0].strategy
+    )
 
     # Assert
     assert isinstance(result, StrategyDefinition)
@@ -106,7 +115,12 @@ def test_get_suggestion_json_decode_error(
 
     # Act & Assert
     with pytest.raises(json.JSONDecodeError):
-        llm_service.get_suggestion(sample_history)
+        llm_service.get_suggestion(
+            ticker="TEST",
+            history=sample_history,
+            failed_strategy=None,
+            best_strategy_so_far=sample_history[0].strategy
+        )
 
 
 def test_get_suggestion_pydantic_validation_error(
@@ -125,7 +139,12 @@ def test_get_suggestion_pydantic_validation_error(
 
     # Act & Assert
     with pytest.raises(ValidationError):
-        llm_service.get_suggestion(sample_history)
+        llm_service.get_suggestion(
+            ticker="TEST",
+            history=sample_history,
+            failed_strategy=None,
+            best_strategy_so_far=sample_history[0].strategy
+        )
 
 
 def test_get_suggestion_api_error(
@@ -141,4 +160,9 @@ def test_get_suggestion_api_error(
 
     # Act & Assert
     with pytest.raises(APIError):
-        llm_service.get_suggestion(sample_history)
+        llm_service.get_suggestion(
+            ticker="TEST",
+            history=sample_history,
+            failed_strategy=None,
+            best_strategy_so_far=sample_history[0].strategy
+        )

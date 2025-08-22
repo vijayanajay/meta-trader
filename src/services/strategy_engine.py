@@ -102,9 +102,14 @@ class StrategyEngine:
                             elif 'KCU' in col: name = f"{indicator.name}_upper"
                             else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
                         elif 'macd' in indicator.function:
-                            if 'MACD' in col: name = f"{indicator.name}" # Main line is just the name
-                            elif 'MACDs' in col: name = f"{indicator.name}_signal"
+                            if 'MACDs' in col: name = f"{indicator.name}_signal"
                             elif 'MACDh' in col: name = f"{indicator.name}_hist"
+                            elif 'MACD' in col: name = f"{indicator.name}" # Main line is the least specific, so it goes last
+                            else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
+                        elif 'adx' in indicator.function:
+                            if 'DMP' in col: name = f"{indicator.name}_dmp"
+                            elif 'DMN' in col: name = f"{indicator.name}_dmn"
+                            elif 'ADX' in col: name = f"{indicator.name}" # Main line is the least specific, so it goes last
                             else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
                         else:
                             # Default generic naming for other multi-column indicators

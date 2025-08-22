@@ -4,7 +4,7 @@ Tests for the StateManager service.
 import json
 from pathlib import Path
 import pytest
-from core.models import RunState, PerformanceReport, StrategyDefinition, TradeSummary
+from core.models import RunState, PerformanceReport, StrategyDefinition, TradeSummary, PerformanceMetrics
 from services.state_manager import StateManager
 
 
@@ -14,14 +14,6 @@ def test_dir(tmp_path: Path) -> Path:
     Create a temporary directory for test files.
     """
     return tmp_path
-
-
-@pytest.fixture
-def state_filepath(test_dir: Path) -> Path:
-    """
-    Get the path to a test state file.
-    """
-    return test_dir / "test_run_state.json"
 
 
 @pytest.fixture
@@ -46,75 +38,85 @@ def sample_run_state() -> RunState:
     )
     report = PerformanceReport(
         strategy=strategy_def,
-        sharpe_ratio=1.2,
-        sortino_ratio=1.8,
-        max_drawdown_pct=-15.0,
-        annual_return_pct=25.0,
+        performance=PerformanceMetrics(
+            sharpe_ratio=1.2,
+            sortino_ratio=1.8,
+            max_drawdown_pct=-15.0,
+            annual_return_pct=25.0,
+        ),
         trade_summary=trade_summary,
     )
     return RunState(iteration_number=1, history=[report])
 
 
 def test_save_and_load_state(
-    state_filepath: Path, sample_run_state: RunState
+    test_dir: Path, sample_run_state: RunState
 ) -> None:
     """
     Test that the StateManager can save a RunState and load it back correctly.
     """
     # Arrange
-    manager = StateManager(state_filepath)
+    ticker = "TEST_TICKER"
+    manager = StateManager(results_dir=test_dir, run_state_file="test_run_state.json")
 
     # Act
-    manager.save_state(sample_run_state)
-    loaded_state = manager.load_state()
+    manager.save_state(ticker, sample_run_state)
+    loaded_state = manager.load_state(ticker)
 
     # Assert
-    assert state_filepath.exists()
+    expected_filepath = test_dir / f"{ticker}_test_run_state.json"
+    assert expected_filepath.exists()
     assert loaded_state == sample_run_state
     assert loaded_state.iteration_number == 1
     assert len(loaded_state.history) == 1
-    assert loaded_state.history[0].sharpe_ratio == 1.2
+    assert loaded_state.history[0].performance.sharpe_ratio == 1.2
 
 
-def test_load_state_non_existent_file(state_filepath: Path) -> None:
+def test_load_state_non_existent_file(test_dir: Path) -> None:
     """
     Test that loading a non-existent state file returns a default RunState.
     """
     # Arrange
-    manager = StateManager(state_filepath)
+    ticker = "TEST_TICKER"
+    manager = StateManager(results_dir=test_dir, run_state_file="test_run_state.json")
 
     # Act
-    loaded_state = manager.load_state()
+    loaded_state = manager.load_state(ticker)
 
     # Assert
-    assert not state_filepath.exists()
+    expected_filepath = test_dir / f"{ticker}_test_run_state.json"
+    assert not expected_filepath.exists()
     assert isinstance(loaded_state, RunState)
     assert loaded_state.iteration_number == 0
     assert len(loaded_state.history) == 0
 
 
-def test_load_state_corrupted_file(state_filepath: Path) -> None:
+def test_load_state_corrupted_file(test_dir: Path) -> None:
     """
     Test that loading a corrupted JSON file raises a ValueError.
     """
     # Arrange
+    ticker = "TEST_TICKER"
+    manager = StateManager(results_dir=test_dir, run_state_file="test_run_state.json")
+    state_filepath = test_dir / f"{ticker}_test_run_state.json"
     state_filepath.write_text("this is not valid json")
-    manager = StateManager(state_filepath)
 
     # Act & Assert
     with pytest.raises(ValueError, match="Error decoding state file"):
-        manager.load_state()
+        manager.load_state(ticker)
 
 
-def test_load_state_invalid_schema(state_filepath: Path) -> None:
+def test_load_state_invalid_schema(test_dir: Path) -> None:
     """
     Test that loading a file with a different schema raises a ValueError.
     """
     # Arrange
+    ticker = "TEST_TICKER"
+    manager = StateManager(results_dir=test_dir, run_state_file="test_run_state.json")
+    state_filepath = test_dir / f"{ticker}_test_run_state.json"
     invalid_data = {"wrong_key": "some_value"}
     state_filepath.write_text(json.dumps(invalid_data))
-    manager = StateManager(state_filepath)
 
     # Act & Assert
     with pytest.raises(ValueError, match="Error loading state file"):
-        manager.load_state()
+        manager.load_state(ticker)

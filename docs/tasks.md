@@ -420,3 +420,23 @@ This document provides a detailed, sequential list of tasks required to build th
     *   The CLI and logging are fully implemented, and a full run can be initiated and monitored from the command line.
 *   **Time estimate:** 2 hours
 *   **Status:** Not Started
+
+---
+
+### Task 12 — Fix Critical Bugs and Improve Robustness
+
+*   **Rationale:** To address critical bugs discovered during runs that caused crashes and prevented the system from completing its optimization loop. This task enhances the engine's stability and correctness.
+*   **Items to implement:**
+    *   **Fix `FileExistsError` in `StateManager`:** Replaced `pathlib.Path.rename()` with `os.replace()` to ensure atomic, cross-platform state saving.
+    *   **Fix `NameError` for `adx` in `StrategyEngine`:** Added specific handling for the `adx` indicator to correctly map its multi-column output to predictable variable names, preventing crashes when the LLM suggests using it.
+    *   **Documented fixes in `docs/memory.md`:** Added entries for the `FileExistsError` and `NameError` to prevent future regressions.
+*   **Tests to cover:**
+    *   Created `tests/test_strategy_engine_adx.py` to provide specific test coverage for the `adx` indicator fix and prevent regressions.
+*   **Acceptance Criteria (AC):**
+    *   The application no longer crashes due to `FileExistsError` on Windows.
+    *   The `StrategyEngine` can successfully process strategies involving the `adx` indicator.
+    *   The new test passes, and all existing tests continue to pass.
+*   **Definition of Done (DoD):**
+    *   The bug fixes are implemented, documented, and covered by tests.
+*   **Time estimate:** 2 hours
+*   **Status:** Completed
