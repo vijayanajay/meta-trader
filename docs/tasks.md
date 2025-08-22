@@ -259,22 +259,24 @@ This document provides a detailed, sequential list of tasks required to build th
 
 *   **Rationale:** To make the system robust against interruptions. The state manager ensures that a long run can be resumed from the last successfully completed iteration, saving time and API costs.
 *   **Items to implement:**
+    *   Create `core/models.py` with a `RunState` model to hold `iteration_number` and `history`.
     *   Create `services/state_manager.py`.
-    *   Implement a `StateManager` class with:
-        *   `save_state(history, filepath)`: Writes the list of all reports to `run_state.json`. Must write to a temp file then rename to ensure atomic writes (H-20). Mark `# impure`.
-        *   `load_state(filepath)`: Reads and returns the history from `run_state.json`, or returns an empty list if the file doesn't exist. Mark `# impure`.
+    *   Implement a `StateManager` class with `save_state` and `load_state` methods.
+    *   `save_state` writes the `RunState` to `run_state.json` atomically (using a temp file and rename).
+    *   `load_state` reads the `RunState` from `run_state.json`, returning a default state if the file doesn't exist or is corrupt.
 *   **Tests to cover:**
-    *   Create `tests/test_state_manager.py`.
-    *   Test saving a sample history and then loading it to ensure data integrity.
-    *   Test loading when the file does not exist.
-    *   Test loading a corrupted JSON file to ensure it fails gracefully.
+    *   Create `tests/test_state_manager.py` to test:
+        *   Saving and loading a valid `RunState`.
+        *   Loading a non-existent state file.
+        *   Loading a corrupted or invalid state file.
 *   **Acceptance Criteria (AC):**
-    *   The run state is persisted to disk atomically after every iteration.
-    *   The system can resume a run from a previously saved state.
+    *   The run state is persisted to disk atomically.
+    *   The system can be prepared to resume a run from a previously saved state.
 *   **Definition of Done (DoD):**
     *   `state_manager.py` and its tests are implemented and committed.
+    *   All related code passes `mypy --strict`.
 *   **Time estimate:** 2 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
@@ -285,9 +287,9 @@ This document provides a detailed, sequential list of tasks required to build th
     *   Create `core/orchestrator.py`.
     *   Implement the main `Orchestrator` class, injecting all required services in its `__init__` (H-2).
     *   Implement the `run()` method that:
-        1.  Calls `StateManager` to load any existing history.
+        1.  Uses the `StateManager` to load the `RunState` for the current ticker, resuming from the last completed iteration if state exists.
         2.  Loops for the configured number of iterations.
-        3.  Inside the loop: runs backtest, generates report, appends to history, saves state via `StateManager`.
+        3.  Inside the loop: runs backtest, generates a `PerformanceReport`, appends it to the `RunState` history, and uses the `StateManager` to save the updated `RunState` to disk.
         4.  Implements the pruning mechanism (FR6).
         5.  Calls `LLMService` to get the next strategy suggestion.
         6.  Handles JSON parsing errors from the LLM gracefully (H-25).
