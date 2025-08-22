@@ -65,3 +65,12 @@ This document logs key issues, their resolutions, and important learnings discov
 *   **`AssertionError: assert isinstance(<class '...'>, ...)`:** `bt._strategy` holds the strategy *class*, not an *instance* of the class. The assertion was changed to `assert bt._strategy is SmaCross`.
 
 These highlight the importance of careful, iterative debugging.
+
+---
+
+### 8. Pydantic Model Validation with Default Values
+
+*   **Symptom:** A test expecting a `ValueError` when loading an invalid JSON file into a Pydantic model was failing because no error was raised.
+*   **Root Cause:** The Pydantic model (`RunState`) had fields with default values (e.g., `iteration_number: int = 0`). When `model_validate()` was called with a JSON object that was missing these fields, Pydantic did not raise a `ValidationError`. Instead, it silently created a model instance with the default values.
+*   **Resolution:** Removed the default values from the model's fields (e.g., changed to `iteration_number: int`). This forced `model_validate()` to require the fields to be present in the source data, causing it to raise a `ValidationError` as expected when they were missing. The service layer was then updated to explicitly provide default values when creating a new, fresh instance.
+*   **Learning:** When using Pydantic for strict data validation (e.g., loading a state file that is expected to conform to a schema), avoid using default values for top-level fields. This ensures that malformed or incomplete data results in a loud failure (`ValidationError`) rather than a silent creation of a default object, which could hide bugs or data corruption issues.

@@ -12,6 +12,7 @@ __all__ = [
     "StrategyDefinition",
     "TradeSummary",
     "PerformanceReport",
+    "RunState",
 ]
 
 
@@ -103,3 +104,12 @@ class PerformanceReport(BaseModel):
     max_drawdown_pct: float
     annual_return_pct: float
     trade_summary: TradeSummary
+
+
+class RunState(BaseModel):
+    """
+    Represents the state of a single optimization run for a ticker,
+    allowing the process to be resumed.
+    """
+    iteration_number: int
+    history: List[PerformanceReport]
