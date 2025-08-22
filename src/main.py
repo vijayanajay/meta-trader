@@ -1,15 +1,3 @@
-# ============================================================================== 
-# Compatibility Shim for numpy>=2.0 and pandas-ta<=0.3.14b0
-# ------------------------------------------------------------------------------
-# The `pandas-ta` library on PyPI is not updated for numpy 2.0, which removed
-# `np.NaN`. This patch re-creates the alias before any other imports, allowing
-# the old library to run on the new numpy version. This must be the first code
-# to run.
-import numpy as np
-if not hasattr(np, "NaN"):
-    np.NaN = np.nan
-# ============================================================================== 
-
 """
 Main entry point for the Self-Improving Quant Engine.
 """
@@ -71,6 +59,33 @@ def main() -> None:
     print(f"Sharpe Ratio: {report.sharpe_ratio:.2f}")
     print(f"Total Trades: {report.trade_summary.total_trades}")
     print("--- Run Finished ---")
+
+    # --- Temporary LLMService Validation (for Task 6) ---
+    print("\n--- Testing LLM Service ---")
+    try:
+        from services import LLMService
+        from core.models import PerformanceReport, TradeSummary
+
+        llm_service = LLMService()
+        # Create a mock history with one report
+        history = [
+            PerformanceReport(
+                strategy=strategy_def,
+                sharpe_ratio=report.sharpe_ratio,
+                sortino_ratio=report.sortino_ratio,
+                max_drawdown_pct=report.max_drawdown_pct,
+                annual_return_pct=report.annual_return_pct,
+                trade_summary=report.trade_summary,
+            )
+        ]
+        print("Getting suggestion from LLM...")
+        suggestion = llm_service.get_suggestion(history)
+        print("--- LLM Suggestion Received ---")
+        print(suggestion.model_dump_json(indent=2))
+        print("--- LLM Service Test Finished ---")
+    except Exception as e:
+        print(f"FATAL: LLM Service test failed: {e}")
+
 
 
 if __name__ == "__main__":

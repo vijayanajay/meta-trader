@@ -88,6 +88,18 @@ These highlight the importance of careful, iterative debugging.
 
 ### 10. `ValueError` in `yf.download` due to incorrect period format
 
+---
+
+### 11. Test Failures Due to Environment Inconsistencies
+
+*   **Symptom:** The `pytest` suite failed with various `ModuleNotFoundError` and `ImportError` issues, specifically for `services`, `core`, `pkg_resources`, and `pyarrow`.
+*   **Root Cause:** The test environment was not set up correctly. This was due to a combination of missing dependencies and the project not being installed in an editable mode.
+*   **Resolution:**
+    1.  Installed the project in editable mode: `pip install -e .`. This resolved the `services` and `core` import errors by making the `src` directory available on the Python path.
+    2.  Installed `setuptools`: `pip install setuptools`. This resolved the `pkg_resources` error, which is a dependency of `pandas-ta`.
+    3.  Installed `pyarrow`: `pip install pyarrow`. This resolved the `ImportError` for the parquet engine in pandas.
+*   **Learning:** A robust development setup script or clear documentation is critical. When encountering import errors during testing, the first step should be to verify that the project is installed in editable mode and all dependencies from `requirements.txt` are installed.
+
 *   **Symptom:** `main.py` failed with a `ValueError` from `yfinance`, stating that time data did not match the expected format.
 *   **Root Cause:** A configuration value for `data_period` (e.g., "10y") was being passed to the `DataService.get_data` method, which in turn passed it to `yfinance.download`. However, the `DataService` is designed to accept `start_date` and `end_date` strings, not a period string.
 *   **Resolution:** Removed the incorrect `config.app.data_period` argument from the `data_service.get_data(ticker)` call in `main.py`, allowing the method to use its robust default start and end date parameters.
