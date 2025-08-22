@@ -294,7 +294,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `llm_service.py`, the prompt file, and tests are implemented and committed.
 *   **Time estimate:** 2.5 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 

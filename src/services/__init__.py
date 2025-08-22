@@ -8,6 +8,7 @@ from .data_service import DataService
 from .backtester import Backtester
 from .report_generator import ReportGenerator
 from .strategy_engine import StrategyEngine
+from .llm_service import LLMService
 
 __all__ = [
     "ConfigService",
@@ -15,4 +16,5 @@ __all__ = [
     "Backtester",
     "ReportGenerator",
     "StrategyEngine",
+    "LLMService",
 ]

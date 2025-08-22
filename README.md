@@ -38,6 +38,8 @@ The core architecture is built around a deterministic backtesting engine with a 
 
 ## Execution
 
+The application is configured via `config.ini` for general settings and `.env` for secrets like API keys. The `LLMService` will use the provider and model details specified in your `.env` file.
+
 To run the application, execute the main script from the root of the project:
 
 ```bash

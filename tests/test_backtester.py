@@ -4,6 +4,7 @@ Tests for the Backtester service.
 import pytest
 import pandas as pd
 from services.backtester import Backtester
+from core.models import BacktestSettings
 from core.strategy import SmaCross
 
 
@@ -29,9 +30,10 @@ def test_backtester_run(sample_data: pd.DataFrame) -> None:
     """
     # Arrange
     backtester = Backtester()
+    settings = BacktestSettings(cash=100000, commission=0.002, trade_size=0.95)
 
     # Act
-    stats, trades = backtester.run(sample_data, SmaCross)
+    stats, trades = backtester.run(sample_data, SmaCross, settings)
 
     # Assert
     assert stats is not None

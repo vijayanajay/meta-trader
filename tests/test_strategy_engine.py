@@ -49,7 +49,7 @@ def test_process_valid_strategy(sample_data: pd.DataFrame, ema_crossover_def: St
     engine = StrategyEngine()
 
     # Act
-    DynamicStrategy = engine.process(sample_data, ema_crossover_def)
+    DynamicStrategy = engine.process(sample_data, ema_crossover_def, trade_size=0.95)
 
     # Assert
     assert issubclass(DynamicStrategy, Strategy)
@@ -60,7 +60,7 @@ def test_process_macd_strategy(sample_data: pd.DataFrame, macd_def: StrategyDefi
     engine = StrategyEngine()
 
     # Act
-    DynamicStrategy = engine.process(sample_data, macd_def)
+    DynamicStrategy = engine.process(sample_data, macd_def, trade_size=0.95)
 
     # Assert
     assert issubclass(DynamicStrategy, Strategy)
@@ -79,7 +79,7 @@ def test_process_malicious_string(sample_data: pd.DataFrame) -> None:
 
     # Act & Assert
     with pytest.raises(ValueError, match="Invalid expression"):
-        engine.process(sample_data, malicious_def)
+        engine.process(sample_data, malicious_def, trade_size=0.95)
 
 def test_process_non_existent_indicator(sample_data: pd.DataFrame) -> None:
     """Tests that a condition referencing a non-existent indicator fails gracefully."""
@@ -96,7 +96,7 @@ def test_process_non_existent_indicator(sample_data: pd.DataFrame) -> None:
 
     # Act & Assert
     with pytest.raises(ValueError, match="Invalid expression"):
-        engine.process(sample_data, invalid_def)
+        engine.process(sample_data, invalid_def, trade_size=0.95)
 
 def test_process_invalid_indicator_function(sample_data: pd.DataFrame) -> None:
     """Tests that an invalid indicator function fails gracefully."""
@@ -113,7 +113,7 @@ def test_process_invalid_indicator_function(sample_data: pd.DataFrame) -> None:
 
     # Act & Assert
     with pytest.raises(ValueError, match="Failed to process indicator"):
-        engine.process(sample_data, invalid_def)
+        engine.process(sample_data, invalid_def, trade_size=0.95)
 
 def test_indicator_function_returns_none(sample_data: pd.DataFrame) -> None:
     """Tests that a ValueError is raised if an indicator function returns None."""
@@ -131,4 +131,4 @@ def test_indicator_function_returns_none(sample_data: pd.DataFrame) -> None:
     # Act & Assert
     with patch("pandas_ta.ema", return_value=None):
         with pytest.raises(ValueError, match="Indicator function returned None"):
-            engine.process(sample_data, strategy_def)
+            engine.process(sample_data, strategy_def, trade_size=0.95)
