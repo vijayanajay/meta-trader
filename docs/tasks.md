@@ -126,7 +126,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The report generation module and its tests are implemented and committed.
 *   **Time estimate:** 2.5 hours
-*   **Status:** Incomplete - Blocked
+*   **Status:** Completed
 
 ---
 
@@ -241,7 +241,31 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `main.py` is updated to use the `StrategyEngine`, demonstrating a complete, albeit simple, dynamic workflow.
 *   **Time estimate:** 1 hour
-*   **Status:** Not Started
+*   **Status:** Completed
+
+---
+
+## Epic 4: Maintenance & Refinement
+
+*Goal: To address bugs, dependency issues, and minor refactorings that improve the overall health and stability of the codebase.*
+
+---
+
+### Task 5.2 — Environment and Dependency Fixes
+
+*   **Rationale:** During the implementation of Task 5.1, several critical dependency and environment issues were discovered that prevented the application from running. These were documented in `docs/memory.md` and fixed to ensure the project is runnable.
+*   **Items to implement:**
+    *   Installed `setuptools` to resolve `pkg_resources` dependency for `pandas-ta`.
+    *   Downgraded `numpy` to `<2.0` to resolve `numpy.NaN` import error in `pandas-ta`.
+    *   Installed `pyarrow` to enable pandas Parquet caching functionality.
+    *   Fixed an incorrect argument in the `DataService.get_data` call in `main.py`.
+    *   Exposed `StrategyEngine` in `src/services/__init__.py` to allow correct imports.
+*   **Acceptance Criteria (AC):**
+    *   The `src/main.py` script can run end-to-end without import or dependency errors.
+*   **Definition of Done (DoD):**
+    *   All dependency issues are resolved and the fixes are committed.
+*   **Time estimate:** 1.5 hours
+*   **Status:** Completed
 
 ---
 

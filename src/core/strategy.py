@@ -5,13 +5,6 @@ import pandas as pd
 from backtesting import Strategy
 from backtesting.lib import crossover
 
-# Monkey-patch numpy for pandas-ta compatibility with numpy>=2.0.
-# Older versions of pandas-ta may use `numpy.NaN`, which was removed in numpy 2.0.
-# This patch ensures that `numpy.NaN` points to `numpy.nan` if it doesn't exist,
-# allowing the library to function without modification.
-import numpy
-if not hasattr(numpy, 'NaN'):
-    numpy.NaN = numpy.nan
 import pandas_ta as ta
 
 
