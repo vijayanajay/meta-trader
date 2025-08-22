@@ -1,91 +1,73 @@
+#
+# main.py
+#
 """
 Main entry point for the Self-Improving Quant Engine.
 """
-# NOTE: This is a temporary, simplified main for Epic 1 & 2 validation.
-# It will be replaced by the full orchestrator in a future task.
+import logging
+import sys
+
+# Configure logging at the earliest point
+# TODO: In a future task, this will be moved to a dedicated logging_config.py
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stdout,
+)
+
 from services import (
     ConfigService,
+    StateManager,
     DataService,
+    StrategyEngine,
     Backtester,
     ReportGenerator,
-    StrategyEngine,
+    LLMService,
 )
-from core.models import StrategyDefinition, Indicator
+from orchestrator import Orchestrator
+
+logger = logging.getLogger(__name__)
 
 
 def main() -> None:
     """
-    Runs a simple, single backtest of a dynamically generated strategy.
+    Initializes all services and runs the main orchestrator loop.
     """
-    print("--- Running Dynamic Strategy Backtest (Task 5.1 Validation) ---")
-    config_service = ConfigService()
-    config = config_service.load_config()
-
-    data_service = DataService(data_dir=config.app.data_dir)
-    strategy_engine = StrategyEngine()
-    backtester = Backtester()
-    report_generator = ReportGenerator()
-
-    # For now, we test the first ticker only
-    if not config.app.tickers:
-        print("FATAL: No tickers specified in config.ini")
-        return
-    ticker = config.app.tickers[0]
-    print(f"Fetching data for {ticker}...")
-    train_data, _ = data_service.get_data(ticker)
-
-    # Define a sample dynamic strategy (EMA Crossover)
-    strategy_def = StrategyDefinition(
-        strategy_name="EMA_Crossover_Dynamic",
-        indicators=[
-            Indicator(name="ema_fast", function="ema", params={"length": 10}),
-            Indicator(name="ema_slow", function="ema", params={"length": 30}),
-        ],
-        buy_condition="ema_fast > ema_slow",
-        sell_condition="ema_fast < ema_slow",
-    )
-    print(f"Processing strategy: {strategy_def.strategy_name}...")
-
-    dynamic_strategy_class = strategy_engine.process(
-        train_data, strategy_def, config.backtest.trade_size
-    )
-
-    print("Running backtest on dynamically generated strategy...")
-    stats, trades = backtester.run(train_data, dynamic_strategy_class, config.backtest)
-
-    report = report_generator.generate(stats, trades, strategy_def)
-
-    print("\n--- Dynamic Strategy Performance Report ---")
-    print(f"Sharpe Ratio: {report.sharpe_ratio:.2f}")
-    print(f"Total Trades: {report.trade_summary.total_trades}")
-    print("--- Run Finished ---")
-
-    # --- Temporary LLMService Validation (for Task 6) ---
-    print("\n--- Testing LLM Service ---")
+    logger.info("Application starting.")
     try:
-        from services import LLMService
-        from core.models import PerformanceReport, TradeSummary
+        # --- Service Initialization ---
+        config_service = ConfigService()
+        config = config_service.load_config()
 
+        state_manager = StateManager(
+            results_dir=config.app.results_dir,
+            run_state_file=config.app.run_state_file,
+        )
+        data_service = DataService(data_dir=config.app.data_dir)
+        strategy_engine = StrategyEngine()
+        backtester = Backtester()
+        report_generator = ReportGenerator()
         llm_service = LLMService()
-        # Create a mock history with one report
-        history = [
-            PerformanceReport(
-                strategy=strategy_def,
-                sharpe_ratio=report.sharpe_ratio,
-                sortino_ratio=report.sortino_ratio,
-                max_drawdown_pct=report.max_drawdown_pct,
-                annual_return_pct=report.annual_return_pct,
-                trade_summary=report.trade_summary,
-            )
-        ]
-        print("Getting suggestion from LLM...")
-        suggestion = llm_service.get_suggestion(history)
-        print("--- LLM Suggestion Received ---")
-        print(suggestion.model_dump_json(indent=2))
-        print("--- LLM Service Test Finished ---")
-    except Exception as e:
-        print(f"FATAL: LLM Service test failed: {e}")
 
+        # --- Orchestrator Initialization ---
+        orchestrator = Orchestrator(
+            config_service=config_service,
+            state_manager=state_manager,
+            data_service=data_service,
+            strategy_engine=strategy_engine,
+            backtester=backtester,
+            report_generator=report_generator,
+            llm_service=llm_service,
+        )
+
+        # --- Run the main loop ---
+        orchestrator.run()
+
+    except Exception as e:
+        logger.exception("A fatal error occurred. The application will now exit.")
+        sys.exit(1)
+
+    logger.info("Application finished successfully.")
 
 
 if __name__ == "__main__":

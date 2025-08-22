@@ -5,7 +5,12 @@ from the raw results of a backtest.
 import pandas as pd
 import numpy as np
 
-from core.models import StrategyDefinition, TradeSummary, PerformanceReport
+from core.models import (
+    StrategyDefinition,
+    TradeSummary,
+    PerformanceReport,
+    PerformanceMetrics,
+)
 
 __all__ = ["ReportGenerator"]
 
@@ -85,11 +90,15 @@ class ReportGenerator:
         """
         trade_summary = ReportGenerator._calculate_trade_summary(trades)
 
-        return PerformanceReport(
-            strategy=strategy_def,
+        performance_metrics = PerformanceMetrics(
             sharpe_ratio=stats.get("Sharpe Ratio", 0.0),
             sortino_ratio=stats.get("Sortino Ratio", 0.0),
             max_drawdown_pct=stats.get("Max. Drawdown [%]", 0.0),
             annual_return_pct=stats.get("Return (Ann.) [%]", 0.0),
+        )
+
+        return PerformanceReport(
+            strategy=strategy_def,
+            performance=performance_metrics,
             trade_summary=trade_summary,
         )

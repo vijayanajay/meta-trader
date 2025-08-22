@@ -53,53 +53,78 @@ class StrategyEngine:
     ) -> Type[Strategy]:
         """
         Processes the strategy definition against the data to create a new Strategy class.
-
-        Args:
-            data: The OHLCV data for the asset.
-            strategy_def: The strategy definition object.
-            trade_size: The fraction of equity to use for trades.
-
-        Returns:
-            A new class that inherits from backtesting.py's Strategy, with the
-            logic from the strategy definition applied.
         """
+        import inspect
+
         local_data = data.copy()
-
-        # Reset the symbol table for each run to avoid state leakage
         self._asteval = self._create_asteval_interpreter()
-
         available_names = set(self._asteval.symtable.keys())
 
-        # Calculate indicators and add them to the symbol table
-        indicator_series: Dict[str, pd.Series] = {}
+        # Prepare OHLCV data for indicators
+        ohlcv = {
+            'open': local_data['Open'],
+            'high': local_data['High'],
+            'low': local_data['Low'],
+            'close': local_data['Close'],
+            'volume': local_data['Volume'],
+        }
+
+        # Calculate indicators
         for indicator in strategy_def.indicators:
             try:
                 indicator_func = getattr(ta, indicator.function)
-                result = indicator_func(local_data['Close'], **indicator.params)
+
+                # Inspect the function signature to provide only required args
+                sig = inspect.signature(indicator_func)
+                params_to_pass = {
+                    p: ohlcv[p] for p in sig.parameters if p in ohlcv
+                }
+
+                # Add user-defined params
+                params_to_pass.update(indicator.params)
+
+                result = indicator_func(**params_to_pass)
                 if result is None:
                     raise ValueError("Indicator function returned None.")
 
-                # If the indicator returns a DataFrame (like MACD), add each column
+                # Handle multi-column results (e.g., bbands, macd, kc)
                 if isinstance(result, pd.DataFrame):
                     for col in result.columns:
-                        name = f"{indicator.name}_{col}"
-                        indicator_series[name] = result[col]
+                        # Create more intuitive names for common indicators
+                        if 'bb' in indicator.function:
+                            if 'BBL' in col: name = f"{indicator.name}_lower"
+                            elif 'BBM' in col: name = f"{indicator.name}_middle"
+                            elif 'BBU' in col: name = f"{indicator.name}_upper"
+                            else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
+                        elif 'kc' in indicator.function:
+                            if 'KCL' in col: name = f"{indicator.name}_lower"
+                            elif 'KCM' in col: name = f"{indicator.name}_middle"
+                            elif 'KCU' in col: name = f"{indicator.name}_upper"
+                            else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
+                        elif 'macd' in indicator.function:
+                            if 'MACD' in col: name = f"{indicator.name}" # Main line is just the name
+                            elif 'MACDs' in col: name = f"{indicator.name}_signal"
+                            elif 'MACDh' in col: name = f"{indicator.name}_hist"
+                            else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
+                        else:
+                            # Default generic naming for other multi-column indicators
+                            sanitized_col = col.replace('.', '_').replace('-', '_')
+                            name = f"{indicator.name}_{sanitized_col}"
+
                         self._asteval.symtable[name] = result[col].values
                         available_names.add(name)
                 else:
-                    indicator_series[indicator.name] = result
                     self._asteval.symtable[indicator.name] = result.values
                     available_names.add(indicator.name)
             except Exception as e:
                 raise ValueError(f"Failed to process indicator '{indicator.name}': {e}") from e
 
-        # Add OHLCV data to the symbol table
-        for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
-            name = col.lower()
-            self._asteval.symtable[name] = local_data[col].values
+        # Add base OHLCV to symbol table
+        for name, series in ohlcv.items():
+            self._asteval.symtable[name] = series.values
             available_names.add(name)
 
-        # Validate expressions before evaluation
+        # Validate expressions
         self._validate_expression(strategy_def.buy_condition, available_names)
         self._validate_expression(strategy_def.sell_condition, available_names)
 
@@ -110,9 +135,16 @@ class StrategyEngine:
         except Exception as e:
             raise ValueError(f"Failed to evaluate conditions: {e}") from e
 
-        # Coerce signals to boolean arrays
-        buy_signal = np.nan_to_num(buy_signal, nan=0).astype(bool)
-        sell_signal = np.nan_to_num(sell_signal, nan=0).astype(bool)
+        # Coerce signals to boolean arrays, handling None from asteval
+        if buy_signal is None:
+            buy_signal = np.zeros(len(local_data), dtype=bool)
+        else:
+            buy_signal = np.nan_to_num(buy_signal, nan=0).astype(bool)
+
+        if sell_signal is None:
+            sell_signal = np.zeros(len(local_data), dtype=bool)
+        else:
+            sell_signal = np.nan_to_num(sell_signal, nan=0).astype(bool)
 
 
         # Create a dynamic Strategy class

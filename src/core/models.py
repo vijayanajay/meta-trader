@@ -109,11 +109,43 @@ class PerformanceReport(BaseModel):
     and fed back to the LLM.
     """
     strategy: StrategyDefinition
+    performance: "PerformanceMetrics"
+    trade_summary: TradeSummary
+    is_pruned: bool = False
+    next_strategy_suggestion: StrategyDefinition | None = None
+
+    @classmethod
+    def create_pruned(cls, strategy_def: StrategyDefinition) -> "PerformanceReport":
+        """Factory method to create a report for a pruned/failed iteration."""
+        return cls(
+            strategy=strategy_def,
+            performance=PerformanceMetrics(
+                sharpe_ratio=-999.0,
+                sortino_ratio=-999.0,
+                max_drawdown_pct=-999.0,
+                annual_return_pct=-999.0,
+            ),
+            trade_summary=TradeSummary(
+                total_trades=0,
+                win_rate_pct=0.0,
+                profit_factor=0.0,
+                avg_win_pct=0.0,
+                avg_loss_pct=0.0,
+                max_consecutive_losses=0,
+                avg_trade_duration_bars=0,
+            ),
+            is_pruned=True,
+        )
+
+
+class PerformanceMetrics(BaseModel):
+    """
+    Holds the key performance indicators from a backtest run.
+    """
     sharpe_ratio: float
     sortino_ratio: float
     max_drawdown_pct: float
     annual_return_pct: float
-    trade_summary: TradeSummary
 
 
 class RunState(BaseModel):

@@ -104,3 +104,43 @@ These highlight the importance of careful, iterative debugging.
 *   **Root Cause:** A configuration value for `data_period` (e.g., "10y") was being passed to the `DataService.get_data` method, which in turn passed it to `yfinance.download`. However, the `DataService` is designed to accept `start_date` and `end_date` strings, not a period string.
 *   **Resolution:** Removed the incorrect `config.app.data_period` argument from the `data_service.get_data(ticker)` call in `main.py`, allowing the method to use its robust default start and end date parameters.
 *   **Learning:** Always verify the exact signature and expected arguments of a service method before calling it. Do not assume a configuration value's name maps directly to a function's parameter, especially when default values are provided.
+
+---
+
+### 12. Circular Import between `core` and `services`
+
+*   **Symptom:** `python src/main.py` failed with `ImportError: cannot import name 'ConfigService' from partially initialized module 'services' (most likely due to a circular import)`.
+*   **Root Cause:** The `Orchestrator` was located in `src/core`, but it needs to import and use classes from `src/services`. At the same time, `services` (specifically `ConfigService`) needed to import models from `src/core`. This created an import cycle (`main` -> `services` -> `core` -> `services`).
+*   **Resolution:** The `Orchestrator` is not a "core" component in the sense of pure, offline logic; it's the top-level application coordinator. It was moved from `src/core/orchestrator.py` to `src/orchestrator.py`. All relevant imports in `main.py`, `core/__init__.py`, and tests were updated.
+*   **Learning:** The `core` module should have no dependencies on any other application module (`services`, etc.). It should only contain self-contained data models and pure functions. Application logic that coordinates multiple services belongs at a higher level. This enforces the Acyclic Import Graph rule (H-12).
+
+---
+
+### 13. `TypeError` on Service Instantiation
+
+*   **Symptom:** `main.py` failed with `TypeError: __init__() got an unexpected keyword argument`. This happened for multiple services (`StateManager`, `LLMService`).
+*   **Root Cause:** The arguments being passed to the service's constructor in `main.py` did not match the arguments defined in the service's `__init__` method. For instance, `LLMService` was passed a `config` object it didn't need, as it configures itself from environment variables.
+*   **Resolution:** For each case, the `__init__` method of the service was treated as the source of truth. The instantiation call in `main.py` was corrected to provide the exact arguments required. This also involved refactoring `StateManager` to handle per-ticker state files more robustly.
+*   **Learning:** A mismatch between instantiation and definition is a common bug. It highlights the need for careful integration. When a service's dependencies change, all places where it is instantiated must be updated.
+
+---
+
+### 14. `StrategyEngine` Logical Flaws
+
+*   **Symptom:** The application ran but backtests consistently failed inside the `StrategyEngine` with `TypeError` (missing arguments for indicators) or `NameError` (variable not defined).
+*   **Root Cause:** The initial `StrategyEngine` was too simplistic and had two major flaws:
+    1.  **It only passed `close` data to indicators:** It called every `pandas-ta` function with only the `close` series, but many indicators (`atr`, `kc`, etc.) require `high`, `low`, and `volume`.
+    2.  **It did not handle multi-column indicators predictably:** For indicators like `bbands`, it created column names like `bbands_BBL_20_2_0`, which the LLM could not possibly guess. The LLM would logically try to use names like `bb_lower`.
+*   **Resolution:** The `StrategyEngine` was significantly refactored:
+    1.  It now uses Python's `inspect.signature` to determine which OHLCV columns an indicator function requires at runtime and dynamically provides only those arguments.
+    2.  It now has a hard-coded mapping for common multi-column indicators (`bbands`, `kc`, `macd`) to create intuitive and predictable variable names (e.g., `bb_lower`, `macd_signal`) for the `asteval` context.
+*   **Learning:** Systems that interpret generated code or configurations (even safe ones like this) must be robust. The interpreter (`StrategyEngine`) needs to be flexible enough to handle the variety of valid inputs, and the context provided to the generator (the LLM) must be clear and predictable.
+
+---
+
+### 15. `asteval` returning `None`
+
+*   **Symptom:** `StrategyEngine` failed with `AttributeError: 'NoneType' object has no attribute 'astype'`.
+*   **Root Cause:** If an `asteval` expression was valid but resulted in a `None` value (e.g., comparing `NaN` values), the subsequent `np.nan_to_num(...).astype(bool)` call would fail.
+*   **Resolution:** Added a check after the `asteval.eval()` call. If the result is `None`, it is replaced with a boolean array of all `False` values, effectively treating it as "no signal".
+*   **Learning:** Be defensive when handling the output of external libraries or evaluators. Always consider edge cases like `None` or other unexpected return types.
