@@ -46,10 +46,12 @@ def main() -> None:
     )
     print(f"Processing strategy: {strategy_def.strategy_name}...")
 
-    dynamic_strategy_class = strategy_engine.process(train_data, strategy_def)
+    dynamic_strategy_class = strategy_engine.process(
+        train_data, strategy_def, config.backtest.trade_size
+    )
 
     print("Running backtest on dynamically generated strategy...")
-    stats, trades = backtester.run(train_data, dynamic_strategy_class)
+    stats, trades = backtester.run(train_data, dynamic_strategy_class, config.backtest)
 
     report = report_generator.generate(stats, trades, strategy_def)
 

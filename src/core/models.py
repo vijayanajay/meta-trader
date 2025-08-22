@@ -45,12 +45,22 @@ class AppSettings(BaseModel):
     sharpe_threshold: float
 
 
+class BacktestSettings(BaseModel):
+    """
+    Settings for the backtesting engine.
+    """
+    cash: int
+    commission: float
+    trade_size: float
+
+
 class Config(BaseModel):
     """
     The main configuration object, aggregating all settings.
     """
     llm: LLMSettings
     app: AppSettings
+    backtest: BacktestSettings
 
 
 # ==============================================================================

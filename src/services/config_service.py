@@ -6,7 +6,7 @@ from typing import Dict, Any, List
 from dotenv import dotenv_values
 from pathlib import Path
 
-from core.models import Config, LLMSettings, AppSettings
+from core.models import Config, LLMSettings, AppSettings, BacktestSettings
 
 __all__ = ["ConfigService"]
 
@@ -60,8 +60,16 @@ class ConfigService:
             "sharpe_threshold": strategy_settings.getfloat("sharpe_threshold", 0.1),
         }
 
+        # Extract backtest settings
+        backtest_settings_data = {
+            "cash": parser.getint("backtest", "cash", fallback=100000),
+            "commission": parser.getfloat("backtest", "commission", fallback=0.002),
+            "trade_size": parser.getfloat("backtest", "trade_size", fallback=0.95),
+        }
+
         # Validate using Pydantic models
         llm_settings = LLMSettings.model_validate(env_config)
         app_settings = AppSettings.model_validate(app_settings_data)
+        backtest_settings = BacktestSettings.model_validate(backtest_settings_data)
 
-        return Config(llm=llm_settings, app=app_settings)
+        return Config(llm=llm_settings, app=app_settings, backtest=backtest_settings)
