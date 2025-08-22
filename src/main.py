@@ -1,3 +1,15 @@
+# ============================================================================== 
+# Compatibility Shim for numpy>=2.0 and pandas-ta<=0.3.14b0
+# ------------------------------------------------------------------------------
+# The `pandas-ta` library on PyPI is not updated for numpy 2.0, which removed
+# `np.NaN`. This patch re-creates the alias before any other imports, allowing
+# the old library to run on the new numpy version. This must be the first code
+# to run.
+import numpy as np
+if not hasattr(np, "NaN"):
+    np.NaN = np.nan
+# ============================================================================== 
+
 """
 Main entry point for the Self-Improving Quant Engine.
 """
