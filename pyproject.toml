@@ -9,7 +9,7 @@ where = ["src"]
 
 [tool.mypy]
 python_version = "3.12"
-packages = ["src"]
+packages = ["src", "tests"]
 strict = true
 
 [[tool.mypy.overrides]]
