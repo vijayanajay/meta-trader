@@ -34,7 +34,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The initial project structure and configuration service are committed to the repository.
 *   **Time estimate:** 2 hours
-*   **Status:** Completed
+*   **Status:** Not Started
 
 ---
 
@@ -347,7 +347,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `orchestrator.py` and its integration test are implemented and committed.
 *   **Time estimate:** 4 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 

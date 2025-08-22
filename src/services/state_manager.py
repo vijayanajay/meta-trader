@@ -13,29 +13,37 @@ __all__ = ["StateManager"]
 
 class StateManager:
     """
-    Handles saving and loading of the application's run state,
+    Handles saving and loading of the application's run state for each ticker,
     enabling resumability.
     """
 
-    def __init__(self, state_filepath: Path):
+    def __init__(self, results_dir: str, run_state_file: str):
         """
         Initializes the StateManager.
 
         Args:
-            state_filepath: The path to the JSON file where the state is stored.
+            results_dir: The base directory where results are stored.
+            run_state_file: The filename template for the state file.
         """
-        self._state_filepath = state_filepath
+        self._results_dir = Path(results_dir)
+        self._run_state_file = run_state_file
+        self._results_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_state_filepath(self, ticker: str) -> Path:
+        """Constructs the full path to the state file for a given ticker."""
+        return self._results_dir / f"{ticker}_{self._run_state_file}"
 
     # impure
-    def save_state(self, run_state: RunState) -> None:
+    def save_state(self, ticker: str, run_state: RunState) -> None:
         """
-        Saves the given RunState to the state file atomically.
+        Saves the given RunState to the ticker's state file atomically.
 
         Args:
+            ticker: The ticker symbol.
             run_state: The RunState object to save.
         """
-        # Use a temporary file and atomic rename to prevent corruption
-        temp_dir = self._state_filepath.parent
+        state_filepath = self._get_state_filepath(ticker)
+        temp_dir = state_filepath.parent
         temp_path = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -44,35 +52,35 @@ class StateManager:
                 temp_path = Path(f.name)
                 f.write(run_state.model_dump_json(indent=4))
 
-            temp_path.rename(self._state_filepath)
+            temp_path.rename(state_filepath)
         except Exception as e:
-            # If something goes wrong, try to clean up the temp file
             if temp_path and temp_path.exists():
                 temp_path.unlink()
             raise e
 
     # impure
-    def load_state(self) -> RunState:
+    def load_state(self, ticker: str) -> RunState:
         """
-        Loads the RunState from the state file.
+        Loads the RunState from the ticker's state file.
 
-        If the file does not exist, it returns a new RunState object,
-        representing the start of a new run.
-
+        If the file does not exist, it returns a new RunState object.
         If the file is corrupted, it raises a ValueError.
+
+        Args:
+            ticker: The ticker symbol.
 
         Returns:
             The loaded or a new RunState object.
         """
-        if not self._state_filepath.exists():
+        state_filepath = self._get_state_filepath(ticker)
+        if not state_filepath.exists():
             return RunState(iteration_number=0, history=[])
 
         try:
-            with open(self._state_filepath, 'r') as f:
+            with open(state_filepath, 'r') as f:
                 data = json.load(f)
             return RunState.model_validate(data)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Error decoding state file: {self._state_filepath}") from e
+            raise ValueError(f"Error decoding state file: {state_filepath}") from e
         except Exception as e:
-            # Catches Pydantic validation errors and other issues
-            raise ValueError(f"Error loading state file: {self._state_filepath}") from e
+            raise ValueError(f"Error loading state file: {state_filepath}") from e

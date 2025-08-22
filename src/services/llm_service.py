@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import re
-from typing import List, cast
+from typing import List, cast, Optional
 
 from openai import OpenAI, APIError
 from dotenv import load_dotenv
@@ -49,18 +49,17 @@ class LLMService:
             raise
 
     # impure
-    def get_suggestion(self, history: List[PerformanceReport]) -> StrategyDefinition:
+    def get_suggestion(
+        self,
+        ticker: str,
+        history: List[PerformanceReport],
+        failed_strategy: Optional[PerformanceReport],
+        best_strategy_so_far: StrategyDefinition,
+    ) -> StrategyDefinition:
         """
         Gets a new strategy suggestion from the LLM.
-
-        Args:
-            history: A list of performance reports from previous iterations.
-
-        Returns:
-            A StrategyDefinition object representing the new strategy.
         """
-        formatted_history = self._format_history(history)
-        prompt = self.prompt_template.format(history=formatted_history)
+        prompt = self._build_prompt(ticker, history, failed_strategy, best_strategy_so_far)
 
         try:
             logger.info(f"Sending prompt to LLM ({self.model})...")
@@ -75,40 +74,80 @@ class LLMService:
             )
 
             response_content = completion.choices[0].message.content
-            if response_content is None:
+            if not response_content:
                 raise ValueError("LLM returned empty response.")
 
             if completion.usage:
-                logger.info(f"LLM usage: Prompt tokens: {completion.usage.prompt_tokens}, Completion tokens: {completion.usage.completion_tokens}")
+                logger.info(
+                    f"LLM usage: Prompt tokens: {completion.usage.prompt_tokens}, "
+                    f"Completion tokens: {completion.usage.completion_tokens}"
+                )
 
             json_response = json.loads(response_content)
-            strategy_def = StrategyDefinition.model_validate(json_response)
-            return strategy_def
+            return StrategyDefinition.model_validate(json_response)
 
         except APIError as e:
             logger.error(f"LLM API error: {e}")
             raise
         except (json.JSONDecodeError, ValidationError) as e:
-            logger.error(f"Failed to parse or validate LLM response: {e}")
-            logger.debug(f"Raw LLM response: {response_content}")
+            logger.error(f"Failed to parse/validate LLM response: {e}\nRaw response: {response_content}")
             raise
         except Exception as e:
             logger.error(f"An unexpected error occurred while communicating with the LLM: {e}")
             raise
 
+    def _build_prompt(
+        self,
+        ticker: str,
+        history: List[PerformanceReport],
+        failed_strategy: Optional[PerformanceReport],
+        best_strategy_so_far: StrategyDefinition,
+    ) -> str:
+        """Constructs the full prompt string for the LLM."""
+
+        failure_context = ""
+        if failed_strategy:
+            failed_strat_json = failed_strategy.strategy.model_dump_json(indent=2)
+            failure_context = (
+                "CRITICAL FEEDBACK: Your previous suggestion was a failure and has been pruned.\n"
+                f"Failed Strategy JSON: {failed_strat_json}\n"
+                f"This strategy resulted in a Sharpe Ratio of {failed_strategy.performance.sharpe_ratio:.2f}, "
+                "which is below the required threshold. This result has been discarded.\n"
+                "We are reverting to the previous best strategy as the context. "
+                "Analyze the failure and propose a substantially different approach.\n\n"
+            )
+
+        formatted_history = self._format_history(history)
+
+        return self.prompt_template.format(
+            ticker=ticker,
+            failure_context=failure_context,
+            history=formatted_history,
+            best_strategy_json=best_strategy_so_far.model_dump_json(indent=2),
+        )
+
     def _format_history(self, history: List[PerformanceReport]) -> str:
+        """Formats the history of reports into a string for the prompt."""
         if not history:
             return "No history yet. This is the first iteration. Please provide the baseline strategy."
 
-        formatted_reports = []
+        # Summarize older reports, show more detail for recent ones
+        history_parts = []
         for i, report in enumerate(history):
-            strategy_def_json = report.strategy.model_dump_json(indent=2)
+            if report.is_pruned:
+                report_str = (
+                    f"Iteration {i}: SKIPPED (Strategy failed with Sharpe Ratio "
+                    f"{report.performance.sharpe_ratio:.2f} and was pruned)"
+                )
+            else:
+                report_str = (
+                    f"Iteration {i}:\n"
+                    f"  Strategy Name: {report.strategy.strategy_name}\n"
+                    f"  Sharpe Ratio: {report.performance.sharpe_ratio:.2f}\n"
+                    f"  Annual Return: {report.performance.annual_return_pct:.2f}%\n"
+                    f"  Max Drawdown: {report.performance.max_drawdown_pct:.2f}%\n"
+                    f"  Total Trades: {report.trade_summary.total_trades}"
+                )
+            history_parts.append(report_str)
 
-            report_str = f"Iteration {i}:\n"
-            report_str += f"  Strategy: {strategy_def_json}\n"
-            report_str += f"  Sharpe Ratio: {report.sharpe_ratio:.2f}\n"
-            report_str += f"  Win Rate: {report.trade_summary.win_rate_pct:.2f}%\n"
-            report_str += f"  Total Trades: {report.trade_summary.total_trades}\n"
-            formatted_reports.append(report_str)
-
-        return "\n".join(formatted_reports)
+        return "\n\n".join(history_parts)
