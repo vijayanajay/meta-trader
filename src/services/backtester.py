@@ -6,6 +6,8 @@ from typing import Type, cast, Tuple
 import pandas as pd
 from backtesting import Backtest, Strategy
 
+from core.models import BacktestSettings
+
 __all__ = ["Backtester"]
 
 
@@ -18,8 +20,7 @@ class Backtester:
         self,
         data: pd.DataFrame,
         strategy_class: Type[Strategy],
-        cash: int = 100_000,
-        commission: float = 0.002,
+        settings: BacktestSettings,
     ) -> Tuple[pd.Series, pd.DataFrame]:
         """
         Runs a backtest for a given strategy and dataset.
@@ -27,8 +28,7 @@ class Backtester:
         Args:
             data: A pandas DataFrame containing the OHLCV data.
             strategy_class: The strategy class to be backtested.
-            cash: The initial cash amount for the backtest.
-            commission: The commission rate for trades.
+            settings: The backtest configuration settings.
 
         Returns:
             A tuple containing:
@@ -36,7 +36,11 @@ class Backtester:
             - A pandas DataFrame with the list of trades.
         """
         bt = Backtest(
-            data, strategy_class, cash=cash, commission=commission, finalize_trades=True
+            data,
+            strategy_class,
+            cash=settings.cash,
+            commission=settings.commission,
+            finalize_trades=True,
         )
         stats = bt.run()
 

@@ -45,13 +45,19 @@ class StrategyEngine:
         except Exception as e:
             raise ValueError(f"Invalid expression '{expression}': {e}") from e
 
-    def process(self, data: pd.DataFrame, strategy_def: StrategyDefinition) -> Type[Strategy]:
+    def process(
+        self,
+        data: pd.DataFrame,
+        strategy_def: StrategyDefinition,
+        trade_size: float,
+    ) -> Type[Strategy]:
         """
         Processes the strategy definition against the data to create a new Strategy class.
 
         Args:
             data: The OHLCV data for the asset.
             strategy_def: The strategy definition object.
+            trade_size: The fraction of equity to use for trades.
 
         Returns:
             A new class that inherits from backtesting.py's Strategy, with the
@@ -110,15 +116,19 @@ class StrategyEngine:
 
 
         # Create a dynamic Strategy class
-        class DynamicStrategy(Strategy): # type: ignore[misc]
+        class DynamicStrategy(Strategy):  # type: ignore[misc]
+            trade_size_param = trade_size
+
             def init(self) -> None:
                 self.buy_signal = self.I(lambda: buy_signal)
                 self.sell_signal = self.I(lambda: sell_signal)
 
             def next(self) -> None:
-                if self.buy_signal:
-                    self.buy()
-                elif self.sell_signal:
-                    self.sell()
+                # Close existing position if sell signal is triggered
+                if self.sell_signal and self.position:
+                    self.position.close()
+                # Enter new long position if buy signal is triggered and we have no open position
+                elif self.buy_signal and not self.position:
+                    self.buy(size=self.trade_size_param)
 
         return DynamicStrategy
