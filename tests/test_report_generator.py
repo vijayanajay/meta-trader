@@ -63,10 +63,10 @@ def test_generate_report_happy_path(
 
     assert isinstance(report, PerformanceReport)
     assert report.strategy == mock_strategy_def
-    assert report.sharpe_ratio == 1.5
-    assert report.sortino_ratio == 2.5
-    assert report.max_drawdown_pct == -15.5
-    assert report.annual_return_pct == 25.0
+    assert report.performance.sharpe_ratio == 1.5
+    assert report.performance.sortino_ratio == 2.5
+    assert report.performance.max_drawdown_pct == -15.5
+    assert report.performance.annual_return_pct == 25.0
 
     summary = report.trade_summary
     assert summary.total_trades == 4

@@ -2,6 +2,7 @@
 Service for managing the state of an optimization run.
 """
 import json
+import os
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -52,9 +53,11 @@ class StateManager:
                 temp_path = Path(f.name)
                 f.write(run_state.model_dump_json(indent=4))
 
-            temp_path.rename(state_filepath)
+            # Use os.replace for atomic file replacement, which works across platforms
+            os.replace(temp_path, state_filepath)
         except Exception as e:
-            if temp_path and temp_path.exists():
+            # temp_path might not be assigned if the error is in NamedTemporaryFile
+            if 'temp_path' in locals() and temp_path and temp_path.exists():
                 temp_path.unlink()
             raise e
 

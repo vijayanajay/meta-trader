@@ -144,3 +144,21 @@ These highlight the importance of careful, iterative debugging.
 *   **Root Cause:** If an `asteval` expression was valid but resulted in a `None` value (e.g., comparing `NaN` values), the subsequent `np.nan_to_num(...).astype(bool)` call would fail.
 *   **Resolution:** Added a check after the `asteval.eval()` call. If the result is `None`, it is replaced with a boolean array of all `False` values, effectively treating it as "no signal".
 *   **Learning:** Be defensive when handling the output of external libraries or evaluators. Always consider edge cases like `None` or other unexpected return types.
+
+---
+
+### 16. `FileExistsError` on Windows during State Saving
+
+*   **Symptom:** The application would crash with `FileExistsError: [WinError 183] Cannot create a file when that file already exists` when saving run state.
+*   **Root Cause:** The `StateManager` used `pathlib.Path.rename()` for its atomic write operation. On Windows, this function fails if the destination file already exists.
+*   **Resolution:** Replaced `temp_path.rename(state_filepath)` with `os.replace(temp_path, state_filepath)`. `os.replace` is the correct, cross-platform method for performing an atomic rename/overwrite operation.
+*   **Learning:** Filesystem operations can have subtle platform differences. For atomic file overwrites, `os.replace()` is more portable and robust than `pathlib.Path.rename()`.
+
+---
+
+### 17. `NameError` in `StrategyEngine` for Unhandled Multi-Column Indicators
+
+*   **Symptom:** The application would crash with `NameError: Name 'adx' is not defined in the strategy context.`
+*   **Root Cause:** The `StrategyEngine` has special logic to rename the columns of common multi-column indicators (like `macd`, `bbands`) to predictable names that the LLM can use (e.g., `macd_signal`). However, `adx` is also a multi-column indicator, but it was not included in this special handling. The default logic was creating a variable named `adx_ADX_14`, which did not match the `adx` variable used in the LLM-generated condition.
+*   **Resolution:** Added a new `elif 'adx' in indicator.function:` block to the `StrategyEngine`. This new block maps the main `ADX` data column to the simple indicator name (e.g., `adx`) and provides predictable names for the other columns (`adx_dmp`, `adx_dmn`).
+*   **Learning:** The "predictable name mapping" for multi-column indicators is a crucial part of the contract between the `StrategyEngine` and the LLM. This mapping must be updated any time a new, complex indicator is implicitly supported. Any indicator that returns a DataFrame from `pandas-ta` needs to be explicitly handled to ensure the variable names are simple and predictable.

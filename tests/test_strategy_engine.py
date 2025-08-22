@@ -39,8 +39,8 @@ def macd_def() -> StrategyDefinition:
         indicators=[
             Indicator(name="macd", function="macd", params={"fast": 8, "slow": 21, "signal": 5}),
         ],
-        buy_condition="macd_MACD_8_21_5 > macd_MACDs_8_21_5",
-        sell_condition="macd_MACD_8_21_5 < macd_MACDs_8_21_5"
+        buy_condition="macd > macd_signal",
+        sell_condition="macd < macd_signal",
     )
 
 def test_process_valid_strategy(sample_data: pd.DataFrame, ema_crossover_def: StrategyDefinition) -> None:
