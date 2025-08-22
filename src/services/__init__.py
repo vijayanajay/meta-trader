@@ -7,10 +7,12 @@ from .config_service import ConfigService
 from .data_service import DataService
 from .backtester import Backtester
 from .report_generator import ReportGenerator
+from .strategy_engine import StrategyEngine
 
 __all__ = [
     "ConfigService",
     "DataService",
     "Backtester",
     "ReportGenerator",
+    "StrategyEngine",
 ]

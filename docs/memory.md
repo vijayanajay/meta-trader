@@ -74,3 +74,21 @@ These highlight the importance of careful, iterative debugging.
 *   **Root Cause:** The Pydantic model (`RunState`) had fields with default values (e.g., `iteration_number: int = 0`). When `model_validate()` was called with a JSON object that was missing these fields, Pydantic did not raise a `ValidationError`. Instead, it silently created a model instance with the default values.
 *   **Resolution:** Removed the default values from the model's fields (e.g., changed to `iteration_number: int`). This forced `model_validate()` to require the fields to be present in the source data, causing it to raise a `ValidationError` as expected when they were missing. The service layer was then updated to explicitly provide default values when creating a new, fresh instance.
 *   **Learning:** When using Pydantic for strict data validation (e.g., loading a state file that is expected to conform to a schema), avoid using default values for top-level fields. This ensures that malformed or incomplete data results in a loud failure (`ValidationError`) rather than a silent creation of a default object, which could hide bugs or data corruption issues.
+
+---
+
+### 9. `ImportError` on `StrategyEngine` from `main.py`
+
+*   **Symptom:** `python src/main.py` failed with `ImportError: cannot import name 'StrategyEngine' from 'services'`.
+*   **Root Cause:** A new service, `StrategyEngine`, was created in `src/services/strategy_engine.py`, but the package's `__init__.py` file (`src/services/__init__.py`) was not updated to import and expose it in the `__all__` list.
+*   **Resolution:** Added `from .strategy_engine import StrategyEngine` and included `"StrategyEngine"` in the `__all__` list in `src/services/__init__.py`.
+*   **Learning:** Adherence to `H-6` and `H-7` is critical. Whenever a new public class is added to a module, the package's `__init__.py` must be updated to make it part of the public API.
+
+---
+
+### 10. `ValueError` in `yf.download` due to incorrect period format
+
+*   **Symptom:** `main.py` failed with a `ValueError` from `yfinance`, stating that time data did not match the expected format.
+*   **Root Cause:** A configuration value for `data_period` (e.g., "10y") was being passed to the `DataService.get_data` method, which in turn passed it to `yfinance.download`. However, the `DataService` is designed to accept `start_date` and `end_date` strings, not a period string.
+*   **Resolution:** Removed the incorrect `config.app.data_period` argument from the `data_service.get_data(ticker)` call in `main.py`, allowing the method to use its robust default start and end date parameters.
+*   **Learning:** Always verify the exact signature and expected arguments of a service method before calling it. Do not assume a configuration value's name maps directly to a function's parameter, especially when default values are provided.
