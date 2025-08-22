@@ -35,7 +35,9 @@ class Backtester:
             - A pandas Series with the backtest results.
             - A pandas DataFrame with the list of trades.
         """
-        bt = Backtest(data, strategy_class, cash=cash, commission=commission)
+        bt = Backtest(
+            data, strategy_class, cash=cash, commission=commission, finalize_trades=True
+        )
         stats = bt.run()
 
         # The _trades attribute is not in the official documentation, but it's where

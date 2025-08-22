@@ -40,10 +40,12 @@ class SmaCross(Strategy):  # type: ignore[misc]
         """
         Define the strategy logic for the next tick.
         """
-        # If the short-term MA crosses above the long-term MA, buy
-        if crossover(self.sma1, self.sma2):
+        # If the short-term MA crosses above the long-term MA and we're not
+        # in a position, buy.
+        if crossover(self.sma1, self.sma2) and not self.position:
             self.buy()
 
-        # If the short-term MA crosses below the long-term MA, sell
-        elif crossover(self.sma2, self.sma1):
-            self.sell()
+        # If the short-term MA crosses below the long-term MA and we are
+        # in a position, sell.
+        elif crossover(self.sma2, self.sma1) and self.position:
+            self.position.close()
