@@ -1,5 +1,6 @@
 # Core application libraries
 pandas
+numpy<2.0 # Pinned for pandas-ta compatibility
 pandas-ta
 Backtesting
 yfinance
@@ -13,3 +14,4 @@ pyarrow
 pytest
 mypy
 pandas-stubs
+setuptools<81 # Pinned for pandas-ta compatibility

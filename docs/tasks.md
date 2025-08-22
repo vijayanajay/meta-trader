@@ -143,7 +143,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The interface bug is fixed and verified with an integration test.
 *   **Time estimate:** 1.5 hours
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
@@ -158,7 +158,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   All type errors are resolved.
 *   **Time estimate:** 1 hour
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
@@ -174,7 +174,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   All placeholder files are deleted and `main.py` is refactored.
 *   **Time estimate:** 1 hour
-*   **Status:** Not Started
+*   **Status:** Completed
 
 ---
 
