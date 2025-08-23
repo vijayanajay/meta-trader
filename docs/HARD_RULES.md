@@ -1,71 +1,71 @@
-# HARD RULES — Self-Improving Quant Engine
+# **HARD RULES — "Praxis" Mean-Reversion Engine**
 
-These 30 hard rules express the combined mindset for this project: Kailash Nadh's pragmatism (minimalism, fast iteration, robust code) and Geoffrey Hinton's experimental rigor (reproducibility, measured discovery, auditable results). Follow them strictly for v1.0 development.
+These 30 rules are the engineering constitution for this project. They translate the project's philosophy—pragmatic simplicity for the chaotic Indian markets and an unwavering commitment to the integrity of the statistical learning process—into strict, actionable directives. They are not suggestions. Adherence is mandatory.
 
-──────────────────────────── 3. HARD RULES ───────────────────────────────────
+────────────────────────────
 
-[H-1] **Preserve observable behaviour:** CLI flags, config shape, filenames (`run_state.json`, `stock_data.parquet`), and emitted logs must remain stable across changes unless an explicit migration note accompanies the change.
+### I. System Integrity & Simplicity (The Nadh Principles)
 
-[H-2] **Touch only `self_improving_quant/`, `tests/`, and `docs/`.** Leave infra and root files (CI, `pyproject.toml`, lockfiles) unchanged unless a separate PR documents the reason.
+[H-1] **100% Type Hints, Strictly Enforced.** All code must pass `mypy --strict`. We are building a deterministic machine, not a research script. Ambiguity is a bug.
 
-[H-3] **Prefer deletion over clever rewrites:** Remove unused code rather than wrap it in abstraction. Keep the codebase minimal and focused on the core loop.
+[H-2] **Stateless Services, Always.** All services (`DataService`, `SignalEngine`, etc.) are instantiated by the `Orchestrator` and hold no state between calls. Configuration is passed down via dependency injection. Global state is forbidden.
 
-[H-4] **Zero new abstractions unless they eliminate ≥2 near-identical copies of logic.** Show before/after examples in the PR description to justify any new class or helper.
+[H-3] **Functions > 40 Lines Are a Code Smell.** If a function exceeds 40 logical lines, it must be refactored. The only exception is if the author can prove in the PR description that splitting it introduces more complexity than it removes.
 
-[H-5] **Every code suggestion or PR must show net LOC delta and a one-line rationale for the delta.** This enforces a bias toward simplicity.
+[H-4] **No New Abstractions Without Proof.** Do not add a new class or design pattern unless it demonstrably removes more lines of duplicated code than it adds. Justify it with a before/after diff in the PR.
 
-[H-6] **Green tests are non-negotiable:** No merge without passing unit tests and a short smoke run of the orchestrator with a mocked LLM.
+[H-5] **Prefer Deletion Over Abstraction.** If code is unused, delete it. Do not comment it out. The goal is the smallest possible codebase that fulfills the PRD. Every line is a liability.
 
-[H-7] **100% type hints.** Code must pass `mypy --strict` with no implicit `Any` except in third-party stubs.
+[H-6] **`print()` Is Forbidden Outside the CLI Entry Point.** All diagnostic output, errors, and status updates must go through the centralized logger configured in `main.py`.
 
-[H-8] **No mutable global state.** Load runtime config once (in `main.py`) and pass dependencies explicitly; prefer pure functions.
+[H-7] **Side Effects Must Be Labeled.** Any function that performs I/O (filesystem, network) must have a `# impure` comment on the line directly above its definition. This makes pure, testable logic distinct from impure, mockable logic.
 
-[H-9] **Any function or method > 40 logical lines is a smell.** Refactor or delete unless splitting demonstrably harms clarity and adds net LOC.
+[H-8] **Strict Dependency Stack.** External dependencies are limited to: `pandas`, `numpy`, `statsmodels`, `yfinance`, `pydantic`, `ollama`, `typer`, `python-dotenv`, `configparser`, and `pytest`. Adding a new dependency is a major architectural decision and requires formal approval.
 
-[H-10] **External dependencies limited to the chosen stack:** `pandas`, `pandas-ta`, `backtesting.py`, `yfinance`, `python-dotenv`, `asteval`, an LLM client (`openai` or equivalent), and `pytest`. Add nothing else without a written justification in the PR.
+[H-9] **Zero Silent Failures.** Every `try...except` block must catch specific, anticipated exceptions (e.g., `FileNotFoundError`, `KeyError`). Bare `except:` clauses are forbidden. Failures must be logged with context and handled gracefully.
 
-[H-11] **Import graph must be acyclic.** In-function imports allowed only to avoid heavy startup cost and must include a comment explaining why.
+[H-10] **Configuration is Centralized and Immutable.** All operational parameters (thresholds, lookback periods, file paths) must be defined in `config.ini` and loaded into a Pydantic model once at startup. No magic numbers.
 
-[H-12] **Zero silent failures:** No bare `except:`; always catch concrete exceptions (e.g., `JSONDecodeError`, `APIError`), log via the shared logger, and re-raise or exit non-zero where appropriate.
+### II. Architectural Boundaries & Realism (The Market Principles)
 
-[H-13] **Network I/O is explicit and confined:** All HTTP/LLM/data downloads live only in `services/data_service.py` and `services/llm_service.py`. Core logic (`orchestrator`, `backtester`) must be importable and runnable offline.
+[H-11] **`yfinance` is the Source of Truth.** For Indian equity data, `yfinance` is the only acceptable source. This is non-negotiable.
 
-[H-14] **No `TODO`, `FIXME`, or commented-out code allowed in committed diffs.** Resolve the issue, create a ticket, or remove the code before merge.
+[H-12] **I/O Is Confined to `services/`.** All network and filesystem I/O is restricted to modules within the `services` directory. The `core/` logic (indicators, statistics, orchestration) must be pure and runnable offline with cached data.
 
-[H-15] **Max one public class per module.** Helper classes/functions must be private (prefix with `_`).
+[H-13] **The LLM is Blind to Price.** The LLM will **never** be given OHLCV data, charts, or any raw time-series information. This is the single most important rule to prevent it from overfitting to noise and hallucinating predictions.
 
-[H-16] **Pure-function bias:** Functions with side-effects (I/O, state changes) must carry a `# impure` comment immediately above the definition.
+[H-14] **The LLM Audits, It Does Not Originate.** The LLM's role is to provide a confidence score on a signal that has *already* been generated and validated by deterministic statistical rules. It is the final quality check, not the first step. It is a calculator, not a creator.
 
-[H-17] **Every module declares `__all__` to make its public API explicit.** Avoid `from x import *`.
+[H-15] **The Backtester is Brutally Realistic.** The cost model (brokerage, STT, volume-based slippage) is not an optional feature. It must be integrated into the core of the `ExecutionSimulator`. Reporting "gross returns" is forbidden.
 
-[H-18] **`print()` allowed only in `main.py` or dedicated CLI output modules.** Use the shared logger elsewhere.
+[H-16] **Liquidity is a Non-Negotiable Gate.** The ₹5 Crore average daily turnover filter is the first check after a signal is generated. No computational resources will be spent analyzing a signal in an illiquid stock.
 
-[H-19] **No `eval()`, `exec()`, or runtime monkey-patching.** Strategy parsing MUST use the sandboxed `asteval` module as specified in the architecture.
+[H-17] **Market Regime Dictates Action.** The sector volatility filter is the primary defense. If the calculated sector volatility exceeds the threshold in `config.ini` (e.g., 22%), all signals for that stock are rejected, regardless of any other factor.
 
-[H-20] **Config keys are `snake_case`.** Normalize or reject other keys at load time with a clear error message.
+[H-18] **Secrets From Environment Only.** All API keys (if any are ever needed) must be loaded from environment variables via `.env`. The repository must contain a `.env.example` file.
 
-[H-21] **Core library must be offline-safe:** The main orchestration loop must be runnable with mocked data and LLM services without requiring network access.
+[H-19] **Walk-Forward Testing is Mandatory.** The backtesting engine must use a walk-forward methodology, iterating one day at a time and using an expanding data window. A simple, single-pass backtest is scientifically invalid and forbidden.
 
-[H-22] **LLM usage is experimental and auditable:** Every LLM call MUST log `{prompt_version, prompt_hash, model, temperature, token_count, response, timestamp}` to a local audit file.
+[H-20] **The Codebase is the Strategy.** The system is a single, coherent strategy engine. Do not introduce frameworks for managing multiple strategies or agents (e.g., CrewAI, AutoGen). The focus is on perfecting this one specific, rigorous filtering process.
 
-[H-23] **Deterministic baseline first:** The LLM-enabled decision path must have a deterministic, hard-coded baseline strategy (RSI Crossover) as Iteration 0 to measure marginal lift.
+### III. Learning Integrity & Reproducibility (The Hinton Principles)
 
-[H-24] **Experiments are reproducible:** Every run writes a run-config JSON (inputs, scorer mode, prompt_version, seed) to `results/runs/` and seeds all RNGs for deterministic replay.
+[H-21] **NO DATA LEAKAGE. EVER.** The entire signal generation, validation, and LLM audit pipeline must operate exclusively on the historical data window provided by the walk-forward loop. The final performance of the system is judged on a hold-out set that is touched exactly once, after all backtesting is complete. Violation of this rule invalidates the entire project.
 
-[H-25] **MVP-first constraint:** For v1.0, do not introduce complex agentic orchestration (e.g., CrewAI, AutoGen). The single-agent feedback loop is the sole focus.
+[H-22] **The Objective Function is Explicit and Unchanging.** The primary metric for judging a signal's historical efficacy is a combination of Net Win Rate (>1.77%) and Profit Factor (>1.5), as defined in the PRD. This provides a clear, unambiguous objective for the learning process.
 
-[H-26] **No data leakage:** The LLM iteration loop MUST only operate on the training dataset. The validation dataset is touched exactly once, after all iterations are complete, for the final report. This is non-negotiable.
+[H-23] **A Backtest is a Scientific Experiment.** For a given stock, configuration file, and data vintage, a backtest run must be 100% reproducible. There will be no stochastic elements in the core logic.
 
-[H-27] **State is atomic and resumable:** The `run_state.json` file must be written successfully at the end of each complete iteration. The orchestrator must be able to resume from this state file if interrupted.
+[H-24] **The Learning Signal is Recorded.** Every call to the `LLMAuditService` must log the exact statistical summary sent to the LLM. We must have a perfect, auditable record of what the model saw before it made its decision.
 
-[H-28] **Cost management is explicit:** Every LLM API call must log its prompt and completion token count to the console. No invisible API calls.
+[H-25] **The LLM's Action Space is Constrained.** The `LLMAuditService` is responsible for parsing the LLM's response. It must expect and handle only a single floating-point number between 0.0 and 1.0. Any other output (text, JSON, etc.) is treated as a failure (score 0.0) and logged.
 
-[H-29] **Secrets are managed via environment:** All API keys MUST be loaded from environment variables (`.env` file) and never hard-coded in the source. The repo must include a `.env.example` file.
+[H-26] **The Baseline is Deterministic.** The first N signals in a backtest (where N is the minimum sample size) are generated without an LLM audit, or with a default confidence score. This provides a fixed, reproducible benchmark against which the LLM's contribution is measured.
 
-[H-30] **Optimization target is explicit:** The primary metric for ranking strategies during and after the loop is the custom "Edge Score" defined in the architecture, not a vague goal like "profitability."
+[H-27] **Statistical Guards are Immutable.** The core statistical tests (ADF, Hurst) and their thresholds are the "physics" of our system. They are defined in the configuration and are not to be altered by the LLM or any adaptive process in v1.0.
 
----
+[H-28] **The Final Report is The Ground Truth.** The ultimate output of a backtest run is a report that clearly and honestly presents the performance metrics (Sharpe, Drawdown, etc.) after all costs. It must be the single source of truth for evaluating the system's efficacy.
 
-**Notes:**
-- These rules are intentionally strict to keep experiments fast, auditable, and reproducible. Follow them literally for v1.0; we can relax or extend specific items later with documented justification.
-- Suggested follow-up: add `docs/HARD_RULES.md` to the repo and implement a pre-commit hook enforcing the `TODO`/`FIXME` ban, presence of `# impure` comments, and `__all__` declarations.
+[H-29] **PRs Must State Their Intent.** Every PR description must include a one-line rationale and the net change in Lines of Code (LOC), enforcing a conscious, minimalist decision-making process for every change.
+
+[H-30] **Follow The Architecture.** The component responsibilities and data flows defined in the architecture document are not suggestions. Code must be placed in the correct module according to its function to maintain the system's conceptual integrity.

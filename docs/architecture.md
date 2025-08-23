@@ -1,156 +1,178 @@
-# Architecture
+Of course. Here is a comprehensive architecture document for the "Praxis" project, written from the perspective and with the mindset of Kailash Nadh, ensuring every requirement from the provided documents is meticulously addressed.
 
-## 1. Introduction
+---
 
-This document outlines the technical architecture for the "Self-Improving Quant Engine." This revised architecture incorporates critical feedback focused on robustness, cost management, and improving the integrity of the AI-driven learning loop. The system remains a Command-Line Interface (CLI) tool for the MVP, but is now designed to be more resilient and to produce more generalizable results by directly addressing the risk of overfitting.
+# **Architecture Document: "Praxis" Mean-Reversion Engine**
 
-## 2. Architectural Goals & Constraints
+## 1. Introduction & Philosophy
 
-The architecture is designed to meet the following key objectives and constraints:
+This document outlines the technical architecture for "Praxis," a quantitative trading system for the Indian markets. It is not a blueprint for a money-printing machine. It is a design for a robust, deterministic filtering engine. The architecture is rooted in two non-negotiable truths about building systems for the real world, especially the chaotic Indian market.
 
-*   **Modularity:** Each component has a distinct responsibility, allowing for easier testing and future extension.
-*   **Security:** The system maintains its strict policy against executing LLM-generated code via `eval()`, using a sandboxed expression parser instead.
-*   **Robustness & Resumability:** The system must be able to survive interruptions and resume a run from the last completed iteration, preventing loss of work and compute.
-*   **Generalization:** The architecture explicitly incorporates a train/validation data split to combat overfitting and measure a strategy's out-of-sample performance.
-*   **Cost-Awareness:** The system must track and manage LLM API costs by monitoring token usage and employing context management strategies.
-*   **Rich Feedback:** The learning loop is enhanced with a more descriptive feedback signal, moving beyond a single metric to provide the LLM with deeper context for its suggestions.
+1.  **Pragmatic Simplicity (The Nadh Principle):** Complexity is the primary vector for failure. This system will be built from simple, discrete, and brutally testable components. We are not building a general-purpose AI; we are building a specialized machine that applies a sequence of deterministic statistical checks. The LLM is a pluggable component—a calculator for a specific, non-linear function—not the brain. Over-engineering is a luxury we cannot afford.
 
-## 3. System Architecture Overview
+2.  **The Edge is in the Filter (The Real-World Principle):** The core purpose of this system is not to find trades, but to find reasons *not* to trade. Profitability in quantitative trading, particularly mean-reversion, comes from surviving periods where the strategy does not work. Therefore, the architecture must be obsessed with the integrity of its filters: market regime, liquidity, statistical validity, and costs. Every component is designed to be a "guardrail" that protects capital.
 
-The system remains a sequential pipeline orchestrated by a central `Orchestrator`. However, it now includes explicit state management and a more sophisticated validation process.
+The result is a system designed to be run locally, that is secure by design, resilient to failure, and focused entirely on identifying a small number of high-probability opportunities that have survived a gauntlet of rigorous, reality-based checks.
 
-### C4 Model - Level 2: Container Diagram
+## 2. Architectural Principles
 
-The high-level component interactions remain similar, but their internal responsibilities have been significantly enhanced.
+*   **Modularity & Single Responsibility:** Each component does one thing and does it well. The `DataService` knows nothing of statistics; the `ValidationService` knows nothing of backtesting. This separation is paramount for testing, maintenance, and future replacement of any single part without collapsing the whole structure.
+*   **Determinism & Reproducibility:** A backtest is a scientific experiment. For a given set of stocks, configuration, and data vintage, a run must be 100% reproducible. This is achieved through versioned data caching and deterministic logic. There is no room for randomness.
+*   **Stateless Orchestration:** The main application logic is a stateless orchestrator. All state (the results of a backtest, for instance) is explicitly managed and persisted. The system can be stopped and restarted without data loss, but it does not maintain a persistent "state" during a run.
+*   **Constrained Interfaces:** All external inputs, especially from the LLM, are treated as data, never as code. The LLM's role is strictly defined by a "contract": it receives a structured set of statistics and returns a single floating-point number. This eliminates an entire class of security and reliability problems from the outset.
+*   **Realism First (The Cost Principle):** The system is architecturally aware of real-world trading frictions. Costs (brokerage, STT, slippage) are not an afterthought to be applied to a report; they are fundamental parameters integrated into the core logic of the `ExecutionSimulator` and backtesting loop. Gross returns are a vanity metric and will not be tracked.
+
+## 3. System Overview (C4 Model - Level 2)
+
+The system is a sequential filtering pipeline orchestrated by a central `Orchestrator`. It is designed to run in two modes: `backtest` and `generate-report`. The diagram below illustrates the `backtest` flow for a single time step.
 
 ```mermaid
 graph TD
-    subgraph SelfImprovingQuantEngine [Self-Improving Quant Engine (Python CLI Application)]
+    subgraph PraxisEngine [Praxis Engine (Local Python Application)]
         direction LR
         Orchestrator(Orchestrator)
-        StateManager(State Manager)
+        ConfigService(Config Service)
         DataService(Data Service)
-        Backtester(Backtesting Engine)
-        ReportGenerator(Rich Report Generator)
-        LLMService(LLM Service)
-        StrategyParser(Secure Strategy Parser)
+        SignalEngine(Signal Engine)
+        ValidationService(Validation Service)
+        LLMAuditService(LLM Audit Service)
+        ExecutionSimulator(Execution Simulator)
+        ReportGenerator(Report Generator)
 
-        Orchestrator -- "Load/Save State" --> StateManager
-        Orchestrator -- "1. Get Data" --> DataService
-        Orchestrator -- "2. Run Backtest" --> Backtester
-        Orchestrator -- "3. Generate Report" --> ReportGenerator
-        Orchestrator -- "4. Get Suggestion" --> LLMService
-        Orchestrator -- "5. Parse Suggestion" --> StrategyParser
+        Orchestrator -- "Reads Config" --> ConfigService
+        Orchestrator -- "1. Get Historical Data Window" --> DataService
+        Orchestrator -- "2. Generate Preliminary Signal" --> SignalEngine
+        Orchestrator -- "3. Validate Signal with Guards" --> ValidationService
+        Orchestrator -- "4. Perform LLM Audit" --> LLMAuditService
+        Orchestrator -- "5. Simulate Trade & Costs" --> ExecutionSimulator
+        Orchestrator -- "6. Aggregate & Report Results" --> ReportGenerator
     end
 
-    User[CLI User] -- "python main.py --ticker [TICKER]" --> Orchestrator
-    DataService -- "Fetches OHLCV Data" --> ExternalDataProvider[External Data Provider API<br/>(e.g., yfinance)]
-    LLMService -- "Sends Reports, Gets JSON Strategy" --> ExternalLLM[External LLM API<br/>(e.g., OpenAI)]
-    StateManager -- "Reads/Writes run_state.json" --> LocalFS[(Local Filesystem)]
-    DataService -- "Reads/Writes stock.parquet" --> LocalFS
-    Orchestrator -- "Outputs Final Summary" --> User
+    User[Quant Analyst (CLI User)] -- "python main.py backtest" --> Orchestrator
+    ConfigService -- "Reads config.ini" --> LocalFS[(Local Filesystem)]
+    DataService -- "Fetches OHLCV Data" --> yfinance[yfinance API]
+    LLMAuditService -- "Sends Stats, Gets Score" --> LocalLLM[Local LLM Server<br/>(Ollama / Llama 3)]
+    DataService -- "Caches data.parquet" --> LocalFS
+    ReportGenerator -- "Writes backtest_summary.md" --> LocalFS
 ```
 
 ## 4. Component Breakdown
 
-| Component | Responsibility | Inputs | Outputs | Implementation Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| **Orchestrator** | Manages the main iteration loop, coordinates components, and orchestrates the final validation run. | CLI arguments. | Final summary report to console. | On startup, it uses the `StateManager` to check for and load a previous run. |
-| **State Manager** | Handles persistence. Reads and writes the complete run state (history of reports) to disk after each iteration. | The current list of reports. | A `run_state.json` file. | This ensures that if the process fails, it can be resumed from the last successful iteration. |
-| **Data Service** | Fetches historical data and stores it in a versioned Parquet file. Splits data into training and validation sets. | Ticker, date range. | Two `pandas` DataFrames: `train_data`, `validation_data`. | Using Parquet with metadata is more robust than a simple pickle/CSV cache. |
-| **Backtesting Engine** | Executes a backtest on the **training data**. Enforces a strict execution timeout to prevent runaway calculations. | `train_data` DataFrame, strategy definition. | A results object from `backtesting.py`. | The timeout is a critical safeguard against computationally expensive LLM suggestions. |
-| **Rich Report Generator** | Creates a detailed JSON report with a rich feedback signal. Calculates a custom **Edge Score**. | Backtest results, strategy definition. | A structured JSON object. | The report includes the Edge Score (`Sharpe Ratio * Win Rate`), drawdown details, and a summary of the 5 worst trades to give the LLM deep context. |
-| **LLM Service** | Manages LLM interaction, tracks token usage, and implements a context summarization strategy. | Cumulative history of reports. | Raw JSON string from the LLM. | For long histories, it will summarize older reports to keep the prompt within cost and token limits. Logs token count for each call. |
-| **Secure Strategy Parser** | Safely parses and validates the LLM's JSON response, including an expanded set of "tools" for risk management. | Raw JSON string from the LLM. | A validated strategy definition object. | Uses `asteval` for safe expression evaluation. Can now parse optional risk management parameters. |
+This table maps the PRD's functional requirements directly to architectural components.
 
-## 5. Data Flow and State Management
+| Component | Responsibility | Inputs | Outputs | PRD Mapping | Implementation Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Orchestrator** | The brain. Manages the primary application modes (`backtest`, `generate-report`). In `backtest` mode, it runs the walk-forward loop over the entire dataset for each stock. | CLI arguments (`mode`, `config_path`). | Final report files to the filesystem. | FR7, FR8 | The walk-forward logic is its core responsibility. It slices the main DataFrame into expanding windows and passes them to the pipeline for each time step. |
+| **Config Service** | Parses and validates `config.ini`, providing a typed configuration object (Pydantic model) to the system. | `config.ini` file path. | A `Config` data object. | NFR (Maintainability) | All thresholds (volatility, liquidity, Hurst, etc.) and parameters (lookback periods) are defined here. |
+ | **Data Service** | Fetches, cleans, caches, and prepares market data. Handles Indian market specifics. | Stock symbol, sector map, date range. | A `pandas` DataFrame with OHLCV, volume, and `sector_vol` columns. | **FR1** | Uses `yfinance` for equities and sector indices. Caches data in Parquet format keyed by stock and date range. Includes logic to handle Indian market holidays. |
+| **Signal Engine** | Generates preliminary mean-reversion signals based on multi-frame indicator alignment. | A `pandas` DataFrame window. | A `Signal` object (or `None`) containing entry/stop-loss targets. | **FR2** | Resamples the daily data to create weekly and monthly views. Calculates BBands and RSI on all three frames and applies the alignment logic from `project_brief.md`. |
+| **Validation Service** | The core of the filtering philosophy. Applies a cascade of statistical and contextual "guardrails" to a preliminary signal. | A `Signal` object, a `pandas` DataFrame window. | A `ValidationResult` object with boolean flags for each passed guard. | **FR3, FR4** | This is a container for smaller, single-purpose "Guard" modules: `StatGuard` (ADF, Hurst), `RegimeGuard` (Sector Volatility), `LiquidityGuard` (Turnover), `HistoryGuard` (Historical Efficacy). |
+| **LLM Audit Service** | Performs the final statistical audit by querying a local LLM. Adheres to the strict "no price data" rule. | A `pandas` DataFrame window, a `Signal` object, `ValidationResult`. | A confidence score (float between 0.0 and 1.0). | **FR5** | Constructs the prompt using only statistical aggregates (win rate, profit factor, sample size, current volatility) derived from the historical data window. Uses the `ollama` library to interact with a local Llama 3 instance. |
+| **Execution Simulator** | Calculates position size and simulates the trade, applying a realistic cost model. | A `Signal` object, confidence score, current price. | A `Trade` object with net return, costs incurred, etc. | **FR6** | Contains the detailed cost model (brokerage, STT, volume-based slippage). Implements the risk management logic (e.g., risk 0.5% of capital per trade). |
+| **Report Generator** | Aggregates results from the backtest or generates the weekly opportunity report. | A list of `Trade` objects (for backtest) or a list of valid opportunities. | A formatted Markdown file (`.md`). | **FR8** | For backtesting, calculates all KPIs from the PRD (Net Return, Sharpe, Profit Factor, Max Drawdown). For weekly reports, creates the specified table. |
 
-The system is designed for resilience and to produce generalizable results.
+## 5. Data Flow & The Filtering Cascade
 
-1.  **Initialization:** The `Orchestrator` starts. It instructs the `StateManager` to look for a `run_state.json` file.
-    *   **If found:** The state (history of reports) is loaded, and the loop resumes from the next iteration.
-    *   **If not found:** A new run is initiated, starting with the hard-coded baseline strategy (Iteration 0).
-2.  **Data Split:** The `Data Service` fetches 10 years of data, saving it to a local Parquet file. It splits this into an 8-year **training set** and a 2-year **validation set**. The validation set is held aside and is not used in the main loop.
-3.  **The Iteration Loop (on Training Data):**
-    a. The `Backtesting Engine` runs the current strategy on the **training set** within a fixed timeout.
-    b. The `Rich Report Generator` creates a detailed report, including the **Edge Score**.
-    c. The new report is appended to the `history` list.
-    d. The `StateManager` saves the entire `history` list to `run_state.json`.
-    e. The `LLM Service` takes the `history`, potentially summarizing older entries, and sends it to the LLM. It logs the token count for the call.
-    f. The `Secure Strategy Parser` validates and parses the LLM's response into a new strategy definition.
-4.  **Final Validation (Out-of-Sample Testing):**
-    a. After all iterations are complete, the `Orchestrator` selects the top 3-5 strategies from the `history` based on their **Edge Score on the training data**.
-    b. It then runs these top strategies through the `Backtesting Engine` one by one, but this time using the unseen **validation set**.
-    c. The final strategy presented to the user is the one with the highest **Edge Score on the validation data**. This provides a much more honest assessment of the strategy's potential performance.
+This flow describes the `backtest` mode, which is the most comprehensive execution path. The `generate-report` mode is identical but runs only once on the most recent data window.
 
-## 6. LLM Action Space & Secure Parsing
+1.  **Initialization:** The `Orchestrator` is invoked. It loads the configuration via `ConfigService`, which includes the list of Nifty 500 stocks and all system parameters.
 
-To give the LLM more sophisticated control, its "action space" is expanded beyond simple signals. It can now suggest risk management rules.
+2.  **Outer Loop (Per-Stock):** The `Orchestrator` iterates through each stock symbol.
+    a. **Data Fetching:** It calls `DataService.get_full_data(stock)`. The service fetches data from `yfinance` if not present in the local Parquet cache, then returns the complete historical DataFrame.
 
-### Expanded LLM Output Contract (JSON)
+3.  **Inner Loop (Walk-Forward):** The `Orchestrator` iterates through the time series for the stock, from a minimum history size (e.g., 200 days) to the end. For each day `i`:
+    a. **Create Data Window:** A DataFrame `window = df.iloc[0:i]` is created. This represents all information known up to that day.
+    b. **Phase 1: Signal Generation:** The `window` is passed to the `SignalEngine`.
+        *   *If no multi-frame alignment is found*, it returns `None`. The loop continues to day `i+1`.
+        *   *If alignment is found*, it returns a `Signal` object.
+    c. **Phase 2: Guardrail Validation:** The `Signal` and `window` are passed to the `ValidationService`. It executes its guards sequentially:
+        *   `LiquidityGuard`: Checks if 5-day avg turnover > ₹5 Crore. **If fails, reject signal.**
+        *   `RegimeGuard`: Checks if sector volatility < 22%. **If fails, reject signal.**
+        *   `StatGuard`: Checks if ADF p-value < 0.05 AND Hurst < 0.45. **If fails, reject signal.**
+        *   *If any guard fails*, the reason is logged, and the loop continues to day `i+1`.
+    d. **Phase 3: LLM Audit:** If all guards pass, the `window` and `Signal` are passed to the `LLMAuditService`.
+        *   It calculates the historical performance statistics of the *exact same setup* within the `window`.
+        *   It constructs the prompt and queries the local LLM.
+        *   It receives a confidence score. If the score is below the configured threshold (e.g., 0.7), the signal is rejected, and the loop continues to `i+1`.
+    e. **Phase 4: Execution Simulation:** If the LLM confidence is sufficient, the `Signal` is passed to the `ExecutionSimulator`.
+        *   It calculates the position size based on the risk model.
+        *   It simulates the trade entry at `df['Open'].iloc[i]`.
+        *   It determines the exit (e.g., 20 days later or hitting the stop-loss).
+        *   It calculates the **net return** after applying the full cost model (brokerage, STT, slippage).
+        *   A `Trade` object containing all this information is created and appended to a results list.
 
-The LLM is prompted to return a JSON object that may include an optional `risk_management` block.
+4.  **Final Aggregation:** After the inner and outer loops complete, the full list of all simulated `Trade` objects is passed to the `ReportGenerator`. It calculates the final system-wide KPIs and writes the `backtest_summary.md` file.
 
-```json
-{
-  "rationale": "The previous strategy had high returns but also a large drawdown. I am adding a 10% stop-loss to control risk.",
-  "indicators": [
-    { "name": "SMA_fast", "type": "sma", "params": { "length": 20 } },
-    { "name": "SMA_slow", "type": "sma", "params": { "length": 50 } }
-  ],
-  "buy_signal": "SMA_fast > SMA_slow",
-  "sell_signal": "SMA_fast < SMA_slow",
-  "risk_management": {
-    "stop_loss_pct": 0.10,
-    "take_profit_pct": 0.25
-  }
-}
+## 6. The LLM Contract: The Statistical Auditor
+
+The interface with the LLM is rigidly defined to prevent misuse. The LLM is a stateless function that maps a set of statistical features to a confidence score.
+
+**Input to LLM (via structured prompt):** A JSON-like block of text containing only statistical aggregates calculated from the historical data window.
+
+```
+- Historical Win Rate (>1.77% net return in 20 days): 28.1%
+- Historical Profit Factor: 1.62
+- Historical Sample Size (number of past signals): 21
+- Current Sector Volatility (annualized): 14.5%
+- Current Hurst Exponent: 0.41
 ```
 
-The `Secure Strategy Parser` will safely parse this structure. If the `risk_management` block or its keys are absent, the backtest will run without stop-loss or take-profit orders. This provides a "dictionary of tools" the LLM can choose to use.
+**Output from LLM:** A single floating-point number, stripped of any text, between 0.0 and 1.0.
 
-## 7. Validation and Generalization Strategy
+The `LLMAuditService` is responsible for parsing this response. If the output is not a valid float, it is treated as a score of 0.0, and the failure is logged. This ensures system stability even with a misbehaving model.
 
-To address the critical risk of overfitting, the system's core methodology is built around a train/validation split.
+## 7. The Cost & Slippage Model
 
-*   **Purpose:** The LLM's job is to find strategies that work well on the **training data**. This is the learning phase.
-*   **Insulation:** The LLM *never* sees the performance results from the validation data during its iteration loop. This prevents it from cheating and fitting to the out-of-sample period.
-*   **Final Judgment:** The validation set acts as an unbiased judge. A strategy that performs well on both training and validation data is more likely to be robust and have true predictive power. Reporting the validation score as the final result provides a more realistic performance expectation.
+This is not an afterthought; it is a core component (`ExecutionSimulator`) and must be implemented precisely as specified in the PRD.
 
-## 8. Error Handling and Logging
+*   **Brokerage:** A function that calculates `max(0.0003 * trade_value, 20)` for both entry and exit.
+*   **Securities Transaction Tax (STT):** A fixed percentage (e.g., 0.025%) applied to the trade value.
+*   **Slippage:** A function that takes the stock's recent average volume as input and returns a slippage percentage. This will be modeled as a tiered function:
+    *   `if avg_volume > 1,000,000: return 0.001` (0.1%)
+    *   `else: return 0.005` (0.5%)
+    This slippage is added to the entry price and subtracted from the exit price.
 
-*   **API Failures:** `Data Service` and `LLM Service` will use exponential backoff for retries on transient errors.
-*   **State Corruption:** If `run_state.json` is malformed, the `StateManager` will log an error and prompt the user to start a new run.
-*   **Backtest Timeout:** If a backtest exceeds its allocated time (e.g., 60 seconds), it will be terminated, the iteration will be marked as a failure in the report, and the loop will continue.
-*   **Token Usage Logging:** The `LLM Service` will log the prompt and completion token count for every API call to the console, providing visibility into costs.
+## 8. Error Handling & Resilience
+
+-   **API Failures (`nsepy`/`yfinance`):** The `DataService` will implement a retry mechanism with exponential backoff for transient network errors. If data for a stock cannot be fetched after 3 retries, it will be logged as a failure for that stock and the orchestrator will move to the next one.
+-   **Statistical Calculation Errors:** Any exceptions within the `ValidationService` (e.g., from `statsmodels`) will be caught, logged, and treated as a failed validation. The signal will be rejected.
+-   **LLM Failures:** If the local Ollama server is down or the `LLMAuditService` fails to get a valid float response after 2 retries, it will return a confidence score of 0.0, effectively rejecting the signal and allowing the system to continue running.
+-   **Configuration Errors:** On startup, the `ConfigService` will validate the `config.ini` file using Pydantic. If critical values are missing or malformed, the application will exit with a clear error message.
 
 ## 9. Directory Structure
 
+This structure promotes clean separation of concerns and maps directly to the components described above.
+
 ```
-self_improving_quant/
-├── main.py                 # CLI entry point
-├── data/
-│   └── stock_data.parquet  # Stored financial data
+praxis_engine/
+├── main.py                 # CLI entry point (using Typer/Click)
+├── config.ini              # Central configuration file
 ├── core/
 │   ├── __init__.py
-│   ├── orchestrator.py     # Main control loop
-│   ├── strategy.py         # Strategy definition
-│   ├── backtester.py       # Wrapper for backtesting.py
-│   └── models.py           # Pydantic models for reports, strategies
+│   ├── orchestrator.py     # Main backtest/report generation loops
+│   ├── models.py           # Pydantic models for Config, Signal, Trade, etc.
+│   └── guards/             # Sub-package for validation logic
+│       ├── __init__.py
+│       ├── base_guard.py   # Abstract base class for guards
+│       ├── stat_guard.py   # ADF, Hurst logic
+│       ├── regime_guard.py # Sector volatility logic
+│       └── liquidity_guard.py # Turnover logic
 ├── services/
 │   ├── __init__.py
-│   ├── data_service.py     # Fetches and splits data
-│   ├── llm_service.py      # Interacts with LLM, manages context
-│   ├── parser_service.py   # Secure strategy parser
-│   └── state_manager.py    # Handles reading/writing run state
-├── utils/
-│   ├── __init__.py
-│   └── logging_config.py   # Centralized logging configuration
+│   ├── config_service.py   # Loads and parses config.ini
+│   ├── data_service.py     # Fetches, caches, and prepares data
+│   ├── signal_engine.py    # Multi-frame signal generation
+│   ├── validation_service.py # Orchestrates all guards
+│   ├── llm_audit_service.py# Interacts with local LLM
+│   ├── execution_simulator.py # Cost model and trade simulation
+│   └── report_generator.py # Creates final Markdown reports
 ├── prompts/
-│   └── quant_analyst.txt   # The main prompt template for the LLM
-├── run_state.json          # Persisted state of the current run
-├── .env
-├── .env.example
+│   └── statistical_auditor.txt # Jinja2 template for the LLM prompt
+├── data_cache/             # Local CSV cache (ignored by git)
+│   └── HDFCBANK_2010-01-01_2023-12-31.CSV
+├── results/                # Output directory for all reports (ignored by git)
+│   └── backtest_summary_2024-05-21.md
+├── .env                    # Not strictly needed for MVP, but good practice
 ├── requirements.txt
 └── pyproject.toml
 ```
