@@ -250,7 +250,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `llm_audit_service.py` and its tests are implemented.
 *   **Time estimate:** 3.5 hours
-*   **Status:** Not Started
+*   **Status:** In-progress
 
 ---
 

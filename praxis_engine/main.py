@@ -14,7 +14,7 @@ app = typer.Typer(
 @app.command()
 def verify_config(
     config_path: str = typer.Option(
-        "praxis_engine/config.ini",
+        "config.ini",
         "--config",
         "-c",
         help="Path to the configuration file.",
