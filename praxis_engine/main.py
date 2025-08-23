@@ -2,66 +2,66 @@
 Main CLI entry point for the Praxis Engine.
 """
 import typer
-from rich import print
+from dotenv import load_dotenv
 
 from praxis_engine.services.config_service import load_config
+from praxis_engine.core.logger import get_logger
+
+# Load environment variables from .env file
+load_dotenv()
+
+log = get_logger(__name__)
 
 app = typer.Typer(
     name="praxis-engine",
     help="A quantitative trading system for the Indian stock market.",
+    pretty_exceptions_show_locals=False,
 )
 
 @app.command()
 def verify_config(
-    config_path: str = typer.Option(
-        "config.ini",
-        "--config",
-        "-c",
-        help="Path to the configuration file.",
-    )
+    config_path: str = typer.Option("config.ini", "--config", "-c", help="Path to config.")
 ) -> None:
     """
     Loads and verifies the configuration file.
     """
-    print("Attempting to load configuration...")
+    log.info("Attempting to load configuration...")
     try:
         config = load_config(config_path)
-        print("[bold green]Configuration loaded and validated successfully![/bold green]")
-        print(config)
+        log.info("Configuration loaded and validated successfully!")
+        log.info(config)
     except Exception as e:
-        print(f"[bold red]Error loading configuration:[/bold red]")
-        print(e)
+        log.error(f"Error loading configuration: {e}")
         raise typer.Exit(code=1)
+
 
 @app.command()
-def test_data_service(
-    stock: str = typer.Option("RELIANCE.NS", "--stock", "-s", help="Stock ticker."),
-    start_date: str = typer.Option("2022-01-01", "--start", help="Start date."),
-    end_date: str = typer.Option("2022-01-31", "--end", help="End date."),
+def backtest(
+    config_path: str = typer.Option("config.ini", "--config", "-c", help="Path to config."),
 ) -> None:
     """
-    Tests the DataService by fetching data for a stock.
+    Runs a backtest for stocks defined in the config file.
     """
-    from praxis_engine.services.data_service import DataService
-    from praxis_engine.services.config_service import load_config
+    from praxis_engine.core.orchestrator import Orchestrator
 
-    print("Loading configuration...")
-    config = load_config("config.ini")
+    log.info("Loading configuration...")
+    config = load_config(config_path)
 
-    print(f"Initializing DataService with cache dir: {config.data.cache_dir}")
-    data_service = DataService(cache_dir=config.data.cache_dir)
+    orchestrator = Orchestrator(config)
 
-    sector_ticker = config.data.sector_map.get(stock)
+    all_trades = []
+    for stock in config.data.stocks_to_backtest:
+        trades = orchestrator.run_backtest(
+            stock, config.data.start_date, config.data.end_date
+        )
+        all_trades.extend(trades)
 
-    print(f"Fetching data for {stock}...")
-    df = data_service.get_data(stock, start_date, end_date, sector_ticker)
-
-    if df is not None:
-        print(f"[bold green]Data fetched successfully![/bold green]")
-        print(df.head())
+    if all_trades:
+        log.info(f"Backtest complete. Total trades executed: {len(all_trades)}")
+        for trade in all_trades:
+            log.info(trade)
     else:
-        print(f"[bold red]Failed to fetch data for {stock}.[/bold red]")
-        raise typer.Exit(code=1)
+        log.info("Backtest complete. No trades were executed.")
 
 
 if __name__ == "__main__":

@@ -61,5 +61,6 @@ def rsi(series: pd.Series, length: int = 14) -> Optional[pd.Series]:
 
     rs = gain / loss
     rsi_series = 100 - (100 / (1 + rs))
+    rsi_series.name = f"RSI_{length}"
 
     return rsi_series

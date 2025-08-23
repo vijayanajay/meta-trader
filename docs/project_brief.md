@@ -19,15 +19,13 @@
 
 #### **Phase 0: Data Pipeline (Indian Market Specific)**  
 ```python
-import nsepy  # Official NSE data (no survivorship bias)
-from nsepy import get_history
 import yfinance as yf
 
 def fetch_indian_data(stock: str, start, end):
     """Fetches clean NSE data with sector/holiday adjustments"""
     try:
-        # Use NSEpy for Indian stocks (avoids Yahoo Finance errors)
-        df = get_history(symbol=stock, start=start, end=end, index=False)
+        # Use yfinance for Indian stocks
+        df = yf.download(stock, start=start, end=end)
         
         # Add sector data (Nifty sector indices)
         sector_map = {
@@ -267,12 +265,7 @@ def backtest_indian():
 ---
 
 ### 🚨 **Critical Implementation Rules**  
-1. **Data Sources (Indian Specific):**  
-   - Primary: `nsepy` (official NSE data)  
-   - Fallback: Alpha Vantage (free tier for Indian stocks)  
-   - **NEVER use Yahoo Finance** — survivorship bias in Indian mid-caps is 30%+  
-
-2. **LLM Call Reduction Protocol:**  
+1. **LLM Call Reduction Protocol:**
    ```mermaid
    graph TD
      A[Signal Generated?] -->|No| B[Skip]
@@ -313,7 +306,7 @@ As a top 1% AI programmer, **your edge isn't prediction — it's statistical rig
 ### 📅 **Your 30-Day Implementation Plan**  
 | Day | Task                                                                 |  
 |-----|----------------------------------------------------------------------|  
-| 1-3 | Build Indian data pipeline (`nsepy` + sector indices)                |  
+| 1-3 | Build Indian data pipeline (`yfinance` for all data)                 |
 | 4-7 | Code BB/RSI multi-frame signal generator + statistical validation    |  
 | 8-10| Implement cost model (brokerage/STT/slipage) + backtesting framework |  
 | 11-14| Self-host Llama 3 8B (ollama) + build audit protocol                |  
@@ -361,15 +354,13 @@ This won’t print money. But in 12 months? You’ll have a system that **surviv
 
 #### **Phase 0: Data Pipeline (Indian Market Specific)**  
 ```python
-import nsepy  # Official NSE data (no survivorship bias)
-from nsepy import get_history
 import yfinance as yf
 
 def fetch_indian_data(stock: str, start, end):
     """Fetches clean NSE data with sector/holiday adjustments"""
     try:
-        # Use NSEpy for Indian stocks (avoids Yahoo Finance errors)
-        df = get_history(symbol=stock, start=start, end=end, index=False)
+        # Use yfinance for Indian stocks
+        df = yf.download(stock, start=start, end=end)
         
         # Add sector data (Nifty sector indices)
         sector_map = {
@@ -609,12 +600,7 @@ def backtest_indian():
 ---
 
 ### 🚨 **Critical Implementation Rules**  
-1. **Data Sources (Indian Specific):**  
-   - Primary: `nsepy` (official NSE data)  
-   - Fallback: Alpha Vantage (free tier for Indian stocks)  
-   - **NEVER use Yahoo Finance** — survivorship bias in Indian mid-caps is 30%+  
-
-2. **LLM Call Reduction Protocol:**  
+1. **LLM Call Reduction Protocol:**
    ```mermaid
    graph TD
      A[Signal Generated?] -->|No| B[Skip]
@@ -655,7 +641,7 @@ As a top 1% AI programmer, **your edge isn't prediction — it's statistical rig
 ### 📅 **Your 30-Day Implementation Plan**  
 | Day | Task                                                                 |  
 |-----|----------------------------------------------------------------------|  
-| 1-3 | Build Indian data pipeline (`nsepy` + sector indices)                |  
+| 1-3 | Build Indian data pipeline (`yfinance` for all data)                 |
 | 4-7 | Code BB/RSI multi-frame signal generator + statistical validation    |  
 | 8-10| Implement cost model (brokerage/STT/slipage) + backtesting framework |  
 | 11-14| Self-host Llama 3 8B (ollama) + build audit protocol                |  

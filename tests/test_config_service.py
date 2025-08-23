@@ -15,6 +15,9 @@ def test_load_config_success(tmp_path: Path) -> None:
     config_content = """
 [data]
 cache_dir = "test_cache"
+stocks_to_backtest = ["TEST.NS"]
+start_date = "2022-01-01"
+end_date = "2023-01-01"
 sector_map = {"TEST": "^TESTINDEX"}
 
 [strategy_params]
@@ -86,6 +89,9 @@ def test_load_config_invalid_type(tmp_path: Path) -> None:
     config_content = """
 [data]
 cache_dir = "test_cache"
+stocks_to_backtest = ["TEST.NS"]
+start_date = "2022-01-01"
+end_date = "2023-01-01"
 sector_map = {"TEST": "^TESTINDEX"}
 
 [strategy_params]
