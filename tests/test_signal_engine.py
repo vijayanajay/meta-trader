@@ -37,6 +37,7 @@ def test_generate_signal_success(signal_engine: SignalEngine):
     """Test a successful signal generation with deterministic data."""
     # Construct a dataset designed to trigger the signal
     days = 200
+    days = 300
     dates = pd.to_datetime(pd.date_range(end=pd.Timestamp.now(), periods=days, freq='D'))
 
     # Base series is stable at 100

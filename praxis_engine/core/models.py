@@ -10,9 +10,6 @@ class DataConfig(BaseModel):
     stocks_to_backtest: List[str]
     start_date: str
     end_date: str
-    stocks_to_backtest: List[str]
-    start_date: str
-    end_date: str
     sector_map: Dict[str, str]
 
 class StrategyParamsConfig(BaseModel):

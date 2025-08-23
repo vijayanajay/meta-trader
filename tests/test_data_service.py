@@ -4,17 +4,19 @@ Unit tests for the DataService.
 import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock
+from pathlib import Path
 
 from praxis_engine.services.data_service import DataService
 
+
 @pytest.fixture
-def data_service(tmp_path) -> DataService:
+def data_service(tmp_path: Path) -> DataService:
     """Fixture for DataService."""
     return DataService(cache_dir=str(tmp_path))
 
+@patch('pandas.DataFrame.to_parquet')
 @patch('yfinance.download')
-def test_get_data_fresh_download(mock_download: MagicMock, data_service: DataService) -> None:
-    """Test fetching data for the first time."""
+def test_get_data_fresh_download(mock_download: MagicMock, mock_to_parquet: MagicMock, data_service: DataService) -> None:
     mock_df = pd.DataFrame({'Close': [100, 101]})
     mock_download.return_value = mock_df
 
@@ -22,21 +24,36 @@ def test_get_data_fresh_download(mock_download: MagicMock, data_service: DataSer
 
     assert df is not None
     assert not df.empty
-    mock_download.assert_called()
+    assert mock_download.call_count == 2 # stock + sector
+    mock_to_parquet.assert_called_once()
 
+@patch('pathlib.Path.exists')
+@patch('pandas.read_parquet')
+@patch('pandas.DataFrame.to_parquet')
 @patch('yfinance.download')
-def test_get_data_caching(mock_download: MagicMock, data_service: DataService) -> None:
+def test_get_data_caching(
+    mock_download: MagicMock,
+    mock_to_parquet: MagicMock,
+    mock_read_parquet: MagicMock,
+    mock_exists: MagicMock,
+    data_service: DataService
+) -> None:
     """Test that data is cached and retrieved on second call."""
-    mock_df = pd.DataFrame({'Close': [100, 101]})
+    mock_df = pd.DataFrame({'Close': [100, 101], 'sector_vol': [0.1, 0.1]})
     mock_download.return_value = mock_df
+    mock_read_parquet.return_value = mock_df
 
     # First call - should download and cache
+    mock_exists.return_value = False
     data_service.get_data("TEST.NS", "2023-01-01", "2023-01-02", "SECTOR")
 
     # Second call - should use cache
+    mock_exists.return_value = True
     data_service.get_data("TEST.NS", "2023-01-01", "2023-01-02", "SECTOR")
 
-    assert mock_download.call_count == 2 # Once for stock, once for sector
+    assert mock_download.call_count == 2 # Once for stock, once for sector, only on first call
+    mock_to_parquet.assert_called_once()
+    mock_read_parquet.assert_called_once()
 
 @patch('yfinance.download')
 def test_get_data_api_error(mock_download: MagicMock, data_service: DataService) -> None:
@@ -45,8 +62,9 @@ def test_get_data_api_error(mock_download: MagicMock, data_service: DataService)
     df = data_service.get_data("FAIL.NS", "2023-01-01", "2023-01-02")
     assert df is None
 
+@patch('pandas.DataFrame.to_parquet')
 @patch('yfinance.download')
-def test_add_sector_vol(mock_download: MagicMock, data_service: DataService) -> None:
+def test_add_sector_vol(mock_download: MagicMock, mock_to_parquet: MagicMock, data_service: DataService) -> None:
     """Test that sector volatility is added correctly."""
     stock_df = pd.DataFrame({'Close': [100, 101, 102, 103, 104]})
     sector_df = pd.DataFrame({'Close': [50, 51, 50, 52, 53]})
@@ -58,3 +76,4 @@ def test_add_sector_vol(mock_download: MagicMock, data_service: DataService) -> 
 
     assert df is not None
     assert 'sector_vol' in df.columns
+    mock_to_parquet.assert_called_once()

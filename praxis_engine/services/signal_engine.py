@@ -32,14 +32,16 @@ class SignalEngine:
         df_daily = pd.concat([df_daily, bb_daily, rsi_daily], axis=1)
 
         # -- Weekly Indicators --
-        df_weekly = df_daily.resample('W-FRI').last().dropna()
-        if len(df_weekly) < 10: return None # Check length after dropna
+        df_weekly = df_daily.resample('WS').last()
+        if len(df_weekly) < 10:
+            return None
         bb_weekly = bbands(df_weekly["Close"], length=10, std=2.5)
         df_weekly = pd.concat([df_weekly, bb_weekly], axis=1)
 
         # -- Monthly Indicators --
-        df_monthly = df_daily.resample('ME').last().dropna()
-        if len(df_monthly) < 6: return None # Check length after dropna
+        df_monthly = df_daily.resample('MS').last()
+        if len(df_monthly) < 6:
+            return None
         bb_monthly = bbands(df_monthly["Close"], length=6, std=3.0)
         df_monthly = pd.concat([df_monthly, bb_monthly], axis=1)
 
@@ -47,9 +49,14 @@ class SignalEngine:
         if df_daily.empty or df_weekly.empty or df_monthly.empty:
             return None
 
+        last_date = df_daily.index[-1]
         latest_daily = df_daily.iloc[-1]
-        latest_weekly = df_weekly.iloc[-1]
-        latest_monthly = df_monthly.iloc[-1]
+        latest_weekly = df_weekly.asof(last_date)
+        latest_monthly = df_monthly.asof(last_date)
+
+        # After all calculations, check if the latest data points have NaNs
+        if latest_daily.isnull().any() or latest_weekly.isnull().any() or latest_monthly.isnull().any():
+            return None
 
         # Column names from our indicator functions
         bb_daily_lower_col = f"BBL_{self.params.bb_length}_{self.params.bb_std}"

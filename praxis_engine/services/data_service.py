@@ -32,33 +32,30 @@ class DataService:
 
         Args:
             stock: The stock ticker.
-            start_date: The start date in YYYY-MM-DD format.
-            end_date: The end date in YYYY-MM-DD format.
-            sector_ticker: The ticker for the sector index.
-
-        Returns:
-            A pandas DataFrame with the stock data, or None if data cannot be fetched.
         """
         cache_file = self.cache_dir / f"{stock}_{start_date}_{end_date}.parquet"
-
+        # If cache exists and is valid, use it.
         if cache_file.exists():
             df = pd.read_parquet(cache_file)
-            # Ensure the sector vol is calculated if it was missed before
-            if sector_ticker and "sector_vol" not in df.columns:
-                return self._add_sector_vol(df, sector_ticker, start_date, end_date)
-            return df
+            if not (sector_ticker and "sector_vol" not in df.columns):
+                log.info(f"Loading {stock} data from cache.")
+                return df
+            log.warning(f"Cache for {stock} is stale (missing sector_vol). Re-fetching.")
 
-
+        # Otherwise, download fresh data.
         try:
+            log.info(f"Fetching fresh data for {stock}.")
             df = yf.download(stock, start=start_date, end=end_date, progress=False)
             if df.empty:
+                log.warning(f"No data returned from yfinance for {stock}.")
                 return None
 
             if sector_ticker:
                 df = self._add_sector_vol(df, sector_ticker, start_date, end_date)
 
-
-            df.to_parquet(cache_file)
+            if df is not None:
+                log.info(f"Saving {stock} data to cache.")
+                df.to_parquet(cache_file)
             return df
         except Exception as e:
             log.error(f"Error fetching data for {stock}: {e}")
