@@ -1,463 +1,265 @@
-# Self-Improving Quant Engine — Task Breakdown
-
-This document provides a detailed, sequential list of tasks required to build the Minimum Viable Product (MVP) of the Self-Improving Quant Engine. Each task is designed to be completed in 4 hours or less and maps directly to the requirements outlined in the `prd.md`, `architecture.md`, and `HARD_RULES.md` documents.
-
-## Epic 1: Core Backtesting Pipeline & Foundation
-
-*Goal: To build a non-iterative, deterministic pipeline that can be executed programmatically. This epic focuses on creating the core components that can take a hard-coded strategy, run it on historical data, and produce a structured report, all without any LLM interaction.*
+Of course. Here is a comprehensive and detailed task breakdown for implementing the "Praxis" engine, written with the specified mindset of Kailash Nadh and ensuring no detail from the PRD, project brief, or architecture is missed.
 
 ---
 
-### Task 1 — Project Scaffolding & Configuration Service
+# **"Praxis" Engine — Task Breakdown**
 
-*   **Rationale:** Establish a clean, reproducible project structure and a centralized configuration system, adhering to architectural and quality standards from the outset.
+This document provides a detailed, sequential list of tasks required to build the "Praxis" Mean-Reversion Engine. Each task is designed as a small, logical unit of work, mapping directly to the requirements in the `prd.md` and `architecture.md`. We build methodically, test rigorously, and earn complexity. We do not build for a hypothetical future.
+
+## Epic 1: Bedrock - The Data & Statistical Foundation
+
+*Goal: To establish a reliable, reproducible data pipeline and the core statistical tools. Without a rock-solid foundation of clean, correct data and validated mathematical functions, the entire system is worthless. This epic builds the non-negotiable prerequisites.*
+
+---
+
+### Task 1 — Project Scaffolding & Configuration
+
+*   **Rationale:** A project's long-term viability is decided in the first hour. We will establish a clean, reproducible structure and a centralized, type-safe configuration system from the outset. No shortcuts.
 *   **Items to implement:**
-    *   Create the directory structure as defined in `architecture.md`.
-    *   Initialize a Git repository with a `.gitignore` file.
-    *   Create `pyproject.toml` to define the project and configure tools like `mypy`.
-    *   Create `requirements.txt` with initial dependencies (`pandas`, `python-dotenv`, `configparser`, `pytest`, `mypy`, `pandas-stubs`).
-    *   Create `.env.example` for API keys (H-15).
-    *   Create `config.ini` with placeholder values for tickers, iterations, and file paths (H-16).
+    *   Create the full directory structure as defined in `architecture.md` (`praxis_engine/`, `core/`, `services/`, `prompts/`, etc.).
+    *   Initialize a Git repository with a `.gitignore` that excludes `data_cache/`, `results/`, `__pycache__/`, and `.env`.
+    *   Create `pyproject.toml` to define the project and configure `mypy` for strict type checking.
+    *   Create `requirements.txt` with initial dependencies: `pandas`, `numpy`, `statsmodels`, `yfinance`, `pydantic`, `python-dotenv`, `configparser`, `typer`, `pytest`, `mypy`.
+    *   Create `config.ini` with sections for `[data]`, `[strategy_params]`, `[filters]`, and `[llm]`. Populate with all thresholds from the PRD (e.g., `sector_vol_threshold = 22.0`, `liquidity_turnover_crores = 5.0`).
     *   Implement `services/config_service.py` to load and parse `config.ini`.
-    *   Implement `core/models.py` with a Pydantic model for the configuration object to ensure type safety.
-    *   Create the CLI entry point `main.py` that loads the config and prints it.
-    *   Create placeholder classes for all core components (`Orchestrator`, `LLMService`, etc.).
+    *   Implement `core/models.py` with a Pydantic `Config` model that provides type-safe access to all configuration values.
+    *   Create the CLI entry point `main.py` using `Typer` with a placeholder command that loads the config and prints it.
 *   **Tests to cover:**
     *   Create `tests/test_config_service.py`.
-    *   Test that the service correctly parses a sample `config.ini` into the Pydantic model.
-    *   Test that it raises an error for missing required sections or keys.
+    *   Test that the service correctly parses a valid `config.ini` into the Pydantic model.
+    *   Test that it raises a validation error for missing required keys or incorrect types.
 *   **Acceptance Criteria (AC):**
     *   The project structure matches `architecture.md`.
-    *   The project is installable in editable mode (`pip install -e .`).
-    *   Running `python src/main.py` successfully initializes all components.
-    *   Code passes `mypy --strict` (H-1) and all `pytest` checks.
+    *   Running `mypy .` passes with zero errors.
+    *   Running `python main.py` successfully loads and validates the configuration.
 *   **Definition of Done (DoD):**
-    *   The initial project structure and configuration service are committed to the repository.
-*   **Time estimate:** 2 hours
-*   **Status:** Not Started
-
----
-
-### Task 1.5 — Refine Project Setup & Add Developer Guide
-
-*   **Rationale:** To prevent recurring setup and import path issues by documenting the correct development environment setup and project structure conventions. This improves developer onboarding and reduces debugging time.
-*   **Items to implement:**
-    *   Create a `CONTRIBUTING.md` or update `README.md` with a "Developer Setup" section.
-    *   The guide must specify:
-        *   The requirement to use a virtual environment.
-        *   The command to install dependencies: `pip install -r requirements.txt`.
-        *   The command to install the project in editable mode: `pip install -e .`.
-        *   A clear explanation of why editable mode is necessary for the import paths (`from services...` not `from src.services...`) to work correctly.
-*   **Acceptance Criteria (AC):**
-    *   A developer can follow the guide to set up the project and run tests successfully without encountering import errors.
-*   **Definition of Done (DoD):**
-    *   The developer setup guide is written and committed.
-*   **Time estimate:** 1 hour
-*   **Status:** Completed
-
----
-
-### Task 2 — Implement Data Service with Caching & Splitting
-
-*   **Rationale:** To create a reliable and efficient service for fetching, caching, and splitting historical stock data, preventing repeated API calls and strictly enforcing the train/validation data separation.
-*   **Items to implement:**
-    *   Add `yfinance` and `pyarrow` to `requirements.txt`.
-    *   Create `services/data_service.py` (H-6, H-7).
-    *   Implement a `DataService` class with a method `get_data(ticker)` that:
-        *   Checks for a local Parquet cache file.
-        *   If cache is missing, uses `yfinance` to download 10 years of daily data. This function must be marked `# impure` (H-8).
-        *   Saves the downloaded DataFrame to the cache.
-        *   Deterministically splits the data into an 8-year training set and a 2-year validation set (FR2).
-        *   Returns both DataFrames.
-*   **Tests to cover:**
-    *   Create `tests/test_data_service.py`.
-    *   Mock `yfinance.download` to test caching logic without network calls.
-    *   Verify that the data split is correct (e.g., correct date ranges, no overlap).
-*   **Acceptance Criteria (AC):**
-    *   The `DataService` can download and save data.
-    *   Subsequent calls use the cached file.
-    *   The service correctly returns two distinct `train` and `validation` DataFrames (H-19).
-*   **Definition of Done (DoD):**
-    *   `data_service.py` and its unit tests are implemented and pass `mypy --strict`.
-*   **Time estimate:** 2.5 hours
-*   **Status:** Completed
-
----
-
-### Task 3 — Implement Baseline Strategy & Backtester Wrapper
-
-*   **Rationale:** To create the core backtesting engine and a simple, hard-coded baseline strategy (Iteration 0) that serves as a reproducible benchmark for all future improvements.
-*   **Items to implement:**
-    *   Add `backtesting.py` to `requirements.txt`.
-    *   Create `core/strategy.py` to define a `backtesting.py` `Strategy` class.
-    *   Implement the hard-coded SMA Crossover baseline strategy as defined in the PRD (FR8, H-21).
-    *   Create `services/backtester.py`.
-    *   Implement a `Backtester` service with a `run(data, strategy_class)` method that initializes and runs `backtesting.py`'s `Backtest` object.
-    *   The function must return the results object from `backtesting.py`.
-*   **Tests to cover:**
-    *   Create `tests/test_backtester.py`.
-    *   Add a test that runs the backtester with sample data and the baseline strategy, asserting that a results object is returned without errors.
-*   **Acceptance Criteria (AC):**
-    *   A backtest can be executed programmatically on a pandas DataFrame.
-    *   The baseline SMA Crossover strategy is correctly defined.
-*   **Definition of Done (DoD):**
-    *   `strategy.py`, `backtester.py`, and their tests are implemented and committed.
-*   **Time estimate:** 2 hours
-*   **Status:** Completed
-
----
-
-### Task 4 — Implement Report Generator
-
-*   **Rationale:** To translate the raw output from the backtesting library into the information-dense, structured JSON format required by the PRD, which will serve as the learning signal for the LLM.
-*   **Items to implement:**
-    *   In `core/models.py`, define Pydantic models for `StrategyDefinition`, `TradeSummary`, and `PerformanceReport` as specified in FR4.
-    *   Create `services/report_generator.py`.
-    *   Implement a `ReportGenerator` service with a method `generate(backtest_results, strategy_definition)` that:
-        *   Extracts all required metrics (Sharpe, Sortino, Max Drawdown, etc.).
-        *   Calculates the "Information-Dense Statistical Trade Summary" (FR4).
-        *   Populates and returns a `PerformanceReport` Pydantic model instance.
-*   **Tests to cover:**
-    *   Create `tests/test_report_generator.py`.
-    *   Pass a mock `backtesting.py` results object and verify the generated report model has the correct structure and values.
-*   **Acceptance Criteria (AC):**
-    *   A structured, typed report object is generated from a backtest run.
-    *   All metrics from FR4 are present and correctly calculated.
-*   **Definition of Done (DoD):**
-    *   The report generation module and its tests are implemented and committed.
-*   **Time estimate:** 2.5 hours
-*   **Status:** Completed
-
----
-
-### Task 4.1 — Fix Core Pipeline Integrity
-
-*   **Rationale:** The core pipeline of Epic 1 is broken. The `Backtester` service has an incorrect interface that does not provide the `trades` data required by the `ReportGenerator`. This task is critical to making Epic 1 functional.
-*   **Items to implement:**
-    *   Modify `services/backtester.py`: The `run()` method must return a tuple of `(stats, trades)`.
-    *   Update `tests/test_backtester.py` to reflect the new return type.
-    *   Update `services/report_generator.py`: Ensure the `generate()` method correctly receives and uses the `trades` DataFrame.
-*   **Acceptance Criteria (AC):**
-    *   The `Backtester` and `ReportGenerator` services can be chained together successfully.
-    *   A complete `PerformanceReport`, including the `TradeSummary`, can be generated from a backtest run.
-*   **Definition of Done (DoD):**
-    *   The interface bug is fixed and verified with an integration test.
-*   **Time estimate:** 1.5 hours
-*   **Status:** Completed
-
----
-
-### Task 4.2 — Enforce Code Quality Gates
-
-*   **Rationale:** The project currently fails its own quality gate (`mypy --strict`), violating `H-1`. This must be fixed to maintain code quality and ensure the reliability of the experimental framework.
-*   **Items to implement:**
-    *   Add `pandas-stubs` to `requirements.txt` to ensure correct type checking for `pandas`.
-    *   Add type hints (`-> None`) to all test functions in `tests/` to make them compliant with `mypy --strict`.
-*   **Acceptance Criteria (AC):**
-    *   Running `mypy --strict .` from the project root passes with zero errors.
-*   **Definition of Done (DoD):**
-    *   All type errors are resolved.
-*   **Time estimate:** 1 hour
-*   **Status:** Completed
-
----
-
-### Task 4.3 — Refactor Premature Abstractions
-
-*   **Rationale:** The codebase contains numerous placeholder files and premature orchestration logic in `main.py`, violating the MVP-first approach (`H-5`, `H-26`). This adds clutter and misrepresents the project's true progress.
-*   **Items to implement:**
-    *   **Delete** the following placeholder files: `core/orchestrator.py`, `services/llm_service.py`, `services/strategy_engine.py`, `services/state_manager.py`.
-    *   **Refactor** `src/main.py` to be a simple script that only validates the functionality of Epic 1 (i.e., runs the baseline strategy and generates a report). Remove all references to the deleted services.
-*   **Acceptance Criteria (AC):**
-    *   The `src` directory is clean and contains only the code necessary for a functional Epic 1.
-    *   `python src/main.py` runs without error.
-*   **Definition of Done (DoD):**
-    *   All placeholder files are deleted and `main.py` is refactored.
-*   **Time estimate:** 1 hour
-*   **Status:** Completed
-
----
-
-### Task 4.5 — Document Mypy Setup and Typing Best Practices
-
-*   **Rationale:** To solidify the project's commitment to static typing and prevent future developers from struggling with the same `mypy --strict` issues that were resolved during Task 4. This captures important institutional knowledge.
-*   **Items to implement:**
-    *   Create a new section in `README.md` or a new `docs/typing_guide.md` file.
-    *   Document the `mypy` configuration in `pyproject.toml`, explaining why overrides for libraries like `backtesting` and `pandas-ta` are necessary.
-    *   Provide a clear example of how to handle untyped return values from these libraries using `typing.cast`.
-    *   Explain the `# type: ignore[misc]` comment used in `strategy.py` for subclassing untyped classes, and when it is appropriate to use it.
-*   **Acceptance Criteria (AC):**
-    *   A developer can read the guide and understand how to work with the strict `mypy` environment without needing to re-discover the solutions for common third-party library issues.
-*   **Definition of Done (DoD):**
-    *   The typing guide is written and committed.
-*   **Time estimate:** 1 hour
-*   **Status:** Completed
-
----
-
-## Epic 2: LLM-Powered Iteration Engine
-
-*Goal: To integrate the LLM, construct the dynamic prompt with historical context, and build the main loop that securely parses LLM responses to drive subsequent backtest iterations.*
-
----
-
-### Task 5 — Implement Secure Strategy Engine with `asteval`
-
-*   **Rationale:** To create a secure mechanism for interpreting LLM-generated strategy logic without using `eval()`, preventing arbitrary code execution. This is the cornerstone of the system's security architecture.
-*   **Items to implement:**
-    *   Add `asteval` and `pandas-ta` to `requirements.txt`.
-    *   Create `services/strategy_engine.py`.
-    *   Implement a `StrategyEngine` service with a method `process(data, strategy_def)` that:
-        *   Iterates through the `indicators` list in the strategy definition, calculating them using `pandas-ta` and adding them as columns to the data.
-        *   Uses `asteval` to safely evaluate the `buy_condition` and `sell_condition` strings against the DataFrame columns, generating the final signal series.
-        *   Returns a new `backtesting.py` `Strategy` class dynamically created with the evaluated signals.
-*   **Tests to cover:**
-    *   Create `tests/test_strategy_engine.py`.
-    *   Test with a valid JSON for a simple EMA crossover.
-    *   Test `asteval` with a malicious string (e.g., `__import__('os').system('rm -rf /')`) to ensure it fails safely (H-14).
-    *   Test with a condition that references a non-existent indicator to ensure it fails gracefully.
-*   **Acceptance Criteria (AC):**
-    *   The engine can convert a valid strategy definition into an executable `backtesting.py` strategy.
-    *   The engine rejects invalid or malicious inputs without executing them.
-*   **Definition of Done (DoD):**
-    *   `strategy_engine.py` and its comprehensive security tests are implemented and committed.
-*   **Time estimate:** 3.5 hours
-*   **Status:** Completed
-
----
-
-### Task 5.1 — Integrate Strategy Engine into Main Workflow
-
-*   **Rationale:** The `StrategyEngine` has been implemented, but the main application entry point (`main.py`) still uses the hard-coded `SmaCross` strategy. To make the engine useful, it must be integrated into the core backtesting workflow.
-*   **Items to implement:**
-    *   Modify `src/main.py` to use the `StrategyEngine`.
-    *   Create a sample `StrategyDefinition` object in `main.py` that represents a simple strategy (e.g., EMA Crossover).
-    *   Pass this definition to the `StrategyEngine` to generate a dynamic strategy class.
-    *   Pass the dynamically generated strategy to the `Backtester` service.
-*   **Tests to cover:**
-    *   Update `tests/test_main.py` (if it exists) or manually verify that the end-to-end flow in `main.py` runs successfully with the dynamic strategy.
-*   **Acceptance Criteria (AC):**
-    *   Running `python src/main.py` executes a backtest using a strategy dynamically generated by the `StrategyEngine`.
-*   **Definition of Done (DoD):**
-    *   `main.py` is updated to use the `StrategyEngine`, demonstrating a complete, albeit simple, dynamic workflow.
-*   **Time estimate:** 1 hour
-*   **Status:** Completed
-
----
-
-## Epic 4: Maintenance & Refinement
-
-*Goal: To address bugs, dependency issues, and minor refactorings that improve the overall health and stability of the codebase.*
-
----
-
-### Task 5.2 — Environment and Dependency Fixes
-
-*   **Rationale:** During the implementation of Task 5.1, several critical dependency and environment issues were discovered that prevented the application from running. These were documented in `docs/memory.md` and fixed to ensure the project is runnable.
-*   **Items to implement:**
-    *   Installed `setuptools` to resolve `pkg_resources` dependency for `pandas-ta`.
-    *   Downgraded `numpy` to `<2.0` to resolve `numpy.NaN` import error in `pandas-ta`.
-    *   Installed `pyarrow` to enable pandas Parquet caching functionality.
-    *   Fixed an incorrect argument in the `DataService.get_data` call in `main.py`.
-    *   Exposed `StrategyEngine` in `src/services/__init__.py` to allow correct imports.
-*   **Acceptance Criteria (AC):**
-    *   The `src/main.py` script can run end-to-end without import or dependency errors.
-*   **Definition of Done (DoD):**
-    *   All dependency issues are resolved and the fixes are committed.
-*   **Time estimate:** 1.5 hours
-*   **Status:** Completed (Superseded by Task 13)
-
----
-
-### Task 13 — Remove `pandas-ta` Dependency and Create Local Indicator Library
-
-*   **Rationale:** A critical, unresolvable dependency conflict between `pandas-ta`, `numpy`, and the Python 3.12 environment made the `pandas-ta` library unusable. The most robust long-term solution was to remove the dependency entirely and replace it with a self-contained library.
-*   **Items to implement:**
-    *   Created `src/core/indicators.py` with local implementations of `sma`, `ema`, `rsi`, `macd`, `bbands`, `kc`, and `adx`.
-    *   Refactored `StrategyEngine` to use the new local indicator library.
-    *   Refactored `SmaCross` to use the new local `sma` function.
-    *   Removed `pandas-ta` from `requirements.txt` and all documentation.
-    *   Updated the LLM prompt to reflect the new, limited set of supported indicators and their correct parameter names.
-    *   Fixed all resulting test failures and runtime errors.
-*   **Acceptance Criteria (AC):**
-    *   The `pandas-ta` dependency is completely removed from the project.
-    *   The application is fully functional using the new local indicator library.
-    *   All tests pass.
-*   **Definition of Done (DoD):**
-    *   The `pandas-ta` dependency is removed and the application is stable.
-*   **Time estimate:** 4 hours
-*   **Status:** Completed
-
----
-
-### Task 6 — Implement LLM Service & Prompt Management
-
-*   **Rationale:** To create a dedicated, mockable service for all LLM API interactions, managing API keys securely and constructing the precise prompts that guide the AI's suggestions.
-*   **Items to implement:**
-    *   Add the client library for the chosen LLM provider (e.g., `openai` or `openrouter-client`) to `requirements.txt`.
-    *   Create `services/llm_service.py`.
-    *   Implement an `LLMService` class with a method `get_suggestion(history: list[PerformanceReport])` that:
-        *   Loads the LLM provider and API key from environment variables (H-15).
-        *   Loads a base prompt from `prompts/quant_analyst.txt`.
-        *   Formats the `history` of reports into a string for context.
-        *   Constructs the final prompt and sends it to the configured LLM API (e.g., OpenRouter with model `moonshotai/kimi-k2:free`) (mark `# impure`).
-        *   Logs token counts for the request and response (H-22, H-23).
-        *   Includes retry logic for transient API errors.
-        *   Returns the raw JSON string from the LLM response.
-    *   Create the initial `prompts/quant_analyst.txt` file.
-*   **Tests to cover:**
-    *   Create `tests/test_llm_service.py`.
-    *   Mock the LLM API client and verify the service constructs the correct prompt string from a sample history.
-*   **Acceptance Criteria (AC):**
-    *   The service can send a well-formatted prompt to the LLM API.
-    *   API keys are handled securely.
-    *   Token usage is logged.
-*   **Definition of Done (DoD):**
-    *   `llm_service.py`, the prompt file, and tests are implemented and committed.
-*   **Time estimate:** 2.5 hours
-*   **Status:** Completed
-
----
-
-### Task 7 — Implement State Manager for Resumability
-
-*   **Rationale:** To make the system robust against interruptions. The state manager ensures that a long run can be resumed from the last successfully completed iteration, saving time and API costs.
-*   **Items to implement:**
-    *   Create `core/models.py` with a `RunState` model to hold `iteration_number` and `history`.
-    *   Create `services/state_manager.py`.
-    *   Implement a `StateManager` class with `save_state` and `load_state` methods.
-    *   `save_state` writes the `RunState` to `run_state.json` atomically (using a temp file and rename).
-    *   `load_state` reads the `RunState` from `run_state.json`, returning a default state if the file doesn't exist or is corrupt.
-*   **Tests to cover:**
-    *   Create `tests/test_state_manager.py` to test:
-        *   Saving and loading a valid `RunState`.
-        *   Loading a non-existent state file.
-        *   Loading a corrupted or invalid state file.
-*   **Acceptance Criteria (AC):**
-    *   The run state is persisted to disk atomically.
-    *   The system can be prepared to resume a run from a previously saved state.
-*   **Definition of Done (DoD):**
-    *   `state_manager.py` and its tests are implemented and committed.
-    *   All related code passes `mypy --strict`.
-*   **Time estimate:** 2 hours
-*   **Status:** Completed
-
----
-
-### Task 8 — Implement the Core Orchestrator Loop
-
-*   **Rationale:** To tie all components together into the main automated feedback loop, orchestrating the flow from backtesting to LLM suggestion to the next iteration, including state management and pruning logic.
-*   **Items to implement:**
-    *   Create `core/orchestrator.py`.
-    *   Implement the main `Orchestrator` class, injecting all required services in its `__init__` (H-2).
-    *   Implement the `run()` method that:
-        1.  Uses the `StateManager` to load the `RunState` for the current ticker, resuming from the last completed iteration if state exists.
-        2.  Loops for the configured number of iterations.
-        3.  Inside the loop: runs backtest, generates a `PerformanceReport`, appends it to the `RunState` history, and uses the `StateManager` to save the updated `RunState` to disk.
-        4.  Implements the pruning mechanism (FR6).
-        5.  Calls `LLMService` to get the next strategy suggestion.
-        6.  Handles JSON parsing errors from the LLM gracefully (H-25).
-*   **Tests to cover:**
-    *   Create `tests/test_orchestrator.py`.
-    *   This is an integration test. Mock all services (`LLMService`, `Backtester`, etc.).
-    *   Provide a predictable sequence of mock LLM responses and assert that the orchestrator completes the loop, calls services in the correct order, and handles a "pruned" iteration correctly.
-*   **Acceptance Criteria (AC):**
-    *   The system can run a multi-iteration loop automatically.
-    *   State is loaded at the start and saved after each iteration.
-    *   The pruning logic correctly discards failed strategies.
-*   **Definition of Done (DoD):**
-    *   `orchestrator.py` and its integration test are implemented and committed.
-*   **Time estimate:** 4 hours
-*   **Status:** Completed
-
----
-
-### Task 9 — Enhance Prompt Engineering with Explicit Failure Signaling
-
-*   **Rationale:** To improve the integrity of the learning signal by explicitly informing the LLM when its suggestions fail, providing crucial negative feedback that is currently missing from the loop.
-*   **Items to implement:**
-    *   In `services/llm_service.py`, modify the `get_suggestion` method to accept an optional "failure context" argument.
-    *   In `core/orchestrator.py`, when a strategy is "pruned", it must pass the failed strategy's JSON and its poor performance metrics as the "failure context" to the `LLMService`.
-    *   The `LLMService` will then prepend a clear, explicit message to the next prompt, such as:
-        > **"CRITICAL FEEDBACK: Your previous suggestion (Strategy JSON: {...}) was a failure. It was tested and resulted in a Sharpe Ratio of -0.5, which is below the required threshold. This result has been discarded. We are reverting to the previous best strategy. Analyze the failure and propose a substantially different approach."**
-*   **Tests to cover:**
-    *   Update `tests/test_llm_service.py` to verify that when a failure context is provided, this specific warning message is included in the prompt sent to the mock LLM client.
-*   **Acceptance Criteria (AC):**
-    *   The LLM is explicitly notified of pruned iterations and the reason for the failure, improving the learning signal.
-*   **Definition of Done (DoD):**
-    *   The prompt generation logic is updated to include explicit negative feedback.
-*   **Time estimate:** 1.5 hours
-*   **Status:** Not Started
-
----
-
-## Epic 3: Finalization & Operational Polish
-
-*Goal: To wrap the system in a user-friendly CLI, implement the crucial final validation step, and generate the comprehensive, human-readable reports that are the ultimate output of the tool.*
-
----
-
-### Task 10 — Implement Final Validation & Reporting
-
-*   **Rationale:** To combat overfitting by running the best-found strategy on unseen data and to generate the final, auditable artifacts that summarize the entire discovery process.
-*   **Items to implement:**
-    *   In `core/orchestrator.py`, add logic to run *after* the main loop completes.
-    *   This logic must:
-        1.  Identify the single best strategy from the history based on its Sharpe Ratio on the **training data** (H-24).
-        2.  Run this single best strategy on the unseen **validation set** (H-19).
-        3.  Generate a separate performance report for this validation run.
-        4.  Create the final output directory structure as specified in the PRD (FR7).
-        5.  Generate the `summary_report.md` with the comparison table.
-        6.  Save the `full_run_log.json`.
-        7.  Save the `backtesting.py` HTML plots for the best strategy on both train and validation data.
-*   **Tests to cover:**
-    *   Update `tests/test_orchestrator.py` to assert that the final validation methods are called with the correct (validation) data after the loop.
-*   **Acceptance Criteria (AC):**
-    *   The validation dataset is touched only once, after all iterations are complete.
-    *   The final `summary_report.md` and all other artifacts are generated correctly in a timestamped directory.
-*   **Definition of Done (DoD):**
-    *   The final validation and report generation logic are implemented and committed.
+    *   The initial project structure and configuration service are committed.
 *   **Time estimate:** 3 hours
 *   **Status:** Not Started
 
 ---
 
-### Task 11 — Implement CLI, Logging, and Final Output
+### Task 2 — Data Service for Indian Markets
 
-*   **Rationale:** To create the primary user interface for the tool, providing clear feedback during a run and presenting the final results in a human-readable format.
+*   **Rationale:** Data is the lifeblood. This service must be robust, efficient, and acutely aware of Indian market specifics. We will use the correct data sources and implement caching to make research fast and reproducible.
 *   **Items to implement:**
-    *   In `main.py`, use `argparse` or `click` to create the final CLI.
-    *   Set up a centralized logger (e.g., in `utils/logging_config.py`) that is configured once in `main.py` (H-10).
-    *   Throughout the application (Orchestrator, services), replace all `print()` statements with calls to the logger at appropriate levels (INFO, DEBUG, ERROR).
-    *   Ensure the console provides clear, real-time status updates (e.g., "TICKER: Running Iteration 3/10...", "Awaiting LLM response...").
-    *   The `main.py` script should instantiate all services and the `Orchestrator`, then call `orchestrator.run()`.
+    *   Add `nsepy` and `yfinance` to `requirements.txt`.
+    *   Implement `services/data_service.py` with a `DataService` class.
+    *   The `get_data(stock, start_date, end_date)` method must:
+        1.  Construct a cache filename (e.g., `HDFCBANK_2010-01-01_2023-12-31.parquet`).
+        2.  If the cache file exists, load and return the DataFrame from it.
+        3.  If not, fetch equity data using `nsepy.get_history`. This is non-negotiable to avoid survivorship bias.
+        4.  Fetch the corresponding Nifty sector index data using `yfinance`. A mapping from stock to sector index will be needed in `config.ini`.
+        5.  Calculate the 20-day rolling annualized `sector_vol` and merge it into the main DataFrame.
+        6.  Perform basic cleaning (e.g., forward-fill missing values, ensure date index is correct).
+        7.  Save the final, clean DataFrame to the Parquet cache file.
 *   **Tests to cover:**
-    *   N/A for direct CLI testing, but manual end-to-end testing is required.
+    *   Create `tests/test_data_service.py`.
+    *   Mock `nsepy.get_history` and `yf.download` to test the caching logic without network calls.
+    *   Verify that the `sector_vol` column is correctly calculated and merged.
 *   **Acceptance Criteria (AC):**
-    *   The application is started via `python main.py`.
-    *   The console provides useful, real-time status updates.
-    *   No `print()` statements exist outside of `main.py`.
+    *   The `DataService` can download, process, and save data for a given stock.
+    *   Subsequent calls for the same stock and date range use the cache.
 *   **Definition of Done (DoD):**
-    *   The CLI and logging are fully implemented, and a full run can be initiated and monitored from the command line.
-*   **Time estimate:** 2 hours
+    *   `data_service.py` and its unit tests are implemented and pass.
+*   **Time estimate:** 3.5 hours
 *   **Status:** Not Started
 
 ---
 
-### Task 12 — Fix Critical Bugs and Improve Robustness
+### Task 3 — Core Statistical & Indicator Library
 
-*   **Rationale:** To address critical bugs discovered during runs that caused crashes and prevented the system from completing its optimization loop. This task enhances the engine's stability and correctness.
+*   **Rationale:** To create a library of pure, well-tested functions for all required statistical tests and technical indicators. These are the mathematical building blocks of our strategy and must be provably correct.
 *   **Items to implement:**
-    *   **Fix `FileExistsError` in `StateManager`:** Replaced `pathlib.Path.rename()` with `os.replace()` to ensure atomic, cross-platform state saving.
-    *   **Fix `NameError` for `adx` in `StrategyEngine`:** Added specific handling for the `adx` indicator to correctly map its multi-column output to predictable variable names, preventing crashes when the LLM suggests using it.
-    *   **Documented fixes in `docs/memory.md`:** Added entries for the `FileExistsError` and `NameError` to prevent future regressions.
+    *   Create `core/indicators.py` for technical indicators. Implement functions for:
+        *   Bollinger Bands (`bbands(series, length, std)`)
+        *   Relative Strength Index (`rsi(series, length)`)
+    *   Create `core/statistics.py` for statistical tests. Implement functions for:
+        *   Augmented Dickey-Fuller test (`adf_test(series)`) which returns the p-value.
+        *   Hurst Exponent (`hurst_exponent(series)`) which returns the H value.
 *   **Tests to cover:**
-    *   Created `tests/test_strategy_engine_adx.py` to provide specific test coverage for the `adx` indicator fix and prevent regressions.
+    *   Create `tests/test_indicators.py` and `tests/test_statistics.py`.
+    *   For each function, create a test with a known input `pandas.Series` and assert that the output matches a pre-calculated, expected value. This validates our implementation against a known benchmark.
 *   **Acceptance Criteria (AC):**
-    *   The application no longer crashes due to `FileExistsError` on Windows.
-    *   The `StrategyEngine` can successfully process strategies involving the `adx` indicator.
-    *   The new test passes, and all existing tests continue to pass.
+    *   All indicator and statistical functions are implemented.
+    *   Each function has a unit test that validates its correctness against a known result.
 *   **Definition of Done (DoD):**
-    *   The bug fixes are implemented, documented, and covered by tests.
-*   **Time estimate:** 2 hours
-*   **Status:** Completed
+    *   The indicator and statistics modules and their tests are implemented and committed.
+*   **Time estimate:** 3 hours
+*   **Status:** Not Started
+
+---
+
+## Epic 2: The Filtering Cascade - Signal & Validation
+
+*Goal: To codify the core logic of the system. This involves translating the multi-frame signal generation rules and the non-negotiable statistical and contextual guardrails into deterministic code. This is where the "edge" is built.*
+
+---
+
+### Task 4 — Multi-Frame Signal Engine
+
+*   **Rationale:** A simple BB+RSI signal is noise. The PRD specifies that the edge comes from multi-frame alignment. This engine will implement that precise logic to generate preliminary signals.
+*   **Items to implement:**
+    *   In `core/models.py`, define a Pydantic `Signal` model to hold entry price, stop-loss, and other relevant signal data.
+    *   Implement `services/signal_engine.py` with a `SignalEngine` class.
+    *   The `generate_signal(df_daily)` method must:
+        1.  Calculate daily BBands and RSI using the functions from `core/indicators.py`.
+        2.  Resample the daily data to weekly (`'W'`) and monthly (`'M'`) timeframes.
+        3.  Calculate indicators on these resampled frames with the parameters specified in `project_brief.md` (e.g., weekly BB(10, 2.5)).
+        4.  Implement the **exact** multi-frame alignment check from the brief: `daily_oversold AND weekly_oversold AND monthly_not_oversold`.
+        5.  If the condition is met, populate and return a `Signal` object. Otherwise, return `None`.
+*   **Tests to cover:**
+    *   Create `tests/test_signal_engine.py`.
+    *   Create a synthetic DataFrame where the alignment condition is met on the last day and assert that a `Signal` object is returned.
+    *   Create several other synthetic DataFrames where one or more conditions fail and assert that `None` is returned.
+*   **Acceptance Criteria (AC):**
+    *   The engine correctly identifies the specific multi-frame alignment condition.
+    *   It produces a structured `Signal` object only when all conditions are met.
+*   **Definition of Done (DoD):**
+    *   `signal_engine.py` and its tests are implemented and committed.
+*   **Time estimate:** 4 hours
+*   **Status:** Not Started
+
+---
+
+### Task 5 — The Guardrail Gauntlet: Validation Service
+
+*   **Rationale:** This is the most critical part of the system. A preliminary signal means nothing until it has survived our gauntlet of statistical and contextual checks. This service acts as the primary capital preservation mechanism.
+*   **Items to implement:**
+    *   Implement `services/validation_service.py` with a `ValidationService` class.
+    *   Create private helper methods for each "guard":
+        *   `_check_liquidity(df)`: Calculates 5-day average turnover (Volume * Close) and checks if it's above the `₹5 Crore` threshold from the config.
+        *   `_check_market_regime(df)`: Checks if the latest `sector_vol` is below the `22%` threshold.
+        *   `_check_statistical_validity(df)`: Runs the `adf_test` and `hurst_exponent` functions on the price series and checks if `p_value < 0.05` and `H < 0.45`.
+    *   Implement a public `validate(df)` method that calls these checks sequentially. If any check fails, it must immediately return `False` with a reason string (e.g., `"REJECTED: Low Liquidity"`). If all pass, it returns `True`.
+*   **Tests to cover:**
+    *   Create `tests/test_validation_service.py`.
+    *   Test each failure case in isolation: create a DataFrame that is illiquid but otherwise fine; one with high sector volatility; one that is not mean-reverting. Assert that `validate` returns `False` with the correct reason.
+    *   Test the success case: create a DataFrame that passes all checks and assert that `validate` returns `True`.
+*   **Acceptance Criteria (AC):**
+    *   The service correctly applies all filters defined in the PRD.
+    *   The service rejects signals as soon as a single guardrail fails.
+*   **Definition of Done (DoD):**
+    *   `validation_service.py` and its comprehensive tests are implemented.
+*   **Time estimate:** 4 hours
+*   **Status:** Not Started
+
+---
+
+## Epic 3: The Grinder - Realistic Backtesting
+
+*Goal: To build a brutally realistic, cost-aware backtesting framework. The purpose of a backtest is not to produce a beautiful equity curve, but to see if a strategy can survive real-world frictions. Gross returns are a fantasy.*
+
+---
+
+### Task 6 — Execution Simulator with Indian Cost Model
+
+*   **Rationale:** A trade is not just an entry and an exit; it's a series of transactions that incur costs. This component will simulate a single trade with a painfully realistic model of Indian market costs.
+*   **Items to implement:**
+    *   In `core/models.py`, define a `Trade` model to store all details of a simulated trade: entry price, exit price, net return, costs, etc.
+    *   Implement `services/execution_simulator.py` with an `ExecutionSimulator` class.
+    *   Implement a `simulate_trade(df, signal, entry_index)` method that:
+        1.  Determines the exit point (e.g., 20 days after `entry_index`).
+        2.  Calculates the gross return.
+        3.  Applies the cost model:
+            *   Brokerage: `max(0.0003 * value, 20)` for both entry and exit.
+            *   STT: `0.00025 * value`.
+            *   Slippage: A function that returns a percentage based on the volume at `entry_index`.
+        4.  Calculates the final **net return**.
+        5.  Populates and returns a `Trade` object.
+*   **Tests to cover:**
+    *   Create `tests/test_execution_simulator.py`.
+    *   Provide a sample trade scenario (entry price, exit price, volume) and assert that the calculated net return and individual cost components are correct down to the paisa.
+*   **Acceptance Criteria (AC):**
+    *   The simulator correctly calculates the net return after applying the full, multi-component Indian cost model.
+*   **Definition of Done (DoD):**
+    *   `execution_simulator.py` and its validation tests are implemented.
+*   **Time estimate:** 3 hours
+*   **Status:** Not Started
+
+---
+
+### Task 7 — Walk-Forward Backtesting Orchestrator
+
+*   **Rationale:** To tie all the components together into a scientifically valid backtesting loop. We use a walk-forward approach to mitigate lookahead bias and simulate how the strategy would have performed in real time.
+*   **Items to implement:**
+    *   Implement `core/orchestrator.py` with an `Orchestrator` class.
+    *   Implement the `run_backtest(stock)` method that:
+        1.  Calls `DataService` to get the full historical data for the stock.
+        2.  Initializes an empty list to store `Trade` objects.
+        3.  Loops through the data from day 200 to the end (the walk-forward loop).
+        4.  In each iteration `i`, it creates a `window = df.iloc[0:i]`.
+        5.  It calls `SignalEngine` on the `window`. If a signal is generated for day `i-1`:
+        6.  It calls `ValidationService` on the `window`.
+        7.  If validation passes, it calls `ExecutionSimulator` to simulate the trade starting at day `i`.
+        8.  The resulting `Trade` object is appended to the results list.
+        9.  After the loop, it returns the list of all executed trades.
+*   **Tests to cover:**
+    *   This is an integration test. Create `tests/test_orchestrator_backtest.py`.
+    *   Mock all services. Create a small, predictable DataFrame. Assert that the services are called in the correct order and that a trade is only simulated when the mock `SignalEngine` and `ValidationService` both give a green light.
+*   **Acceptance Criteria (AC):**
+    *   The orchestrator correctly implements the walk-forward methodology.
+    *   It correctly integrates the signal, validation, and execution components.
+*   **Definition of Done (DoD):**
+    *   The backtesting orchestration logic in `orchestrator.py` is implemented and tested.
+*   **Time estimate:** 4 hours
+*   **Status:** Not Started
+
+---
+
+## Epic 4: The Auditor & The Output
+
+*Goal: To integrate the LLM as a final statistical auditor and to produce the clear, actionable reports that are the system's final output.*
+
+---
+
+### Task 8 — Local LLM Audit Service
+
+*   **Rationale:** To integrate the LLM in its narrowly defined role: a statistical auditor. This service will be responsible for all communication with the local LLM, strictly enforcing the "no price data" rule.
+*   **Items to implement:**
+    *   Add `ollama` to `requirements.txt`.
+    *   Create `prompts/statistical_auditor.txt` with the Jinja2 template for the prompt, as specified in the PRD.
+    *   Implement `services/llm_audit_service.py` with an `LLMAuditService` class.
+    *   The `get_confidence_score(df_window, signal)` method must:
+        1.  Calculate the required historical statistics from the `df_window` (win rate, profit factor, sample size).
+        2.  Render the prompt template with these statistics.
+        3.  Call the local Ollama instance with the prompt.
+        4.  Parse the response, ensuring it's a valid float between 0.0 and 1.0. Handle errors gracefully by returning 0.0 if the response is malformed.
+*   **Tests to cover:**
+    *   Create `tests/test_llm_audit_service.py`.
+    *   Mock the `ollama.chat` client. Verify that the service constructs the correct prompt string from a sample data window.
+    *   Test the response parsing for valid floats, invalid text, and out-of-range numbers.
+*   **Acceptance Criteria (AC):**
+    *   The service can query the local LLM with a correctly formatted, statistics-only prompt.
+    *   It robustly handles and sanitizes the LLM's response.
+*   **Definition of Done (DoD):**
+    *   `llm_audit_service.py` and its tests are implemented.
+*   **Time estimate:** 3.5 hours
+*   **Status:** Not Started
+
+---
+
+### Task 9 — Final Report Generation & CLI
+
+*   **Rationale:** To synthesize the results of a backtest or a live run into the final, human-readable reports and expose the system's functionality through a clean command-line interface.
+*   **Items to implement:**
+    *   Implement `services/report_generator.py` with a `ReportGenerator` class.
+    *   Implement a `generate_backtest_report(trades: list[Trade])` method that:
+        1.  Calculates all final KPIs from the list of trades (Net Annualized Return, Cost-Adjusted Sharpe, Profit Factor, Max Drawdown, etc.).
+        2.  Formats these KPIs into a clean Markdown string.
+    *   Implement a `generate_weekly_report(opportunities: list[dict])` method that creates the Markdown table from the PRD.
+    *   In `main.py`, expand the Typer CLI:
+        *   Create a `backtest` command that runs the `Orchestrator` over the full Nifty 500 list, aggregates all trades, and uses the `ReportGenerator` to save a `backtest_summary.md`.
+        *   Create a `generate-report` command that runs the full logic on the latest data and generates the weekly opportunities report.
+    *   Integrate the `LLMAuditService` into the `Orchestrator` as the final check before simulating a trade.
+*   **Tests to cover:**
+    *   Create `tests/test_report_generator.py`.
+    *   Pass a sample list of `Trade` objects and verify the calculated KPIs are correct.
+*   **Acceptance Criteria (AC):**
+    *   Running `python main.py backtest` executes a full backtest and produces a summary report with all required KPIs.
+    *   Running `python main.py generate-report` produces the weekly opportunities table.
+    *   The LLM audit is correctly integrated as the final filter.
+*   **Definition of Done (DoD):**
+    *   The reporting services and the final user-facing CLI are complete and functional.
+*   **Time estimate:** 4 hours
+*   **Status:** Not Started

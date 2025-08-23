@@ -1,154 +1,168 @@
-# Self-Improving Quant Engine PRD (v2.0)
+# **Project Name:** "Praxis" - An Indian Market Mean-Reversion Engine
 
-## 1. Intro
+## Intro
 
-This document outlines the requirements for the "Self-Improving Quant Engine." The project's purpose is to create a robust, automated system for discovering and refining stock trading strategies.
+This document outlines the requirements for "Praxis," a quantitative trading system designed to identify and capitalize on high-probability mean-reversion opportunities within the Indian stock market (NSE). The system's core philosophy is not to predict prices, but to apply a cascade of statistical and market-regime filters to isolate asymmetric risk-reward scenarios. It explicitly rejects the notion of "guaranteed returns," focusing instead on a disciplined, evidence-based approach to trading that accounts for the unique structural realities of Indian markets, such as high transaction costs, liquidity traps, and sector-driven volatility.
 
-The core architectural principle of this MVP is **simplicity and constraint**. We are not building a system where a Large Language Model (LLM) generates arbitrary code. Instead, we are building a deterministic backtesting engine with a well-defined, constrained "action space" (a curated set of technical indicators and logical conditions). The LLM's role is not to code, but to act as an intelligent **parameter selector**, proposing new configurations within this safe and structured framework.
+Praxis is built for the discerning quantitative analyst who understands that in trading, the most profitable decision is often not to trade. It leverages a minimal, locally-hosted LLM not as a predictive oracle, but as a final statistical auditor, ensuring that computational resources are only spent on signals that have already passed a rigorous gauntlet of traditional quantitative checks. This MVP aims to build, backtest, and deploy a robust engine capable of generating a small, highly-vetted list of weekly opportunities.
 
-The system's feedback loop is the engine of discovery:
-1.  Backtest a strategy configuration on a **training** dataset.
-2.  Generate a dense, information-rich performance report.
-3.  Feed the history of these reports to an LLM.
-4.  The LLM proposes a new strategy **configuration (as JSON)**.
-5.  Repeat.
-
-This approach focuses the LLM's reasoning capabilities on the core problem of strategy discovery, eliminating security risks and the complexities of code generation and parsing.
-
-## 2. Goals and Context
+## Goals and Context
 
 -   **Project Objectives:**
-    -   To build a simple, reliable, and fully automated framework for iteratively optimizing a quantitative trading strategy's parameters.
-    -   To validate that an LLM can, given structured feedback, learn to navigate a parameter space to improve strategy performance.
-    -   To create a foundational tool that directly addresses and measures strategy overfitting from the outset.
+    -   To develop a systematic, automated engine that identifies statistically significant mean-reversion signals in Nifty 500 stocks.
+    -   To prioritize capital preservation and long-term survival by integrating non-negotiable filters for liquidity, market regime, and transaction costs.
+    -   To create a system where the primary edge is derived from *filtering out* over 95% of apparent trading signals, acting only when multiple statistical guards align.
+    -   To validate the system's efficacy through a rigorous, cost-inclusive, walk-forward backtesting framework that accounts for Indian market specifics (STT, brokerage, slippage).
 
 -   **Measurable Outcomes:**
-    -   The system can successfully complete a 10-iteration run for a list of 3+ tickers specified in a config file without manual intervention.
-    -   The final strategy discovered for at least one ticker must demonstrate a higher Sharpe Ratio on the **training data** than the initial baseline.
-    -   The final strategy must also demonstrate a positive Sharpe Ratio on the unseen **validation data**, proving it has generalized beyond the training set.
+    -   The final backtest report (2010-2023) must demonstrate a positive net annualized return after all simulated costs.
+    -   The system must successfully filter and reduce the number of potential trades to fewer than 20 high-confidence signals per month across the Nifty 500 universe.
 
 -   **Success Criteria:**
-    -   The end-to-end loop is fully automated and driven by a single command.
-    -   The LLM consistently returns valid JSON that conforms to the predefined strategy schema.
-    -   **Zero use of `eval()`** or other unsafe methods for executing LLM output. The system is secure by design.
-    -   The final output provides a clear, auditable trail of the entire optimization process for each ticker.
+    -   **Profit Factor (Net):** The backtested profit factor (Gross Profits / Gross Losses) must be greater than 1.5 after factoring in all costs.
+    -   **Win Rate (Net):** The percentage of trades achieving a net return greater than the target 1.77% must exceed 25%.
+    -   **Maximum Drawdown:** The system's maximum peak-to-trough drawdown must remain below 15% over the entire backtest period.
+    -   **Survivability:** The system must remain profitable when tested specifically on volatile periods, such as 2015 (China crisis), 2018 (NBFC crisis), and 2020 (COVID-19 crash).
 
 -   **Key Performance Indicators (KPIs):**
-    -   **Primary:** Sharpe Ratio (on both training and validation data).
-    -   **Secondary:** Sortino Ratio, Max Drawdown [%], Calmar Ratio.
-    -   **Generalization KPI:** `Performance Drop-off %` = `(Train Sharpe - Validation Sharpe) / abs(Train Sharpe)`. A low value indicates good generalization.
-    -   **Efficiency KPI:** Number of iterations required to surpass the baseline performance.
+    -   Net Annualized Return (%)
+    -   Cost-Adjusted Sharpe Ratio (> 0.8)
+    -   Profit Factor
+    -   Maximum Drawdown (%)
+    -   Average Signals Generated per Year
+    -   Average Net Profit per Trade
 
-## 3. Scope and Requirements (MVP)
+## Scope and Requirements (MVP / Current Version)
 
-### Functional Requirements (FRs)
+### Functional Requirements (High-Level)
 
--   **FR1: Configuration-Driven Setup:** The system must be executed via a single entry point (e.g., `python main.py`). All parameters—tickers, iteration count, API keys, data ranges—must be loaded from a single `config.ini` file.
-
--   **FR2: Data Ingestion & Splitting:** For each ticker, the system will fetch 10 years of historical daily price data. This data will be deterministically split into two segments:
-    -   **Training Set:** The first 8 years of data. The iterative optimization loop runs exclusively on this set.
-    -   **Validation Set:** The final 2 years of data. This set is held out and used only once at the end to test the final, best-performing strategy for overfitting.
-
--   **FR3: Constrained Strategy Engine:** The system will use a predefined strategy template. The LLM's task is to provide the parameters for this template.
-    -   The engine will use a local, self-contained library to generate a curated list of technical indicators (e.g., `RSI`, `SMA`, `EMA`, `MACD`, `BBANDS`).
-    -   The strategy logic (buy/sell conditions) will be constructed programmatically based on a JSON object received from the LLM. This JSON will specify indicators, their parameters (e.g., `length: 14`), and the logical conditions (`cross_above`, `greater_than`, etc.).
-
--   **FR4: Backtesting & Reporting:**
-    -   For each iteration, the system backtests the configured strategy on the **Training Set**.
-    -   It must generate a structured report containing:
-        1.  The exact JSON configuration of the strategy used.
-        2.  Standard performance metrics (Sharpe, Sortino, Max Drawdown, etc.) from the training run.
-        3.  An **Information-Dense Statistical Trade Summary** (as per Point 4, Option 2):
-            -   `total_trades`: Integer
-            -   `win_rate_pct`: Float
-            -   `profit_factor`: Float
-            -   `avg_win_pct`: Float
-            -   `avg_loss_pct`: Float
-            -   `max_consecutive_losses`: Integer
-            -   `avg_trade_duration_bars`: Integer
-
--   **FR5: LLM Prompting & Interaction:** The system will manage a cumulative history of the reports from FR4. For each new iteration, it will send this history to the LLM with a prompt instructing it to:
-    -   Act as a quantitative analyst.
-    -   Analyze the performance history, noting which configurations worked and which failed.
-    -   Propose a new strategy configuration by returning **only a valid JSON object** that conforms to the system's predefined schema.
-
--   **FR6: Iteration Loop with Pruning (Optimization):**
-    -   The system orchestrates the process from backtest (FR4) to LLM suggestion (FR5) in an automated loop for the configured number of iterations.
-    -   **Pruning Mechanism:** If a suggested strategy results in a Sharpe Ratio below a predefined threshold (e.g., 0.1) on the training data, the system will discard this result. The next prompt to the LLM will revert to the *previous best-performing strategy* and explicitly state that the last attempt was a failure, encouraging a different path.
-
--   **FR7: Final Validation & Output Generation:**
-    -   After the loop completes, the system identifies the single best strategy based on its performance on the **Training Set**.
-    -   It then runs this single best strategy on the unseen **Validation Set**.
-    -   It generates a final, comprehensive report detailing the entire process.
-
--   **FR8: Intelligent Baseline (Optimization):** The starting point for Iteration 0 will not be random. It will be a hard-coded, simple, well-known strategy (e.g., SMA(50) / SMA(200) crossover) to provide the LLM with a sensible performance benchmark to improve upon.
+-   **FR1: Indian Market Data Pipeline:** The system must fetch and process daily OHLCV data for NSE stocks using `nsepy` as the primary source. It must also fetch corresponding Nifty sectoral index data to calculate sector volatility. The pipeline must handle data errors, adjust for Indian market holidays, and persist the data for analysis.
+-   **FR2: Multi-Frame Signal Generation:** The system must calculate technical indicators (Bollinger Bands, RSI) on three distinct time frames (Daily, Weekly, Monthly) from the daily data. It must generate a preliminary signal only when a specific alignment of these indicators occurs across frames, as defined in the `project_brief.md`.
+-   **FR3: Statistical Guardrail Validation:** Every preliminary signal must be subjected to a battery of statistical tests:
+    -   **Mean-Reversion Test:** Augmented Dickey-Fuller (ADF) test to confirm the statistical property of mean-reversion in the stock's recent price action.
+    -   **Pattern Persistence Test:** Hurst Exponent calculation to ensure the observed mean-reverting behavior is not random noise (H < 0.5).
+    -   **Historical Efficacy Test:** Calculation of the historical alignment rate between BB touches and RSI oversold conditions.
+-   **FR4: Market Regime & Contextual Filtering:** The system must analyze the broader market context before proceeding:
+    -   **Sector Volatility Filter:** Calculate the 20-day annualized volatility of the stock's corresponding Nifty sector index and reject signals if it exceeds a defined threshold (e.g., 22%).
+    -   **Liquidity Filter:** Calculate the 5-day average daily turnover (Volume * Close) and reject signals for stocks with less than ₹5 Crore turnover to avoid slippage.
+-   **FR5: LLM-Powered Statistical Audit:** For signals that pass all prior filters, the system must query a locally-hosted LLM (Kimi 2 via OpenRouter). The query will contain only aggregated statistical data from the strategy's historical performance on that stock, not price data. The LLM's role is to provide a final confidence score (0-1) based on this statistical summary.
+-   **FR6: Cost-Aware Execution & Sizing Logic:** The system must calculate trade parameters (entry, stop-loss, position size) based on the signal and a strict risk management model (e.g., risk 0.5% of capital per trade). All calculations must bake in estimated costs.
+-   **FR7: Rigorous Backtesting Framework:** A walk-forward backtesting engine must be built. This engine must simulate trade execution using the full logic chain (FR1-FR6) and apply a realistic cost model including brokerage (e.g., Zerodha's ₹20/trade model), Securities Transaction Tax (STT), and volume-based slippage.
+-   **FR8: Weekly Opportunity Report Generation:** The system must produce a clear, tabular report of all valid, high-confidence trading opportunities for the upcoming week, including all relevant parameters and statistical justifications.
 
 ### Non-Functional Requirements (NFRs)
 
--   **Security:**
-    -   API keys must be loaded from the config file or environment variables, never hard-coded.
-    -   **The use of `eval()`, `exec()`, or any other method of executing strings from the LLM is strictly forbidden.** The system's architecture (parsing JSON into fixed function calls) inherently prevents arbitrary code execution.
--   **Performance:** A single backtest iteration (excluding the LLM API call) must complete in under 30 seconds.
--   **Reliability:** The system must include robust error handling for API failures (data source, LLM) and for malformed JSON responses from the LLM. It should retry a configurable number of times before halting gracefully.
--   **Maintainability:** The codebase must be modular: `data_handler.py`, `strategy_engine.py`, `backtester.py`, `llm_interface.py`, `main.py`. The strategy definition (JSON) is fully decoupled from the execution logic.
--   **Usability:** The system is a CLI tool. It must provide clear, real-time console output indicating its current state (e.g., "RELIANCE.NS: Running Iteration 3/10...", "Awaiting LLM response...").
+-   **Performance:** A full backtest on a single Nifty 500 stock over a 13-year period must complete in under 15 seconds. The entire Nifty 500 backtest should be parallelizable and complete within 8 hours on a standard quad-core machine.
+-   **Reliability/Availability:** The data pipeline must be resilient to intermittent API failures from `nsepy`, implementing retry logic. Error logging must be comprehensive for failed data fetches or calculations.
+-   **Security:** As the system uses a self-hosted LLM and no external APIs for its core logic, the primary security concern is the integrity of the local environment. No sensitive keys or credentials should be hardcoded.
+-   **Maintainability:** The Python codebase must be modular, with distinct modules for data fetching, indicator calculation, statistical tests, LLM interaction, and backtesting. All key parameters (lookback periods, thresholds, etc.) must be stored in a central configuration file.
+-   **Usability/Accessibility:** The primary interface is the weekly generated report. It must be human-readable, clear, and concise, enabling a user to understand the rationale behind each signal at a glance.
 
-### Detailed Final Report Structure (FR7)
+### The Philosophy of LLM Usage: The Statistical Auditor
 
-Upon completion of a run for a single ticker, the system must generate a timestamped output directory (e.g., `results/RELIANCE.NS_2023-10-27_15-30-00/`). This directory will be a complete, self-contained record of the discovery process and must contain:
+This system's use of an LLM is deliberately constrained and philosophically aligned with using it as a sophisticated meta-learning tool, not a predictive one.
 
-1.  **`summary_report.md`**: A human-readable Markdown file with the final results.
-    -   **Header:** Ticker, Run Duration, Total Iterations.
-    -   **Best Strategy Found:**
-        -   The final JSON configuration of the winning strategy.
-    -   **Performance Comparison Table:**
-        | Metric             | Baseline (Iter 0) | Best on Training Set | Best on Validation Set |
-        |--------------------|-------------------|----------------------|------------------------|
-        | Sharpe Ratio       | 0.45              | 1.52                 | 1.15                   |
-        | Sortino Ratio      | 0.60              | 2.10                 | 1.75                   |
-        | Max Drawdown [%]   | -25.2%            | -12.5%               | -15.8%                 |
-        | Final Return [%]   | 35%               | 120%                 | 45%                    |
-        | **Generalization** | ---               | ---                  | **Drop-off: 24.3%**    |
-    -   **Run Log:** A brief summary of each iteration (e.g., "Iter 3: Sharpe 0.95, Iter 4: Pruned (Sharpe -0.2)").
+**What the LLM DOES:**
+The LLM acts as a non-linear function approximator on the *outputs* of our classical statistical models. It is tasked with answering one question: "Given the historical performance characteristics of this *exact statistical setup* on this *specific stock*, what is the confidence that the current signal is not a statistical anomaly?"
 
-2.  **`full_run_log.json`**: A machine-readable file containing the complete report object (strategy JSON, metrics, trade summary) for every single iteration.
+-   **Input:** A structured prompt containing only statistical aggregates.
+    -   *Example Input:* `Win rate (>1.77% net): 28.1%, Profit factor: 1.62, Sample size: 21 historical signals, Current sector volatility: 14.5%`
+-   **Process:** The LLM leverages its pattern-recognition capabilities to weigh these factors. It might learn, for instance, that a high win rate is less meaningful with a small sample size, or that a good profit factor is unreliable when current sector volatility is much higher than the historical average during past signals.
+-   **Output:** A single floating-point number between 0.0 and 1.0.
 
-3.  **`charts/` directory**:
-    -   `best_strategy_training_plot.html`: The interactive plot generated by `backtesting.py` for the best strategy on the training data.
-    -   `best_strategy_validation_plot.html`: The interactive plot for the best strategy on the validation data.
+**What the LLM MUST NEVER DO (The Anti-Patterns):**
+1.  **NEVER See Price Data:** The LLM will never be given OHLCV data, charts, or any raw time-series information. This is the single most important rule to prevent it from overfitting to noise and hallucinating price predictions.
+2.  **NEVER Read News or Sentiment:** The system is purely quantitative. Feeding the LLM news headlines or social media sentiment would introduce untestable, non-stationary variables.
+3.  **NEVER Generate the Signal:** The LLM's role is to *audit*, not to create. It is the final quality check, not the first step.
+4.  **NEVER Be Asked Open-Ended Questions:** Prompts must be structured to force a numeric, constrained output. Avoid questions like "Do you think HDFCBANK will go up?" and instead use "Based on these statistics, output a confidence score between 0.0 and 1.0."
 
-4.  **`iterations/` directory**:
-    -   A subdirectory for each iteration (`iter_0/`, `iter_1/`, ...).
-    -   Each subdirectory contains the `backtesting.py` plot (`report.html`) and the trade log (`trades.csv`) for that specific iteration's run on the training data. This allows for detailed forensic analysis of any specific step in the process.
+### The Science of Market Regime Detection
 
-## 4. Epic Overview (MVP)
+The system's edge is critically dependent on correctly identifying the prevailing market regime, as mean-reversion strategies fail catastrophically in strong trending markets. Regime is not a single metric but a confluence of factors:
 
--   **Epic 1: The Deterministic Backtesting Engine:**
-    -   Goal: Build a self-contained system that can be run programmatically. It takes a ticker and a strategy JSON as input and produces the full set of artifacts (training report, validation report, plots).
-    -   Key Tasks: `config.ini` parsing, data fetching and splitting, local indicator integration, `backtesting.py` wrapper, statistical summary generation. This epic is complete when we can manually test strategies without any LLM.
+1.  **Primary Filter: Sector Volatility (The Litmus Test):**
+    -   **Calculation:** 20-day rolling standard deviation of daily percentage changes of the relevant Nifty sector index (e.g., `^NIFTYFINANCE`), annualized (`* sqrt(252)`).
+    -   **Interpretation:**
+        -   **< 15% (Mean-Reverting / "Calm"):** Ideal regime. Mean-reversion is expected to work. Signals are considered high-quality.
+        -   **15% - 22% (Transitional / "Choppy"):** Caution zone. The market is uncertain. Signals require stronger confirmation from other statistical guards.
+        -   **> 22% (Trending / "Storm"):** Avoid. The sector is in a high-volatility, trending mode (either up or down). Mean-reversion bets are statistically poor. **All signals are rejected regardless of other factors.** This filter is the primary defense against events like election results or budget announcements.
 
--   **Epic 2: The LLM Optimization Loop:**
-    -   Goal: To wrap the deterministic engine from Epic 1 in an intelligent optimization loop.
-    -   Key Tasks: Implement the main loop logic, manage the history of reports, engineer the system prompt for the LLM, handle JSON parsing and validation, and implement the pruning logic.
+2.  **Secondary Confirmation: Hurst Exponent (The Memory Test):**
+    -   **Calculation:** Applied to the stock's closing prices over the last 100 days.
+    -   **Interpretation:**
+        -   **H < 0.45:** Strong evidence of mean-reverting (anti-persistent) behavior. The price has a statistical tendency to return to its mean. This validates the regime for the specific stock.
+        -   **0.45 < H < 0.55:** Random walk behavior. No predictable pattern. Low-confidence environment.
+        -   **H > 0.55:** Trending (persistent) behavior. The price has a tendency to continue in its current direction. Mean-reversion is contraindicated.
 
--   **Epic 3: CLI & Operational Polish:**
-    -   Goal: To create the final user-facing tool.
-    -   Key Tasks: Build the main CLI entry point, add clear logging and console output, structure the final output directory, and write comprehensive documentation (`README.md`).
+3.  **Tertiary Confirmation: ADF Test (The Stationarity Test):**
+    -   **Calculation:** Applied to the stock's daily returns.
+    -   **Interpretation:** A p-value < 0.05 suggests the time series of returns is stationary, a key property for mean-reversion to be effective. It confirms that price shocks are temporary.
 
-## 5. Post-MVP / Future Enhancements
+A signal is only considered to be in a valid "mean-reverting regime" if **Sector Volatility is < 22% AND the stock's Hurst Exponent is < 0.45 AND the ADF test p-value is < 0.05.**
 
--   **Expanded Action Space:** Gradually add more indicators, logical conditions, and even risk management parameters (e.g., stop-loss percentages) to the JSON schema for the LLM to control.
--   **Walk-Forward Analysis:** Upgrade the Train/Validation split to a more robust rolling walk-forward validation method for continuous adaptation.
--   **Multi-Ticker Strategy Generalization:** Modify the objective to find a single strategy configuration that performs well across a *portfolio* of tickers.
--   **LLM Self-Critique:** Add a step where the LLM is asked to critique its own JSON suggestion before it's run, potentially catching logical flaws early.
+## Epic Overview (MVP / Current Version)
 
-## 6. Initial Architect Prompt
+-   **Epic 1: Bedrock - Data Pipeline & Environment:**
+    -   Goal: To establish a reliable and automated data foundation for the entire system.
+    -   *Stories: Setup Python environment with all dependencies, Implement `nsepy` data fetcher for equities, Implement `yfinance` fetcher for sector indices, Create data cleaning and holiday adjustment module, Implement data storage/caching mechanism.*
+-   **Epic 2: The Core - Multi-Frame Signal & Statistical Engine:**
+    -   Goal: To codify the signal generation logic and the crucial statistical validation guards.
+    -   *Stories: Implement BB and RSI indicator calculations, Develop multi-frame (D/W/M) alignment logic, Implement ADF test function, Implement Hurst Exponent calculator, Implement historical alignment rate function.*
+-   **Epic 3: The Grinder - Cost-Aware Backtesting Framework:**
+    -   Goal: To build a brutally realistic backtester that can rigorously validate the strategy's historical performance.
+    -   *Stories: Design the walk-forward testing loop, Implement the detailed Indian market cost model (brokerage, STT, slippage), Integrate the signal and stats engine into the backtester, Develop performance reporting module (metrics, charts).*
+-   **Epic 4: The Auditor - Local LLM Integration:**
+    -   Goal: To set up and integrate the self-hosted LLM as the final statistical audit layer.
+    -   *Stories: Setup local Llama 3 8B instance via Ollama, Develop the prompt engineering function to format statistical data, Create the LLM query and response parsing module, Integrate the LLM confidence score into the main execution logic.*
+-   **Epic 5: The Output - Execution Logic & Reporting:**
+    -   Goal: To synthesize all components into a final trade execution logic and produce the user-facing weekly report.
+    -   *Stories: Implement the final `execute_trade` function combining all filters, Develop the risk management and position sizing calculator, Create the formatted weekly opportunity report generator, Add market-specific enhancements (liquidity/monsoon rules).*
 
--   **Backend Platform:** Python 3.9+. Key libraries: `pandas`, `yfinance`, `backtesting.py`, `openrouter`, `configparser`. The designated LLM provider is **OpenRouter**, with the API key configured in the `.env` file. The recommended model for this project is **`moonshotai/kimi-k2:free`**. (Updated as per implementation)
--   **Technical Constraints:**
-    -   The strategy "action space" must be defined in a schema. The LLM's output must be validated against this schema.
-    -   The system must be stateless between runs. All necessary information is read from the config file at startup.
--   **Local Development:**
-    -   A `requirements.txt` file is mandatory.
-    -   The entry point will be `python main.py`. No arguments are needed as all configuration is in `config.ini`.
-    -   Unit tests using `pytest` are required for core, non-stochastic components like the statistical summary generator and the strategy engine's JSON parser.
+## Key Reference Documents
+
+-   `docs/project-brief.md`
+-   `docs/architecture.md`
+-   `docs/epic1.md`, `docs/epic2.md`, ...
+-   `docs/tech-stack.md`
+-   `docs/testing-strategy.md`
+
+## Post-MVP / Future Enhancements
+
+-   **Regime-Adaptive Parameters:** Automatically adjust indicator lookback periods (e.g., shorter BB periods in higher volatility regimes) based on the measured market regime.
+-   **Expanded Factor Model:** Incorporate additional statistical factors like volatility skew or correlation with broader market indices as additional filters.
+-   **Short-Side Signals:** Develop a parallel logic for identifying overbought, mean-reversion shorting opportunities with its own set of statistical guards.
+-   **Dynamic Stop-Loss:** Implement an Average True Range (ATR)-based trailing stop-loss instead of a static mid-band stop to adapt to changing volatility post-entry.
+
+## Change Log
+
+| Change      | Date       | Version | Description      | Author        |
+|-------------|------------|---------|------------------|---------------|
+| Initial PRD | 2023-10-27 | 1.0     | First Draft      | System Prompt |
+
+## Initial Architect Prompt
+
+### Technical Infrastructure
+
+-   **Starter Project/Template:** None. Build from scratch using standard Python project structure.
+-   **Hosting/Cloud Provider:** Not required for MVP. The system is designed to run locally for backtesting and weekly signal generation.
+-   **Frontend Platform:** N/A. The output is a Markdown report.
+-   **Backend Platform:** Python 3.10+. Key libraries: `pandas`, `numpy`, `statsmodels`, `nsepy`, `yfinance`, `ollama`. A pure-python equivalent for technical indicators.
+-   **Database Requirements:** N/A for MVP. Data can be cached locally as CSV files for performance.
+
+### Technical Constraints
+
+-   **No External Paid APIs:** The entire system must function using free data sources (`nsepy`, `yfinance`) and a locally-hosted LLM. This is a hard constraint.
+-   **Python-Only Ecosystem:** All components must be implemented in Python to ensure seamless integration.
+-   **Offline Capability:** Once data is fetched, the core signal generation, statistical analysis, and LLM audit must be able to run without an active internet connection.
+
+### Deployment Considerations
+
+-   **Deployment Frequency:** N/A for MVP. This is a research and signal-generation tool, not a continuously running service.
+-   **CI/CD Requirements:** A simple CI pipeline using GitHub Actions to run linters (`black`, `flake8`) and unit tests on push would be beneficial.
+-   **Environment Requirements:** A `requirements.txt` or `pyproject.toml` file must be maintained for reproducible environments. Clear instructions for setting up the local Ollama instance are required.
+
+### Local Development & Testing Requirements
+
+-   **Local Environment:** Must be fully runnable on a standard developer machine (Windows 11).
+-   **Testing:** Unit tests are required for all statistical functions (`hurst`, `adf_test`) and indicator calculations. Integration tests should verify the end-to-end flow for a single stock, from data fetching to final trade decision. The backtesting engine itself is the primary system test.
+-   **Utility Scripts:** A `run_backtest.py` script should be provided to execute the full backtest on the Nifty 500. A `generate_report.py` script should run the logic on the latest data to produce the weekly opportunities.
