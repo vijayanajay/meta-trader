@@ -50,7 +50,7 @@ This approach focuses the LLM's reasoning capabilities on the core problem of st
     -   **Validation Set:** The final 2 years of data. This set is held out and used only once at the end to test the final, best-performing strategy for overfitting.
 
 -   **FR3: Constrained Strategy Engine:** The system will use a predefined strategy template. The LLM's task is to provide the parameters for this template.
-    -   The engine will use the `pandas-ta` library to generate a curated list of technical indicators (e.g., `RSI`, `SMA`, `EMA`, `MACD`, `BBANDS`).
+    -   The engine will use a local, self-contained library to generate a curated list of technical indicators (e.g., `RSI`, `SMA`, `EMA`, `MACD`, `BBANDS`).
     -   The strategy logic (buy/sell conditions) will be constructed programmatically based on a JSON object received from the LLM. This JSON will specify indicators, their parameters (e.g., `length: 14`), and the logical conditions (`cross_above`, `greater_than`, etc.).
 
 -   **FR4: Backtesting & Reporting:**
@@ -125,7 +125,7 @@ Upon completion of a run for a single ticker, the system must generate a timesta
 
 -   **Epic 1: The Deterministic Backtesting Engine:**
     -   Goal: Build a self-contained system that can be run programmatically. It takes a ticker and a strategy JSON as input and produces the full set of artifacts (training report, validation report, plots).
-    -   Key Tasks: `config.ini` parsing, data fetching and splitting, `pandas-ta` integration, `backtesting.py` wrapper, statistical summary generation. This epic is complete when we can manually test strategies without any LLM.
+    -   Key Tasks: `config.ini` parsing, data fetching and splitting, local indicator integration, `backtesting.py` wrapper, statistical summary generation. This epic is complete when we can manually test strategies without any LLM.
 
 -   **Epic 2: The LLM Optimization Loop:**
     -   Goal: To wrap the deterministic engine from Epic 1 in an intelligent optimization loop.
@@ -144,7 +144,7 @@ Upon completion of a run for a single ticker, the system must generate a timesta
 
 ## 6. Initial Architect Prompt
 
--   **Backend Platform:** Python 3.9+. Key libraries: `pandas`, `yfinance`, `pandas-ta`, `backtesting.py`, `openrouter`, `configparser`. The designated LLM provider is **OpenRouter**, with the API key configured in the `.env` file. The recommended model for this project is **`moonshotai/kimi-k2:free`**. (Updated as per implementation)
+-   **Backend Platform:** Python 3.9+. Key libraries: `pandas`, `yfinance`, `backtesting.py`, `openrouter`, `configparser`. The designated LLM provider is **OpenRouter**, with the API key configured in the `.env` file. The recommended model for this project is **`moonshotai/kimi-k2:free`**. (Updated as per implementation)
 -   **Technical Constraints:**
     -   The strategy "action space" must be defined in a schema. The LLM's output must be validated against this schema.
     -   The system must be stateless between runs. All necessary information is read from the config file at startup.

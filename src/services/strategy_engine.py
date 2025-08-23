@@ -1,12 +1,22 @@
 from typing import Type, Any, Dict
 import numpy as np
 import pandas as pd
-import pandas_ta as ta
 from asteval import Interpreter, get_ast_names
 from backtesting import Strategy
 from backtesting.lib import crossover
 
 from core.models import StrategyDefinition
+from core.indicators import sma, ema, rsi, macd, bbands, kc, adx
+
+INDICATOR_MAPPING = {
+    "sma": sma,
+    "ema": ema,
+    "rsi": rsi,
+    "macd": macd,
+    "bbands": bbands,
+    "kc": kc,
+    "adx": adx,
+}
 
 
 class StrategyEngine:
@@ -24,9 +34,7 @@ class StrategyEngine:
 
     def _create_asteval_interpreter(self) -> Interpreter:
         """Creates a sandboxed asteval interpreter."""
-        # For security, start with a completely empty symbol table
         asteval_interpreter = Interpreter(symtable={})
-        # Explicitly grant access to safe functions/objects
         asteval_interpreter.symtable['crossover'] = crossover
         asteval_interpreter.symtable['True'] = True
         asteval_interpreter.symtable['False'] = False
@@ -60,7 +68,6 @@ class StrategyEngine:
         self._asteval = self._create_asteval_interpreter()
         available_names = set(self._asteval.symtable.keys())
 
-        # Prepare OHLCV data for indicators
         ohlcv = {
             'open': local_data['Open'],
             'high': local_data['High'],
@@ -72,15 +79,17 @@ class StrategyEngine:
         # Calculate indicators
         for indicator in strategy_def.indicators:
             try:
-                indicator_func = getattr(ta, indicator.function)
+                indicator_func = INDICATOR_MAPPING.get(indicator.function)
+                if indicator_func is None:
+                    raise ValueError(f"Indicator '{indicator.function}' is not supported.")
 
-                # Inspect the function signature to provide only required args
                 sig = inspect.signature(indicator_func)
                 params_to_pass = {
                     p: ohlcv[p] for p in sig.parameters if p in ohlcv
                 }
+                if 'series' in sig.parameters: # Handle single-series indicators like rsi, sma
+                    params_to_pass['series'] = ohlcv['close']
 
-                # Add user-defined params
                 params_to_pass.update(indicator.params)
 
                 result = indicator_func(**params_to_pass)
@@ -90,31 +99,28 @@ class StrategyEngine:
                 # Handle multi-column results (e.g., bbands, macd, kc)
                 if isinstance(result, pd.DataFrame):
                     for col in result.columns:
-                        # Create more intuitive names for common indicators
                         if 'bb' in indicator.function:
                             if 'BBL' in col: name = f"{indicator.name}_lower"
                             elif 'BBM' in col: name = f"{indicator.name}_middle"
                             elif 'BBU' in col: name = f"{indicator.name}_upper"
-                            else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
+                            else: name = f"{indicator.name}_{col}"
                         elif 'kc' in indicator.function:
                             if 'KCL' in col: name = f"{indicator.name}_lower"
                             elif 'KCM' in col: name = f"{indicator.name}_middle"
                             elif 'KCU' in col: name = f"{indicator.name}_upper"
-                            else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
+                            else: name = f"{indicator.name}_{col}"
                         elif 'macd' in indicator.function:
                             if 'MACDs' in col: name = f"{indicator.name}_signal"
                             elif 'MACDh' in col: name = f"{indicator.name}_hist"
-                            elif 'MACD' in col: name = f"{indicator.name}" # Main line is the least specific, so it goes last
-                            else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
+                            elif 'MACD' in col: name = f"{indicator.name}"
+                            else: name = f"{indicator.name}_{col}"
                         elif 'adx' in indicator.function:
                             if 'DMP' in col: name = f"{indicator.name}_dmp"
                             elif 'DMN' in col: name = f"{indicator.name}_dmn"
-                            elif 'ADX' in col: name = f"{indicator.name}" # Main line is the least specific, so it goes last
-                            else: name = f"{indicator.name}_{col.replace('.', '_').replace('-', '_')}"
+                            elif 'ADX' in col: name = f"{indicator.name}"
+                            else: name = f"{indicator.name}_{col}"
                         else:
-                            # Default generic naming for other multi-column indicators
-                            sanitized_col = col.replace('.', '_').replace('-', '_')
-                            name = f"{indicator.name}_{sanitized_col}"
+                            name = f"{indicator.name}_{col}"
 
                         self._asteval.symtable[name] = result[col].values
                         available_names.add(name)
@@ -124,23 +130,19 @@ class StrategyEngine:
             except Exception as e:
                 raise ValueError(f"Failed to process indicator '{indicator.name}': {e}") from e
 
-        # Add base OHLCV to symbol table
         for name, series in ohlcv.items():
-            self._asteval.symtable[name] = series.values
-            available_names.add(name)
+            self._asteval.symtable[name.capitalize()] = series.values
+            available_names.add(name.capitalize())
 
-        # Validate expressions
         self._validate_expression(strategy_def.buy_condition, available_names)
         self._validate_expression(strategy_def.sell_condition, available_names)
 
-        # Evaluate buy and sell conditions
         try:
             buy_signal = self._asteval.eval(strategy_def.buy_condition)
             sell_signal = self._asteval.eval(strategy_def.sell_condition)
         except Exception as e:
             raise ValueError(f"Failed to evaluate conditions: {e}") from e
 
-        # Coerce signals to boolean arrays, handling None from asteval
         if buy_signal is None:
             buy_signal = np.zeros(len(local_data), dtype=bool)
         else:
@@ -152,8 +154,7 @@ class StrategyEngine:
             sell_signal = np.nan_to_num(sell_signal, nan=0).astype(bool)
 
 
-        # Create a dynamic Strategy class
-        class DynamicStrategy(Strategy):  # type: ignore[misc]
+        class DynamicStrategy(Strategy):
             trade_size_param = trade_size
 
             def init(self) -> None:
@@ -161,10 +162,8 @@ class StrategyEngine:
                 self.sell_signal = self.I(lambda: sell_signal)
 
             def next(self) -> None:
-                # Close existing position if sell signal is triggered
                 if self.sell_signal and self.position:
                     self.position.close()
-                # Enter new long position if buy signal is triggered and we have no open position
                 elif self.buy_signal and not self.position:
                     self.buy(size=self.trade_size_param)
 

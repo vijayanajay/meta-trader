@@ -28,7 +28,7 @@ These 30 hard rules are the engineering constitution for this project. They tran
 
 ### II. System Architecture & Boundaries
 
-[H-11] **Strict Dependency Stack.** External dependencies are limited to: `pandas`, `pandas-ta`, `backtesting.py`, `yfinance`, `python-dotenv`, `asteval`, `openai` (or equivalent LLM client), `configparser`, and `pytest`. Adding a new dependency requires a formal justification and approval.
+[H-11] **Strict Dependency Stack.** External dependencies are limited to: `pandas`, `backtesting.py`, `yfinance`, `python-dotenv`, `asteval`, `openai` (or equivalent LLM client), `configparser`, and `pytest`. Adding a new dependency requires a formal justification and approval.
 
 [H-12] **Acyclic Import Graph.** Circular dependencies are a critical architectural failure and are forbidden. Use dependency injection to break cycles if necessary.
 

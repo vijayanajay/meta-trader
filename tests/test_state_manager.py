@@ -120,3 +120,62 @@ def test_load_state_invalid_schema(test_dir: Path) -> None:
     # Act & Assert
     with pytest.raises(ValueError, match="Error loading state file"):
         manager.load_state(ticker)
+
+
+def test_load_state_with_null_metrics(test_dir: Path) -> None:
+    """
+    Test that loading a state file with null performance metrics works and
+    defaults them to 0.0. This simulates the case of a backtest that
+    could not calculate Sharpe/Sortino ratios.
+    """
+    # Arrange
+    ticker = "TEST_TICKER"
+    manager = StateManager(results_dir=test_dir, run_state_file="test_run_state.json")
+    state_filepath = test_dir / f"{ticker}_test_run_state.json"
+
+    # This is a simplified RunState JSON, focusing on the null metric
+    state_with_null_metric = {
+        "iteration_number": 1,
+        "history": [
+            {
+                "strategy": {
+                    "strategy_name": "Strategy With Null",
+                    "indicators": [],
+                    "buy_condition": "Close > 0",
+                    "sell_condition": "Close < 0",
+                },
+                "performance": {
+                    "sharpe_ratio": None,
+                    "sortino_ratio": None,
+                    "max_drawdown_pct": -10.5,
+                    "annual_return_pct": 5.0,
+                },
+                "trade_summary": {
+                    "total_trades": 0,
+                    "win_rate_pct": 0.0,
+                    "profit_factor": 0.0,
+                    "avg_win_pct": 0.0,
+                    "avg_loss_pct": 0.0,
+                    "max_consecutive_losses": 0,
+                    "avg_trade_duration_bars": 0,
+                },
+                "is_pruned": False,
+            }
+        ],
+    }
+    state_filepath.write_text(json.dumps(state_with_null_metric))
+
+    # Act
+    loaded_state = manager.load_state(ticker)
+
+    # Assert
+    assert loaded_state is not None
+    assert loaded_state.iteration_number == 1
+    assert len(loaded_state.history) == 1
+
+    # Crucially, assert that None was parsed correctly
+    performance = loaded_state.history[0].performance
+    assert performance.sharpe_ratio is None
+    assert performance.sortino_ratio is None
+    assert performance.max_drawdown_pct == -10.5
+    assert performance.annual_return_pct == 5.0

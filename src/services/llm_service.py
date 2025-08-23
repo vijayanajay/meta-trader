@@ -60,7 +60,7 @@ class LLMService:
         Gets a new strategy suggestion from the LLM.
         """
         prompt = self._build_prompt(ticker, history, failed_strategy, best_strategy_so_far)
-
+        response_content: Optional[str] = None
         try:
             logger.info(f"Sending prompt to LLM ({self.model})...")
             completion = self.client.chat.completions.create(

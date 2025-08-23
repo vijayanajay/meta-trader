@@ -129,6 +129,6 @@ def test_indicator_function_returns_none(sample_data: pd.DataFrame) -> None:
     )
 
     # Act & Assert
-    with patch("pandas_ta.ema", return_value=None):
-        with pytest.raises(ValueError, match="Indicator function returned None"):
+    with patch.dict("services.strategy_engine.INDICATOR_MAPPING", {"ema": lambda **kwargs: None}):
+        with pytest.raises(ValueError, match="Failed to process indicator"):
             engine.process(sample_data, strategy_def, trade_size=0.95)
