@@ -14,3 +14,5 @@ backtesting
 openai
 asteval
 jinja2
+hurst
+pyarrow
