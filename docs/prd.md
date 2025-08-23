@@ -4,7 +4,7 @@
 
 This document outlines the requirements for "Praxis," a quantitative trading system designed to identify and capitalize on high-probability mean-reversion opportunities within the Indian stock market (NSE). The system's core philosophy is not to predict prices, but to apply a cascade of statistical and market-regime filters to isolate asymmetric risk-reward scenarios. It explicitly rejects the notion of "guaranteed returns," focusing instead on a disciplined, evidence-based approach to trading that accounts for the unique structural realities of Indian markets, such as high transaction costs, liquidity traps, and sector-driven volatility.
 
-Praxis is built for the discerning quantitative analyst who understands that in trading, the most profitable decision is often not to trade. It leverages a minimal, locally-hosted LLM not as a predictive oracle, but as a final statistical auditor, ensuring that computational resources are only spent on signals that have already passed a rigorous gauntlet of traditional quantitative checks. This MVP aims to build, backtest, and deploy a robust engine capable of generating a small, highly-vetted list of weekly opportunities.
+Praxis is built for the discerning quantitative analyst who understands that in trading, the most profitable decision is often not to trade. It leverages a minimal, cloud-hosted LLM via OpenRouter (specifically, `moonshotai/kimi-k2`) not as a predictive oracle, but as a final statistical auditor. This ensures computational resources are only spent on signals that have already passed a rigorous gauntlet of traditional quantitative checks. This MVP aims to build, backtest, and deploy a robust engine capable of generating a small, highly-vetted list of weekly opportunities.
 
 ## Goals and Context
 
@@ -45,7 +45,7 @@ Praxis is built for the discerning quantitative analyst who understands that in 
 -   **FR4: Market Regime & Contextual Filtering:** The system must analyze the broader market context before proceeding:
     -   **Sector Volatility Filter:** Calculate the 20-day annualized volatility of the stock's corresponding Nifty sector index and reject signals if it exceeds a defined threshold (e.g., 22%).
     -   **Liquidity Filter:** Calculate the 5-day average daily turnover (Volume * Close) and reject signals for stocks with less than ₹5 Crore turnover to avoid slippage.
--   **FR5: LLM-Powered Statistical Audit:** For signals that pass all prior filters, the system must query a locally-hosted LLM (Kimi 2 via OpenRouter). The query will contain only aggregated statistical data from the strategy's historical performance on that stock, not price data. The LLM's role is to provide a final confidence score (0-1) based on this statistical summary.
+-   **FR5: LLM-Powered Statistical Audit:** For signals that pass all prior filters, the system must query the Kimi 2 model (`moonshotai/kimi-k2`) via the OpenRouter API. The API key must be loaded from a `.env` file. The query will contain only aggregated statistical data from the strategy's historical performance on that stock, not price data. The LLM's role is to provide a final confidence score (0-1) based on this statistical summary.
 -   **FR6: Cost-Aware Execution & Sizing Logic:** The system must calculate trade parameters (entry, stop-loss, position size) based on the signal and a strict risk management model (e.g., risk 0.5% of capital per trade). All calculations must bake in estimated costs.
 -   **FR7: Rigorous Backtesting Framework:** A walk-forward backtesting engine must be built. This engine must simulate trade execution using the full logic chain (FR1-FR6) and apply a realistic cost model including brokerage (e.g., Zerodha's ₹20/trade model), Securities Transaction Tax (STT), and volume-based slippage.
 -   **FR8: Weekly Opportunity Report Generation:** The system must produce a clear, tabular report of all valid, high-confidence trading opportunities for the upcoming week, including all relevant parameters and statistical justifications.
@@ -54,7 +54,7 @@ Praxis is built for the discerning quantitative analyst who understands that in 
 
 -   **Performance:** A full backtest on a single Nifty 500 stock over a 13-year period must complete in under 15 seconds. The entire Nifty 500 backtest should be parallelizable and complete within 8 hours on a standard quad-core machine.
 -   **Reliability/Availability:** The data pipeline must be resilient to intermittent API failures from `nsepy`, implementing retry logic. Error logging must be comprehensive for failed data fetches or calculations.
--   **Security:** As the system uses a self-hosted LLM and no external APIs for its core logic, the primary security concern is the integrity of the local environment. No sensitive keys or credentials should be hardcoded.
+-   **Security:** The OpenRouter API key must be loaded from a `.env` file and must not be committed to the repository. This is the primary security concern.
 -   **Maintainability:** The Python codebase must be modular, with distinct modules for data fetching, indicator calculation, statistical tests, LLM interaction, and backtesting. All key parameters (lookback periods, thresholds, etc.) must be stored in a central configuration file.
 -   **Usability/Accessibility:** The primary interface is the weekly generated report. It must be human-readable, clear, and concise, enabling a user to understand the rationale behind each signal at a glance.
 
@@ -111,9 +111,9 @@ A signal is only considered to be in a valid "mean-reverting regime" if **Sector
 -   **Epic 3: The Grinder - Cost-Aware Backtesting Framework:**
     -   Goal: To build a brutally realistic backtester that can rigorously validate the strategy's historical performance.
     -   *Stories: Design the walk-forward testing loop, Implement the detailed Indian market cost model (brokerage, STT, slippage), Integrate the signal and stats engine into the backtester, Develop performance reporting module (metrics, charts).*
--   **Epic 4: The Auditor - Local LLM Integration:**
-    -   Goal: To set up and integrate the self-hosted LLM as the final statistical audit layer.
-    -   *Stories: Setup local Llama 3 8B instance via Ollama, Develop the prompt engineering function to format statistical data, Create the LLM query and response parsing module, Integrate the LLM confidence score into the main execution logic.*
+-   **Epic 4: The Auditor - OpenRouter LLM Integration:**
+    -   Goal: To integrate the OpenRouter API as the final statistical audit layer.
+    -   *Stories: Implement a service to query the OpenRouter API using the specified Kimi 2 model, Ensure the API key is securely loaded from the environment, Develop the prompt engineering function to format statistical data, Create the LLM query and response parsing module, Integrate the LLM confidence score into the main execution logic.*
 -   **Epic 5: The Output - Execution Logic & Reporting:**
     -   Goal: To synthesize all components into a final trade execution logic and produce the user-facing weekly report.
     -   *Stories: Implement the final `execute_trade` function combining all filters, Develop the risk management and position sizing calculator, Create the formatted weekly opportunity report generator, Add market-specific enhancements (liquidity/monsoon rules).*
@@ -146,12 +146,12 @@ A signal is only considered to be in a valid "mean-reverting regime" if **Sector
 -   **Starter Project/Template:** None. Build from scratch using standard Python project structure.
 -   **Hosting/Cloud Provider:** Not required for MVP. The system is designed to run locally for backtesting and weekly signal generation.
 -   **Frontend Platform:** N/A. The output is a Markdown report.
--   **Backend Platform:** Python 3.10+. Key libraries: `pandas`, `numpy`, `statsmodels`, `nsepy`, `yfinance`, `ollama`. A pure-python equivalent for technical indicators.
+-   **Backend Platform:** Python 3.10+. Key libraries: `pandas`, `numpy`, `statsmodels`, `yfinance`, `openrouter-api`, `python-dotenv`. A pure-python equivalent for technical indicators.
 -   **Database Requirements:** N/A for MVP. Data can be cached locally as CSV files for performance.
 
 ### Technical Constraints
 
--   **No External Paid APIs:** The entire system must function using free data sources (`nsepy`, `yfinance`) and a locally-hosted LLM. This is a hard constraint.
+-   **No External Paid APIs:** The entire system must function using free data sources (`yfinance`) and the free tier of the OpenRouter API. This is a hard constraint.
 -   **Python-Only Ecosystem:** All components must be implemented in Python to ensure seamless integration.
 -   **Offline Capability:** Once data is fetched, the core signal generation, statistical analysis, and LLM audit must be able to run without an active internet connection.
 
@@ -159,7 +159,7 @@ A signal is only considered to be in a valid "mean-reverting regime" if **Sector
 
 -   **Deployment Frequency:** N/A for MVP. This is a research and signal-generation tool, not a continuously running service.
 -   **CI/CD Requirements:** A simple CI pipeline using GitHub Actions to run linters (`black`, `flake8`) and unit tests on push would be beneficial.
--   **Environment Requirements:** A `requirements.txt` or `pyproject.toml` file must be maintained for reproducible environments. Clear instructions for setting up the local Ollama instance are required.
+-   **Environment Requirements:** A `requirements.txt` or `pyproject.toml` file must be maintained for reproducible environments. A `.env.example` file must be provided, and the `.env` file must contain a valid OpenRouter API key.
 
 ### Local Development & Testing Requirements
 
