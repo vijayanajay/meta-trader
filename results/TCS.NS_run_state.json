@@ -1,0 +1,783 @@
+{
+    "iteration_number": 10,
+    "history": [
+        {
+            "strategy": {
+                "strategy_name": "SMA_Crossover_Baseline",
+                "indicators": [
+                    {
+                        "name": "sma_fast",
+                        "function": "sma",
+                        "params": {
+                            "length": 50
+                        }
+                    },
+                    {
+                        "name": "sma_slow",
+                        "function": "sma",
+                        "params": {
+                            "length": 200
+                        }
+                    }
+                ],
+                "buy_condition": "sma_fast > sma_slow",
+                "sell_condition": "sma_fast < sma_slow"
+            },
+            "performance": {
+                "sharpe_ratio": 0.44174154224415224,
+                "sortino_ratio": 0.7010213868661261,
+                "max_drawdown_pct": -26.784184740434647,
+                "annual_return_pct": 8.897848935134189
+            },
+            "trade_summary": {
+                "total_trades": 8,
+                "win_rate_pct": 62.5,
+                "profit_factor": 3.842662743943434,
+                "avg_win_pct": 28.527393454583517,
+                "avg_loss_pct": -12.373101395009929,
+                "max_consecutive_losses": 2,
+                "avg_trade_duration_bars": 248
+            },
+            "is_pruned": false,
+            "next_strategy_suggestion": {
+                "strategy_name": "EMA_RSI_MACD_Trend_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "macd",
+                        "function": "macd",
+                        "params": {
+                            "fast": 12,
+                            "slow": 26,
+                            "signal": 9
+                        }
+                    },
+                    {
+                        "name": "macd_signal",
+                        "function": "macd",
+                        "params": {
+                            "fast": 12,
+                            "slow": 26,
+                            "signal": 9
+                        }
+                    }
+                ],
+                "buy_condition": "(ema_fast > ema_slow) and (rsi < 60) and (macd.macd > macd_signal.macd_signal)",
+                "sell_condition": "(ema_fast < ema_slow) or (rsi > 70) or (macd.macd < macd_signal.macd_signal)"
+            }
+        },
+        {
+            "strategy": {
+                "strategy_name": "EMA_RSI_MACD_Trend_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "macd",
+                        "function": "macd",
+                        "params": {
+                            "fast": 12,
+                            "slow": 26,
+                            "signal": 9
+                        }
+                    },
+                    {
+                        "name": "macd_signal",
+                        "function": "macd",
+                        "params": {
+                            "fast": 12,
+                            "slow": 26,
+                            "signal": 9
+                        }
+                    }
+                ],
+                "buy_condition": "(ema_fast > ema_slow) and (rsi < 60) and (macd.macd > macd_signal.macd_signal)",
+                "sell_condition": "(ema_fast < ema_slow) or (rsi > 70) or (macd.macd < macd_signal.macd_signal)"
+            },
+            "performance": {
+                "sharpe_ratio": null,
+                "sortino_ratio": null,
+                "max_drawdown_pct": -0.0,
+                "annual_return_pct": 0.0
+            },
+            "trade_summary": {
+                "total_trades": 0,
+                "win_rate_pct": 0.0,
+                "profit_factor": 0.0,
+                "avg_win_pct": 0.0,
+                "avg_loss_pct": 0.0,
+                "max_consecutive_losses": 0,
+                "avg_trade_duration_bars": 0
+            },
+            "is_pruned": false,
+            "next_strategy_suggestion": {
+                "strategy_name": "EMA_RSI_OverSold_Bounce",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "ema_fast > ema_slow and rsi > 45 and rsi < 65",
+                "sell_condition": "rsi > 70 or ema_fast < ema_slow"
+            }
+        },
+        {
+            "strategy": {
+                "strategy_name": "EMA_RSI_OverSold_Bounce",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "ema_fast > ema_slow and rsi > 45 and rsi < 65",
+                "sell_condition": "rsi > 70 or ema_fast < ema_slow"
+            },
+            "performance": {
+                "sharpe_ratio": null,
+                "sortino_ratio": null,
+                "max_drawdown_pct": -0.0,
+                "annual_return_pct": 0.0
+            },
+            "trade_summary": {
+                "total_trades": 0,
+                "win_rate_pct": 0.0,
+                "profit_factor": 0.0,
+                "avg_win_pct": 0.0,
+                "avg_loss_pct": 0.0,
+                "max_consecutive_losses": 0,
+                "avg_trade_duration_bars": 0
+            },
+            "is_pruned": false,
+            "next_strategy_suggestion": {
+                "strategy_name": "EMA_Crossover_with_ATR_Volume_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "atr",
+                        "function": "atr",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "volume_sma",
+                        "function": "sma",
+                        "params": {
+                            "length": 20
+                        }
+                    }
+                ],
+                "buy_condition": "(ema_fast > ema_slow) & (close > ema_fast) & (volume > 1.2 * volume_sma) & (atr > atr.shift(1))",
+                "sell_condition": "ema_fast < ema_slow"
+            }
+        },
+        {
+            "strategy": {
+                "strategy_name": "EMA_Crossover_with_ATR_Volume_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "atr",
+                        "function": "atr",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "volume_sma",
+                        "function": "sma",
+                        "params": {
+                            "length": 20
+                        }
+                    }
+                ],
+                "buy_condition": "(ema_fast > ema_slow) & (close > ema_fast) & (volume > 1.2 * volume_sma) & (atr > atr.shift(1))",
+                "sell_condition": "ema_fast < ema_slow"
+            },
+            "performance": {
+                "sharpe_ratio": null,
+                "sortino_ratio": null,
+                "max_drawdown_pct": -0.0,
+                "annual_return_pct": 0.0
+            },
+            "trade_summary": {
+                "total_trades": 0,
+                "win_rate_pct": 0.0,
+                "profit_factor": 0.0,
+                "avg_win_pct": 0.0,
+                "avg_loss_pct": 0.0,
+                "max_consecutive_losses": 0,
+                "avg_trade_duration_bars": 0
+            },
+            "is_pruned": false,
+            "next_strategy_suggestion": {
+                "strategy_name": "EMA_Crossover_with_RSI_Momentum_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "ema_fast > ema_slow and rsi > 55",
+                "sell_condition": "ema_fast < ema_slow and rsi < 45"
+            }
+        },
+        {
+            "strategy": {
+                "strategy_name": "EMA_Crossover_with_RSI_Momentum_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "ema_fast > ema_slow and rsi > 55",
+                "sell_condition": "ema_fast < ema_slow and rsi < 45"
+            },
+            "performance": {
+                "sharpe_ratio": null,
+                "sortino_ratio": null,
+                "max_drawdown_pct": -0.0,
+                "annual_return_pct": 0.0
+            },
+            "trade_summary": {
+                "total_trades": 0,
+                "win_rate_pct": 0.0,
+                "profit_factor": 0.0,
+                "avg_win_pct": 0.0,
+                "avg_loss_pct": 0.0,
+                "max_consecutive_losses": 0,
+                "avg_trade_duration_bars": 0
+            },
+            "is_pruned": false,
+            "next_strategy_suggestion": {
+                "strategy_name": "EMA_Crossover_with_RSI_ADX_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "adx",
+                        "function": "adx",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "ema_fast > ema_slow and rsi > 50 and adx > 25",
+                "sell_condition": "ema_fast < ema_slow or adx < 20"
+            }
+        },
+        {
+            "strategy": {
+                "strategy_name": "EMA_Crossover_with_RSI_ADX_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "adx",
+                        "function": "adx",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "ema_fast > ema_slow and rsi > 50 and adx > 25",
+                "sell_condition": "ema_fast < ema_slow or adx < 20"
+            },
+            "performance": {
+                "sharpe_ratio": null,
+                "sortino_ratio": null,
+                "max_drawdown_pct": -0.0,
+                "annual_return_pct": 0.0
+            },
+            "trade_summary": {
+                "total_trades": 0,
+                "win_rate_pct": 0.0,
+                "profit_factor": 0.0,
+                "avg_win_pct": 0.0,
+                "avg_loss_pct": 0.0,
+                "max_consecutive_losses": 0,
+                "avg_trade_duration_bars": 0
+            },
+            "is_pruned": false,
+            "next_strategy_suggestion": {
+                "strategy_name": "EMA_Crossover_with_ShortWindow_RSI_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "ema_fast > ema_slow and rsi > 55",
+                "sell_condition": "ema_fast < ema_slow"
+            }
+        },
+        {
+            "strategy": {
+                "strategy_name": "EMA_Crossover_with_ShortWindow_RSI_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 21
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 89
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "ema_fast > ema_slow and rsi > 55",
+                "sell_condition": "ema_fast < ema_slow"
+            },
+            "performance": {
+                "sharpe_ratio": null,
+                "sortino_ratio": null,
+                "max_drawdown_pct": -0.0,
+                "annual_return_pct": 0.0
+            },
+            "trade_summary": {
+                "total_trades": 0,
+                "win_rate_pct": 0.0,
+                "profit_factor": 0.0,
+                "avg_win_pct": 0.0,
+                "avg_loss_pct": 0.0,
+                "max_consecutive_losses": 0,
+                "avg_trade_duration_bars": 0
+            },
+            "is_pruned": false,
+            "next_strategy_suggestion": {
+                "strategy_name": "EMA_20_100_RSI_30_70_Zone_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 20
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 100
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "(ema_fast > ema_slow) & (rsi > 30) & (rsi < 70)",
+                "sell_condition": "(ema_fast < ema_slow) | (rsi > 70) | (rsi < 30)"
+            }
+        },
+        {
+            "strategy": {
+                "strategy_name": "EMA_20_100_RSI_30_70_Zone_Filter",
+                "indicators": [
+                    {
+                        "name": "ema_fast",
+                        "function": "ema",
+                        "params": {
+                            "length": 20
+                        }
+                    },
+                    {
+                        "name": "ema_slow",
+                        "function": "ema",
+                        "params": {
+                            "length": 100
+                        }
+                    },
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    }
+                ],
+                "buy_condition": "(ema_fast > ema_slow) & (rsi > 30) & (rsi < 70)",
+                "sell_condition": "(ema_fast < ema_slow) | (rsi > 70) | (rsi < 30)"
+            },
+            "performance": {
+                "sharpe_ratio": 0.09907977167360493,
+                "sortino_ratio": 0.14457748884668997,
+                "max_drawdown_pct": -46.896359287943255,
+                "annual_return_pct": 1.713905654690473
+            },
+            "trade_summary": {
+                "total_trades": 59,
+                "win_rate_pct": 64.40677966101694,
+                "profit_factor": 1.1877528098937615,
+                "avg_win_pct": 4.506672335899782,
+                "avg_loss_pct": -6.86584853818393,
+                "max_consecutive_losses": 4,
+                "avg_trade_duration_bars": 30
+            },
+            "is_pruned": true,
+            "next_strategy_suggestion": {
+                "strategy_name": "MACD_Trend_Momentum_with_BB_Filter",
+                "indicators": [
+                    {
+                        "name": "macd",
+                        "function": "macd",
+                        "params": {
+                            "fast": 12,
+                            "slow": 26,
+                            "signal": 9
+                        }
+                    },
+                    {
+                        "name": "bb_upper",
+                        "function": "bbands",
+                        "params": {
+                            "length": 20,
+                            "std": 2
+                        }
+                    },
+                    {
+                        "name": "bb_lower",
+                        "function": "bbands",
+                        "params": {
+                            "length": 20,
+                            "std": 2
+                        }
+                    }
+                ],
+                "buy_condition": "(macd.MACD_12_26_9 > macd.SIGNAL_12_26_9) & (close > bb_lower.BBL_20_2.0)",
+                "sell_condition": "(macd.MACD_12_26_9 < macd.SIGNAL_12_26_9) | (close > bb_upper.BBU_20_2.0)"
+            }
+        },
+        {
+            "strategy": {
+                "strategy_name": "MACD_Trend_Momentum_with_BB_Filter",
+                "indicators": [
+                    {
+                        "name": "macd",
+                        "function": "macd",
+                        "params": {
+                            "fast": 12,
+                            "slow": 26,
+                            "signal": 9
+                        }
+                    },
+                    {
+                        "name": "bb_upper",
+                        "function": "bbands",
+                        "params": {
+                            "length": 20,
+                            "std": 2
+                        }
+                    },
+                    {
+                        "name": "bb_lower",
+                        "function": "bbands",
+                        "params": {
+                            "length": 20,
+                            "std": 2
+                        }
+                    }
+                ],
+                "buy_condition": "(macd.MACD_12_26_9 > macd.SIGNAL_12_26_9) & (close > bb_lower.BBL_20_2.0)",
+                "sell_condition": "(macd.MACD_12_26_9 < macd.SIGNAL_12_26_9) | (close > bb_upper.BBU_20_2.0)"
+            },
+            "performance": {
+                "sharpe_ratio": -999.0,
+                "sortino_ratio": -999.0,
+                "max_drawdown_pct": -999.0,
+                "annual_return_pct": -999.0
+            },
+            "trade_summary": {
+                "total_trades": 0,
+                "win_rate_pct": 0.0,
+                "profit_factor": 0.0,
+                "avg_win_pct": 0.0,
+                "avg_loss_pct": 0.0,
+                "max_consecutive_losses": 0,
+                "avg_trade_duration_bars": 0
+            },
+            "is_pruned": true,
+            "next_strategy_suggestion": {
+                "strategy_name": "RSI_Divergence_with_Volume_Confirmation",
+                "indicators": [
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "rsi_sma",
+                        "function": "sma",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "volume_sma",
+                        "function": "sma",
+                        "params": {
+                            "length": 20
+                        }
+                    }
+                ],
+                "buy_condition": "(rsi < 30) & (rsi > rsi_sma) & (volume > volume_sma)",
+                "sell_condition": "(rsi > 70) & (rsi < rsi_sma) & (volume > volume_sma)"
+            }
+        },
+        {
+            "strategy": {
+                "strategy_name": "RSI_Divergence_with_Volume_Confirmation",
+                "indicators": [
+                    {
+                        "name": "rsi",
+                        "function": "rsi",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "rsi_sma",
+                        "function": "sma",
+                        "params": {
+                            "length": 14
+                        }
+                    },
+                    {
+                        "name": "volume_sma",
+                        "function": "sma",
+                        "params": {
+                            "length": 20
+                        }
+                    }
+                ],
+                "buy_condition": "(rsi < 30) & (rsi > rsi_sma) & (volume > volume_sma)",
+                "sell_condition": "(rsi > 70) & (rsi < rsi_sma) & (volume > volume_sma)"
+            },
+            "performance": {
+                "sharpe_ratio": null,
+                "sortino_ratio": null,
+                "max_drawdown_pct": -0.0,
+                "annual_return_pct": 0.0
+            },
+            "trade_summary": {
+                "total_trades": 0,
+                "win_rate_pct": 0.0,
+                "profit_factor": 0.0,
+                "avg_win_pct": 0.0,
+                "avg_loss_pct": 0.0,
+                "max_consecutive_losses": 0,
+                "avg_trade_duration_bars": 0
+            },
+            "is_pruned": false,
+            "next_strategy_suggestion": null
+        }
+    ]
+}
