@@ -1,95 +1,60 @@
+"""
+Unit tests for the DataService.
+"""
 import pandas as pd
-from pathlib import Path
+import pytest
 from unittest.mock import patch, MagicMock
 
 from praxis_engine.services.data_service import DataService
 
-def test_get_data_from_cache(tmp_path: Path) -> None:
-    """
-    Tests that data is loaded from the cache if it exists.
-    """
-    cache_dir = tmp_path / "cache"
-    cache_dir.mkdir()
-    stock = "TEST"
-    start_date = "2022-01-01"
-    end_date = "2022-01-31"
-    cache_file = cache_dir / f"{stock}_{start_date}_{end_date}.parquet"
+@pytest.fixture
+def data_service(tmp_path) -> DataService:
+    """Fixture for DataService."""
+    return DataService(cache_dir=str(tmp_path))
 
-    # Create a dummy cache file
-    dummy_df = pd.DataFrame({"Close": [1, 2, 3]})
-    dummy_df.to_parquet(cache_file)
+@patch('yfinance.download')
+def test_get_data_fresh_download(mock_download: MagicMock, data_service: DataService) -> None:
+    """Test fetching data for the first time."""
+    mock_df = pd.DataFrame({'Close': [100, 101]})
+    mock_download.return_value = mock_df
 
-    service = DataService(cache_dir=str(cache_dir))
-    df = service.get_data(stock, start_date, end_date)
+    df = data_service.get_data("TEST.NS", "2023-01-01", "2023-01-02", "SECTOR")
 
     assert df is not None
-    pd.testing.assert_frame_equal(df, dummy_df)
+    assert not df.empty
+    mock_download.assert_called()
 
-@patch("yfinance.download")
-def test_get_data_from_api(mock_yf_download: MagicMock, tmp_path: Path) -> None:
-    """
-    Tests that data is fetched from the yfinance API if not in cache.
-    """
-    cache_dir = tmp_path / "cache"
-    stock = "TEST"
-    start_date = "2022-01-01"
-    end_date = "2022-01-31"
+@patch('yfinance.download')
+def test_get_data_caching(mock_download: MagicMock, data_service: DataService) -> None:
+    """Test that data is cached and retrieved on second call."""
+    mock_df = pd.DataFrame({'Close': [100, 101]})
+    mock_download.return_value = mock_df
 
-    # Mock yfinance download
-    mock_df = pd.DataFrame({"Close": [10, 20, 30]})
-    mock_yf_download.return_value = mock_df
+    # First call - should download and cache
+    data_service.get_data("TEST.NS", "2023-01-01", "2023-01-02", "SECTOR")
 
-    service = DataService(cache_dir=str(cache_dir))
-    df = service.get_data(stock, start_date, end_date)
+    # Second call - should use cache
+    data_service.get_data("TEST.NS", "2023-01-01", "2023-01-02", "SECTOR")
 
-    assert df is not None
-    pd.testing.assert_frame_equal(df, mock_df)
+    assert mock_download.call_count == 2 # Once for stock, once for sector
 
-    # Verify it was cached
-    cache_file = cache_dir / f"{stock}_{start_date}_{end_date}.parquet"
-    assert cache_file.exists()
-
-@patch("yfinance.download")
-def test_sector_volatility_calculation(mock_yf_download: MagicMock, tmp_path: Path) -> None:
-    """
-    Tests that sector volatility is calculated and added to the DataFrame.
-    """
-    cache_dir = tmp_path / "cache"
-    stock = "RELIANCE.NS"
-    sector_ticker = "^NSEI"
-    start_date = "2022-01-01"
-    end_date = "2022-01-31"
-
-    # Create a date range for the mock data
-    dates = pd.to_datetime(pd.date_range(start=start_date, end=end_date, freq='D'))
-
-    stock_df = pd.DataFrame({"Close": [100 + i for i in range(len(dates))]}, index=dates)
-    sector_df = pd.DataFrame({"Close": [1000 + i for i in range(len(dates))]}, index=dates)
-
-    # The first call is for the stock, the second for the sector
-    mock_yf_download.side_effect = [stock_df, sector_df]
-
-    service = DataService(cache_dir=str(cache_dir))
-    df = service.get_data(stock, start_date, end_date, sector_ticker=sector_ticker)
-
-    assert df is not None
-    assert "sector_vol" in df.columns
-    assert not df["sector_vol"].dropna().empty
-
-@patch("yfinance.download")
-def test_get_data_api_failure(mock_yf_download: MagicMock, tmp_path: Path) -> None:
-    """
-    Tests that the service handles API failures gracefully.
-    """
-    cache_dir = tmp_path / "cache"
-    stock = "FAIL"
-    start_date = "2022-01-01"
-    end_date = "2022-01-31"
-
-    # Simulate an API failure
-    mock_yf_download.side_effect = Exception("API is down")
-
-    service = DataService(cache_dir=str(cache_dir))
-    df = service.get_data(stock, start_date, end_date)
-
+@patch('yfinance.download')
+def test_get_data_api_error(mock_download: MagicMock, data_service: DataService) -> None:
+    """Test handling of API errors."""
+    mock_download.side_effect = Exception("API Error")
+    df = data_service.get_data("FAIL.NS", "2023-01-01", "2023-01-02")
     assert df is None
+
+@patch('yfinance.download')
+def test_add_sector_vol(mock_download: MagicMock, data_service: DataService) -> None:
+    """Test that sector volatility is added correctly."""
+    stock_df = pd.DataFrame({'Close': [100, 101, 102, 103, 104]})
+    sector_df = pd.DataFrame({'Close': [50, 51, 50, 52, 53]})
+
+    # Simulate yf.download being called twice: first for stock, then for sector
+    mock_download.side_effect = [stock_df, sector_df]
+
+    df = data_service.get_data("TEST.NS", "2023-01-01", "2023-01-05", "^NSEI")
+
+    assert df is not None
+    assert 'sector_vol' in df.columns

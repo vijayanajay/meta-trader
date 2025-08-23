@@ -20,7 +20,7 @@ These 30 rules are the engineering constitution for this project. They translate
 
 [H-7] **Side Effects Must Be Labeled.** Any function that performs I/O (filesystem, network) must have a `# impure` comment on the line directly above its definition. This makes pure, testable logic distinct from impure, mockable logic.
 
-[H-8] **Strict Dependency Stack.** External dependencies are limited to: `pandas`, `numpy`, `statsmodels`, `yfinance`, `pydantic`, `ollama`, `typer`, `python-dotenv`, `configparser`, and `pytest`. Adding a new dependency is a major architectural decision and requires formal approval.
+[H-8] **Strict Dependency Stack.** External dependencies are limited to: `pandas`, `numpy`, `statsmodels`, `yfinance`, `pydantic`, `ollama`, `typer`, `python-dotenv`, `configparser`, `pytest`, `hurst`, and `pyarrow`. Adding a new dependency is a major architectural decision and requires formal approval.
 
 [H-9] **Zero Silent Failures.** Every `try...except` block must catch specific, anticipated exceptions (e.g., `FileNotFoundError`, `KeyError`). Bare `except:` clauses are forbidden. Failures must be logged with context and handled gracefully.
 

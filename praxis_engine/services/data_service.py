@@ -6,6 +6,10 @@ import yfinance as yf
 from pathlib import Path
 from typing import Optional
 
+from praxis_engine.core.logger import get_logger
+
+log = get_logger(__name__)
+
 class DataService:
     """
     A service for fetching and caching financial data.
@@ -57,8 +61,7 @@ class DataService:
             df.to_parquet(cache_file)
             return df
         except Exception as e:
-            # In a real application, we'd use a logger
-            print(f"Error fetching data for {stock}: {e}")
+            log.error(f"Error fetching data for {stock}: {e}")
             return None
 
     # impure
