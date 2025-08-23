@@ -38,24 +38,39 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Status:** Not Started
 
 ---
+### Task 1.1 — Fix Typer CLI Invocation
+
+*   **Rationale:** The Typer CLI is not working as expected. This needs to be fixed to ensure the CLI is usable.
+*   **Items to implement:**
+    *   Investigate the `Typer` invocation issue mentioned in `docs/memory.md`.
+    *   Fix the issue and ensure that `python -m praxis_engine.main verify-config` works as expected.
+*   **Tests to cover:**
+    *   N/A
+*   **Acceptance Criteria (AC):**
+    *   The Typer CLI can be invoked correctly.
+*   **Definition of Done (DoD):**
+    *   The Typer CLI invocation issue is resolved.
+*   **Time estimate:** 1 hour
+*   **Status:** Not Started
+---
 
 ### Task 2 — Data Service for Indian Markets
 
 *   **Rationale:** Data is the lifeblood. This service must be robust, efficient, and acutely aware of Indian market specifics. We will use the correct data sources and implement caching to make research fast and reproducible.
 *   **Items to implement:**
-    *   Add `nsepy` and `yfinance` to `requirements.txt`.
+    *   Add `yfinance` and `pyarrow` to `requirements.txt`.
     *   Implement `services/data_service.py` with a `DataService` class.
     *   The `get_data(stock, start_date, end_date)` method must:
         1.  Construct a cache filename (e.g., `HDFCBANK_2010-01-01_2023-12-31.parquet`).
         2.  If the cache file exists, load and return the DataFrame from it.
-        3.  If not, fetch equity data using `nsepy.get_history`. This is non-negotiable to avoid survivorship bias.
+        3.  If not, fetch equity data using `yfinance.download`.
         4.  Fetch the corresponding Nifty sector index data using `yfinance`. A mapping from stock to sector index will be needed in `config.ini`.
         5.  Calculate the 20-day rolling annualized `sector_vol` and merge it into the main DataFrame.
         6.  Perform basic cleaning (e.g., forward-fill missing values, ensure date index is correct).
         7.  Save the final, clean DataFrame to the Parquet cache file.
 *   **Tests to cover:**
     *   Create `tests/test_data_service.py`.
-    *   Mock `nsepy.get_history` and `yf.download` to test the caching logic without network calls.
+    *   Mock `yf.download` to test the caching logic without network calls.
     *   Verify that the `sector_vol` column is correctly calculated and merged.
 *   **Acceptance Criteria (AC):**
     *   The `DataService` can download, process, and save data for a given stock.
@@ -63,7 +78,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `data_service.py` and its unit tests are implemented and pass.
 *   **Time estimate:** 3.5 hours
-*   **Status:** Not Started
+*   **Status:** Complete
 
 ---
 
