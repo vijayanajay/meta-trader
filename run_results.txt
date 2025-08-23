@@ -1,181 +1,22 @@
-2025-08-23 01:23:56,576 - __main__ - INFO - Application starting.
-2025-08-23 01:23:57,096 - orchestrator - INFO - Orchestrator starting run.
-2025-08-23 01:23:57,096 - orchestrator - INFO - Processing ticker: RELIANCE.NS
-2025-08-23 01:23:57,096 - orchestrator - INFO - [RELIANCE.NS] Starting optimization loop.
-2025-08-23 01:23:57,129 - orchestrator - ERROR - A critical error occurred during the run for ticker RELIANCE.NS. Aborting process for this ticker.
-Traceback (most recent call last):
-  File "D:\Code\meta-trader\src\services\state_manager.py", line 85, in load_state
-    return RunState.model_validate(data)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\Code\meta-trader\venv\Lib\site-packages\pydantic\main.py", line 705, in model_validate
-    return cls.__pydantic_validator__.validate_python(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-pydantic_core._pydantic_core.ValidationError: 12 validation errors for RunState
-history.2.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.2.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.3.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.3.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.4.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.4.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.7.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.7.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.8.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.8.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.9.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.9.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "D:\Code\meta-trader\src\orchestrator.py", line 78, in run
-    self._run_for_ticker(ticker)
-  File "D:\Code\meta-trader\src\orchestrator.py", line 96, in _run_for_ticker
-    run_state = self.state_manager.load_state(ticker)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\Code\meta-trader\src\services\state_manager.py", line 89, in load_state
-    raise ValueError(f"Error loading state file: {state_filepath}") from e
-ValueError: Error loading state file: results\RELIANCE.NS_run_state.json
-2025-08-23 01:23:57,158 - orchestrator - INFO - Processing ticker: TCS.NS
-2025-08-23 01:23:57,158 - orchestrator - INFO - [TCS.NS] Starting optimization loop.
-2025-08-23 01:23:57,159 - orchestrator - ERROR - A critical error occurred during the run for ticker TCS.NS. Aborting process for this ticker.
-Traceback (most recent call last):
-  File "D:\Code\meta-trader\src\services\state_manager.py", line 85, in load_state
-    return RunState.model_validate(data)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\Code\meta-trader\venv\Lib\site-packages\pydantic\main.py", line 705, in model_validate
-    return cls.__pydantic_validator__.validate_python(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-pydantic_core._pydantic_core.ValidationError: 14 validation errors for RunState
-history.1.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.1.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.2.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.2.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.3.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.3.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.4.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.4.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.5.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.5.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.6.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.6.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.9.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.9.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "D:\Code\meta-trader\src\orchestrator.py", line 78, in run
-    self._run_for_ticker(ticker)
-  File "D:\Code\meta-trader\src\orchestrator.py", line 96, in _run_for_ticker
-    run_state = self.state_manager.load_state(ticker)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\Code\meta-trader\src\services\state_manager.py", line 89, in load_state
-    raise ValueError(f"Error loading state file: {state_filepath}") from e
-ValueError: Error loading state file: results\TCS.NS_run_state.json
-2025-08-23 01:23:57,160 - orchestrator - INFO - Processing ticker: HDFCBANK.NS
-2025-08-23 01:23:57,161 - orchestrator - INFO - [HDFCBANK.NS] Starting optimization loop.
-2025-08-23 01:23:57,162 - orchestrator - ERROR - A critical error occurred during the run for ticker HDFCBANK.NS. Aborting process for this ticker.
-Traceback (most recent call last):
-  File "D:\Code\meta-trader\src\services\state_manager.py", line 85, in load_state
-    return RunState.model_validate(data)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\Code\meta-trader\venv\Lib\site-packages\pydantic\main.py", line 705, in model_validate
-    return cls.__pydantic_validator__.validate_python(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-pydantic_core._pydantic_core.ValidationError: 10 validation errors for RunState
-history.1.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.1.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.2.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.2.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.3.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.3.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.4.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.4.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.5.performance.sharpe_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-history.5.performance.sortino_ratio
-  Input should be a valid number [type=float_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.11/v/float_type
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "D:\Code\meta-trader\src\orchestrator.py", line 78, in run
-    self._run_for_ticker(ticker)
-  File "D:\Code\meta-trader\src\orchestrator.py", line 96, in _run_for_ticker
-    run_state = self.state_manager.load_state(ticker)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\Code\meta-trader\src\services\state_manager.py", line 89, in load_state
-    raise ValueError(f"Error loading state file: {state_filepath}") from e
-ValueError: Error loading state file: results\HDFCBANK.NS_run_state.json
-2025-08-23 01:23:57,163 - orchestrator - INFO - Orchestrator run finished.
-2025-08-23 01:23:57,163 - __main__ - INFO - Application finished successfully.
+2025-08-23 11:17:05,050 - __main__ - INFO - Application starting.
+2025-08-23 11:17:05,454 - orchestrator - INFO - Orchestrator starting run.
+2025-08-23 11:17:05,455 - orchestrator - INFO - Processing ticker: RELIANCE.NS
+2025-08-23 11:17:05,455 - orchestrator - INFO - [RELIANCE.NS] Starting optimization loop.
+2025-08-23 11:17:05,456 - orchestrator - INFO - [RELIANCE.NS] Loaded state. Current iteration: 10
+2025-08-23 11:17:05,507 - orchestrator - INFO - [RELIANCE.NS] Loaded training data: 1970 rows.
+2025-08-23 11:17:05,507 - orchestrator - INFO - [RELIANCE.NS] Optimization loop finished.
+2025-08-23 11:17:05,507 - orchestrator - INFO - [RELIANCE.NS] Best strategy found: 'SMA_Crossover_Baseline' with Sharpe Ratio: 0.37
+2025-08-23 11:17:05,507 - orchestrator - INFO - Processing ticker: TCS.NS
+2025-08-23 11:17:05,507 - orchestrator - INFO - [TCS.NS] Starting optimization loop.
+2025-08-23 11:17:05,508 - orchestrator - INFO - [TCS.NS] Loaded state. Current iteration: 10
+2025-08-23 11:17:05,513 - orchestrator - INFO - [TCS.NS] Loaded training data: 1970 rows.
+2025-08-23 11:17:05,513 - orchestrator - INFO - [TCS.NS] Optimization loop finished.
+2025-08-23 11:17:05,513 - orchestrator - INFO - [TCS.NS] Best strategy found: 'SMA_Crossover_Baseline' with Sharpe Ratio: 0.44
+2025-08-23 11:17:05,513 - orchestrator - INFO - Processing ticker: HDFCBANK.NS
+2025-08-23 11:17:05,513 - orchestrator - INFO - [HDFCBANK.NS] Starting optimization loop.
+2025-08-23 11:17:05,514 - orchestrator - INFO - [HDFCBANK.NS] Loaded state. Current iteration: 10
+2025-08-23 11:17:05,518 - orchestrator - INFO - [HDFCBANK.NS] Loaded training data: 1970 rows.
+2025-08-23 11:17:05,519 - orchestrator - INFO - [HDFCBANK.NS] Optimization loop finished.
+2025-08-23 11:17:05,519 - orchestrator - INFO - [HDFCBANK.NS] Best strategy found: 'SMA_Crossover_Baseline' with Sharpe Ratio: 0.41
+2025-08-23 11:17:05,519 - orchestrator - INFO - Orchestrator run finished.
+2025-08-23 11:17:05,519 - __main__ - INFO - Application finished successfully.
