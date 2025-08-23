@@ -211,8 +211,10 @@ class Orchestrator:
         best_report = None
         max_sharpe = -float("inf")
         for report in run_state.history:
-            if not report.is_pruned and report.performance.sharpe_ratio > max_sharpe:
-                max_sharpe = report.performance.sharpe_ratio
+            # Handle the case where sharpe_ratio might be None
+            current_sharpe = report.performance.sharpe_ratio if report.performance.sharpe_ratio is not None else -float("inf")
+            if not report.is_pruned and current_sharpe > max_sharpe:
+                max_sharpe = current_sharpe
                 best_report = report
         return best_report
 

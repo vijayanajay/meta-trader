@@ -2,7 +2,7 @@
 Pydantic models for the application's configuration and data structures.
 """
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 __all__ = [
     "LLMSettings",
@@ -141,11 +141,12 @@ class PerformanceReport(BaseModel):
 class PerformanceMetrics(BaseModel):
     """
     Holds the key performance indicators from a backtest run.
+    Handles cases where metrics are undefined by defaulting to 0.0.
     """
-    sharpe_ratio: float
-    sortino_ratio: float
-    max_drawdown_pct: float
-    annual_return_pct: float
+    sharpe_ratio: Optional[float] = 0.0
+    sortino_ratio: Optional[float] = 0.0
+    max_drawdown_pct: Optional[float] = 0.0
+    annual_return_pct: Optional[float] = 0.0
 
 
 class RunState(BaseModel):

@@ -5,7 +5,7 @@ import pandas as pd
 from backtesting import Strategy
 from backtesting.lib import crossover
 
-import pandas_ta as ta
+from .indicators import sma
 
 
 class SmaCross(Strategy):  # type: ignore[misc]
@@ -26,8 +26,8 @@ class SmaCross(Strategy):  # type: ignore[misc]
         """
         # Pre-compute the two moving averages
         close_series = pd.Series(self.data.Close)
-        self.sma1 = self.I(ta.sma, close_series, self.n1)
-        self.sma2 = self.I(ta.sma, close_series, self.n2)
+        self.sma1 = self.I(sma, close_series, length=self.n1)
+        self.sma2 = self.I(sma, close_series, length=self.n2)
 
     def next(self) -> None:
         """

@@ -265,6 +265,27 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   All dependency issues are resolved and the fixes are committed.
 *   **Time estimate:** 1.5 hours
+*   **Status:** Completed (Superseded by Task 13)
+
+---
+
+### Task 13 — Remove `pandas-ta` Dependency and Create Local Indicator Library
+
+*   **Rationale:** A critical, unresolvable dependency conflict between `pandas-ta`, `numpy`, and the Python 3.12 environment made the `pandas-ta` library unusable. The most robust long-term solution was to remove the dependency entirely and replace it with a self-contained library.
+*   **Items to implement:**
+    *   Created `src/core/indicators.py` with local implementations of `sma`, `ema`, `rsi`, `macd`, `bbands`, `kc`, and `adx`.
+    *   Refactored `StrategyEngine` to use the new local indicator library.
+    *   Refactored `SmaCross` to use the new local `sma` function.
+    *   Removed `pandas-ta` from `requirements.txt` and all documentation.
+    *   Updated the LLM prompt to reflect the new, limited set of supported indicators and their correct parameter names.
+    *   Fixed all resulting test failures and runtime errors.
+*   **Acceptance Criteria (AC):**
+    *   The `pandas-ta` dependency is completely removed from the project.
+    *   The application is fully functional using the new local indicator library.
+    *   All tests pass.
+*   **Definition of Done (DoD):**
+    *   The `pandas-ta` dependency is removed and the application is stable.
+*   **Time estimate:** 4 hours
 *   **Status:** Completed
 
 ---
