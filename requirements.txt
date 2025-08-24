@@ -1,0 +1,13 @@
+hurst
+pandas
+numpy
+pytest
+configparser
+click
+typer
+scipy
+pyarrow
+patsy
+httpx
+statsmodels
+ollama
