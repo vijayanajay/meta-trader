@@ -32,7 +32,7 @@ class SignalEngine:
         df_daily = pd.concat([df_daily, bb_daily, rsi_daily], axis=1)
 
         # -- Weekly Indicators --
-        df_weekly = df_daily.resample('WS').last()
+        df_weekly = df_daily.resample('W-MON').last()
         if len(df_weekly) < 10:
             return None
         bb_weekly = bbands(df_weekly["Close"], length=10, std=2.5)
