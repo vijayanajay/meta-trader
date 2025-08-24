@@ -26,6 +26,9 @@ pyarrow = "^15.0.0"
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.14.0"
 
+[tool.poetry.scripts]
+praxis = "praxis_engine.main:app"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

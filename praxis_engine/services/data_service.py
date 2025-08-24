@@ -45,7 +45,13 @@ class DataService:
         # Otherwise, download fresh data.
         try:
             log.info(f"Fetching fresh data for {stock}.")
-            df = yf.download(stock, start=start_date, end=end_date, progress=False)
+            df = yf.download(stock, start=start_date, end=end_date, progress=False, auto_adjust=False)
+            # Flatten MultiIndex columns if they exist. yfinance can return a MultiIndex
+            # even for a single ticker. We want the OHLCV part.
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+
+
             if df.empty:
                 log.warning(f"No data returned from yfinance for {stock}.")
                 return None
@@ -67,7 +73,7 @@ class DataService:
         Adds sector volatility to the dataframe.
         """
         sector_df = yf.download(
-            sector_ticker, start=start_date, end=end_date, progress=False
+            sector_ticker, start=start_date, end=end_date, progress=False, auto_adjust=False
         )
         if not sector_df.empty:
             sector_vol = (

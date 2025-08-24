@@ -4,7 +4,7 @@ Service for generating trading signals based on technical indicators.
 from typing import Optional
 import pandas as pd
 
-from praxis_engine.core.models import Signal, StrategyParamsConfig
+from praxis_engine.core.models import Signal, StrategyParamsConfig, SignalLogicConfig
 from praxis_engine.core.logger import get_logger
 from praxis_engine.core.indicators import bbands, rsi
 
@@ -15,8 +15,9 @@ class SignalEngine:
     Generates signals based on a multi-timeframe alignment strategy.
     """
 
-    def __init__(self, params: StrategyParamsConfig):
+    def __init__(self, params: StrategyParamsConfig, logic: SignalLogicConfig):
         self.params = params
+        self.logic = logic
 
     def generate_signal(self, df_daily: pd.DataFrame) -> Optional[Signal]:
         """
@@ -66,11 +67,20 @@ class SignalEngine:
         bb_monthly_lower_col = "BBL_6_3.0"
 
         # -- Multi-frame alignment check --
-        daily_oversold = latest_daily["Close"] < latest_daily[bb_daily_lower_col] and latest_daily[rsi_daily_col] < 35
+        daily_oversold = latest_daily["Close"] < latest_daily[bb_daily_lower_col] and latest_daily[rsi_daily_col] < self.logic.rsi_threshold
         weekly_oversold = latest_weekly["Close"] < latest_weekly[bb_weekly_lower_col]
         monthly_not_oversold = latest_monthly["Close"] > latest_monthly[bb_monthly_lower_col]
 
-        if daily_oversold and weekly_oversold and monthly_not_oversold:
+        # Build the list of conditions based on the config
+        conditions = []
+        if self.logic.require_daily_oversold:
+            conditions.append(daily_oversold)
+        if self.logic.require_weekly_oversold:
+            conditions.append(weekly_oversold)
+        if self.logic.require_monthly_not_oversold:
+            conditions.append(monthly_not_oversold)
+
+        if all(conditions):
             entry_price = latest_daily["Close"] * 1.001  # Slippage
             stop_loss = latest_daily[bb_daily_mid_col]
 
