@@ -22,7 +22,7 @@ class Orchestrator:
     def __init__(self, config: Config):
         self.config = config
         self.data_service = DataService(config.data.cache_dir)
-        self.signal_engine = SignalEngine(config.strategy_params)
+        self.signal_engine = SignalEngine(config.strategy_params, config.signal_logic)
         self.validation_service = ValidationService(config.filters, config.strategy_params)
         self.llm_audit_service = LLMAuditService()
         self.execution_simulator = ExecutionSimulator()

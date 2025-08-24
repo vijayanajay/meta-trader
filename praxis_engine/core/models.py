@@ -30,6 +30,12 @@ class LLMConfig(BaseModel):
     model: str
     prompt_template_path: str
 
+class SignalLogicConfig(BaseModel):
+    require_daily_oversold: bool
+    require_weekly_oversold: bool
+    require_monthly_not_oversold: bool
+    rsi_threshold: int = Field(..., gt=0, lt=100)
+
 class Signal(BaseModel):
     """
     Represents a potential trade signal.
@@ -71,4 +77,5 @@ class Config(BaseModel):
     data: DataConfig
     strategy_params: StrategyParamsConfig
     filters: FiltersConfig
+    signal_logic: SignalLogicConfig
     llm: LLMConfig

@@ -40,8 +40,8 @@ class ExecutionSimulator:
 
         exit_index = entry_index + signal.exit_target_days
         if exit_index >= len(df):
-            log.warning(f"Cannot simulate trade for {stock} on {entry_date}: exit is out of bounds.")
-            return None
+            log.warning(f"Exit date for trade on {entry_date} is out of bounds. Using last available date.")
+            exit_index = len(df) - 1 # Use the last available index
 
         exit_date = df.index[exit_index]
         exit_price = df["Close"].iloc[exit_index] # Exit on the close of the target day

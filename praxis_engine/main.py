@@ -64,5 +64,4 @@ def backtest(
         log.info("Backtest complete. No trades were executed.")
 
 
-if __name__ == "__main__":
-    app()
+app()

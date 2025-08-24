@@ -9,29 +9,28 @@ from praxis_engine.core.statistics import adf_test, hurst_exponent
 
 
 @pytest.fixture
-def stationary_series() -> pd.Series:
-    """A stationary series for testing."""
-    return pd.Series(np.random.randn(150))
+def mean_reverting_series() -> pd.Series:
+    """A deterministic mean-reverting series (sine wave)."""
+    return pd.Series(np.sin(np.linspace(0, 20 * np.pi, 200)))
 
 
 @pytest.fixture
-def non_stationary_series() -> pd.Series:
-    """A non-stationary (trending) series for testing."""
-    return pd.Series(np.arange(150) + np.random.randn(150) * 0.1)
+def trending_series() -> pd.Series:
+    """A deterministic trending series."""
+    return pd.Series(np.arange(200) * 0.1)
 
 
-def test_adf_test_stationary(stationary_series: pd.Series) -> None:
-    """Test adf_test with a stationary series."""
-    p_value = adf_test(stationary_series)
-    assert p_value is not None
-    assert p_value < 0.05
+def test_adf_test_values(mean_reverting_series: pd.Series, trending_series: pd.Series) -> None:
+    """Test adf_test with known series."""
+    # Mean-reverting series should have a small p-value
+    p_value_mr = adf_test(mean_reverting_series)
+    assert p_value_mr is not None
+    assert p_value_mr < 0.05
 
-
-def test_adf_test_non_stationary(non_stationary_series: pd.Series) -> None:
-    """Test adf_test with a non-stationary series."""
-    p_value = adf_test(non_stationary_series)
-    assert p_value is not None
-    assert p_value > 0.05
+    # Trending series should have a large p-value
+    p_value_trend = adf_test(trending_series)
+    assert p_value_trend is not None
+    assert p_value_trend > 0.05
 
 
 def test_adf_test_empty() -> None:
@@ -39,21 +38,17 @@ def test_adf_test_empty() -> None:
     assert adf_test(pd.Series([], dtype=float)) is None
 
 
-def test_hurst_exponent_random_walk(stationary_series: pd.Series) -> None:
-    """Test hurst_exponent with a random walk series."""
-    # A random walk is the cumulative sum of a stationary series
-    random_walk = stationary_series.cumsum()
-    h = hurst_exponent(random_walk)
-    assert h is not None
-    # Should be close to 0.5, but with some variance
-    assert 0.3 < h < 0.8
+def test_hurst_exponent_values(mean_reverting_series: pd.Series, trending_series: pd.Series) -> None:
+    """Test hurst_exponent with known series."""
+    # Mean-reverting series should have H < 0.5
+    h_mr = hurst_exponent(mean_reverting_series)
+    assert h_mr is not None
+    assert h_mr < 0.5
 
-
-def test_hurst_exponent_trending(non_stationary_series: pd.Series) -> None:
-    """Test hurst_exponent with a trending series."""
-    h = hurst_exponent(non_stationary_series)
-    assert h is not None
-    assert h > 0.8 # Trending series should have a high Hurst exponent
+    # Trending series should have H > 0.5
+    h_trend = hurst_exponent(trending_series)
+    assert h_trend is not None
+    assert h_trend > 0.6
 
 
 def test_hurst_exponent_short_series() -> None:

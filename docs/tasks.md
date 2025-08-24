@@ -35,7 +35,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The initial project structure and configuration service are committed.
 *   **Time estimate:** 3 hours
-*   **Status:** Not Started
+*   **Status:** Complete
 
 ---
 ### Task 1.1 — Fix Typer CLI Invocation
@@ -51,7 +51,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The Typer CLI invocation issue is resolved.
 *   **Time estimate:** 1 hour
-*   **Status:** Not Started
+*   **Status:** Complete
 ---
 
 ### Task 2 — Data Service for Indian Markets
@@ -101,7 +101,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The indicator and statistics modules and their tests are implemented and committed.
 *   **Time estimate:** 3 hours
-*   **Status:** Not Started
+*   **Status:** Complete
 
 ---
 
