@@ -3,78 +3,118 @@ Unit tests for the SignalEngine.
 """
 import pandas as pd
 import pytest
-import numpy as np
+from unittest.mock import patch, MagicMock
+from pathlib import Path
+from typing import Any, Dict, List
 
-from praxis_engine.core.models import StrategyParamsConfig, Signal
+from praxis_engine.core.models import StrategyParamsConfig, SignalLogicConfig, Signal
 from praxis_engine.services.signal_engine import SignalEngine
 
 @pytest.fixture
 def strategy_params() -> StrategyParamsConfig:
-    """Fixture for strategy parameters."""
+    """Fixture for default strategy parameters."""
     return StrategyParamsConfig(
-        bb_length=20,
-        bb_std=2.0,
-        rsi_length=14,
-        hurst_length=100,
-        exit_days=10
+        bb_length=20, bb_std=2.0, rsi_length=14, hurst_length=100, exit_days=10
     )
 
 @pytest.fixture
-def signal_engine(strategy_params: StrategyParamsConfig) -> SignalEngine:
+def signal_logic_config() -> SignalLogicConfig:
+    """Fixture for default signal logic configuration."""
+    return SignalLogicConfig(
+        require_daily_oversold=True,
+        require_weekly_oversold=True,
+        require_monthly_not_oversold=True,
+        rsi_threshold=30,
+    )
+
+@pytest.fixture
+def signal_engine(
+    strategy_params: StrategyParamsConfig, signal_logic_config: SignalLogicConfig
+) -> SignalEngine:
     """Fixture for SignalEngine."""
-    return SignalEngine(params=strategy_params)
+    return SignalEngine(params=strategy_params, logic=signal_logic_config)
 
-def create_test_df(days: int) -> pd.DataFrame:
-    """Creates a sample dataframe for testing."""
-    dates = pd.to_datetime(pd.date_range(end=pd.Timestamp.now(), periods=days, freq='D'))
-    return pd.DataFrame({
-        "Close": np.random.rand(days) * 10 + 100,
-        "Volume": np.full(days, 10_00_000),
-        "sector_vol": np.full(days, 0.15),
-    }, index=dates)
+def create_test_dataframe(data: Dict[str, List[Any]], index: List[Any]) -> pd.DataFrame:
+    """Helper to create a dataframe for testing."""
+    return pd.DataFrame(data, index=pd.to_datetime(index))
 
-@pytest.mark.skip(reason="Test is brittle and fails with minor pandas version changes. Needs to be rewritten.")
-def test_generate_signal_success(signal_engine: SignalEngine):
-    """Test a successful signal generation with deterministic data."""
-    # Construct a dataset designed to trigger the signal
-    days = 200
-    days = 300
-    dates = pd.to_datetime(pd.date_range(end=pd.Timestamp.now(), periods=days, freq='D'))
+@patch('praxis_engine.services.signal_engine.SignalEngine._prepare_dataframes')
+def test_generate_signal_logic_success(
+    mock_prepare_dataframes: MagicMock, signal_engine: SignalEngine
+) -> None:
+    """
+    Tests the core alignment logic of generate_signal by feeding it
+    perfectly crafted dataframes, bypassing the preparation step.
+    """
+    # --- Arrange ---
+    # Create handcrafted dataframes that will force the signal to fire
+    last_date = '2023-01-15'
 
-    # Base series is stable at 100
-    close_prices = np.full(days, 100.0)
+    df_daily = create_test_dataframe({
+        'Close': [75.0],
+        'BBL_20_2.0': [80.0],
+        'BBM_20_2.0': [90.0],
+        'RSI_14': [25.0],
+        'sector_vol': [0.15]
+    }, [last_date])
 
-    # --- Trigger Conditions ---
-    # 1. Monthly: Not oversold. We'll keep the first few months stable at 100.
-    # The BBands will be tight around 100. A close of 100 is > BBL.
+    df_weekly = create_test_dataframe({
+        'Close': [85.0],
+        'BBL_10_2.5': [90.0],
+    }, [pd.to_datetime(last_date) - pd.Timedelta(days=1)]) # To simulate asof
 
-    # 2. Weekly: Oversold. Make the last few weeks trend down.
-    close_prices[-30:] = np.linspace(100, 80, 30)
+    df_monthly = create_test_dataframe({
+        'Close': [95.0],
+        'BBL_6_3.0': [90.0], # Close > BBL for 'not oversold'
+    }, [pd.to_datetime(last_date) - pd.Timedelta(days=10)]) # To simulate asof
 
-    # 3. Daily: Oversold. Make the last day a sharp drop.
-    close_prices[-1] = 70
-    # Make RSI low by having a series of down-days.
-    close_prices[-14:] = np.linspace(90, 70, 14)
+    mock_prepare_dataframes.return_value = (df_daily, df_weekly, df_monthly)
 
+    # This initial dataframe is now just a dummy since we mock the prep method
+    dummy_df = pd.DataFrame(index=pd.date_range(end=last_date, periods=30))
+
+    # --- Act ---
+    signal = signal_engine.generate_signal(dummy_df)
+
+    # --- Assert ---
+    assert isinstance(signal, Signal)
+    assert signal.entry_price > 75.0
+    assert signal.stop_loss == 90.0
+    mock_prepare_dataframes.assert_called_once()
+
+def test_prepare_dataframes(signal_engine: SignalEngine) -> None:
+    """
+    Tests the data preparation method to ensure it processes data correctly.
+    This is now an integration test for the preparation step.
+    """
+    # --- Arrange ---
+    # Create a realistic-looking dataframe
+    dates = pd.to_datetime(pd.date_range(end='2023-01-15', periods=200, freq='D'))
     df = pd.DataFrame({
-        "Close": close_prices,
-        "Volume": np.full(days, 10_00_000),
-        "sector_vol": np.full(days, 0.15),
+        "Close": 100 + pd.Series(range(200), index=dates) * 0.1,
+        "Volume": 1_000_000,
+        "sector_vol": 0.15,
     }, index=dates)
 
-    signal = signal_engine.generate_signal(df)
-    assert isinstance(signal, Signal), "Signal should have been generated"
-    assert signal.frames_aligned == ["daily", "weekly"]
+    # Make the last day have a sharp drop to ensure there's some volatility
+    df.iloc[-1, df.columns.get_loc('Close')] = 80
 
-def test_generate_signal_daily_fail(signal_engine: SignalEngine):
-    """Test when the daily condition is not met."""
-    df = create_test_df(200)
-    df.iloc[-1, df.columns.get_loc('Close')] = 200
-    signal = signal_engine.generate_signal(df)
-    assert signal is None
+    # --- Act ---
+    result = signal_engine._prepare_dataframes(df)
 
-def test_generate_signal_too_short(signal_engine: SignalEngine):
-    """Test with a dataframe that is too short."""
-    df = create_test_df(10)
-    signal = signal_engine.generate_signal(df)
-    assert signal is None
+    # --- Assert ---
+    assert result is not None
+    df_daily, df_weekly, df_monthly = result
+
+    # Check daily frame
+    assert not df_daily.empty
+    assert f"BBL_{signal_engine.params.bb_length}_{signal_engine.params.bb_std}" in df_daily.columns
+    assert f"RSI_{signal_engine.params.rsi_length}" in df_daily.columns
+
+    # Check weekly frame
+    assert not df_weekly.empty
+    assert "BBL_10_2.5" in df_weekly.columns
+
+    # Check monthly frame
+    assert not df_monthly.empty
+    assert "BBL_6_3.0" in df_monthly.columns

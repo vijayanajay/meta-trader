@@ -1,97 +1,76 @@
 """
-Unit tests for the LLM Audit Service.
+Unit tests for the LLMAuditService.
 """
-from unittest.mock import MagicMock, patch
-
 import pytest
+from unittest.mock import patch, MagicMock
+import pandas as pd
+from pathlib import Path
 
 from praxis_engine.services.llm_audit_service import LLMAuditService
-
+from praxis_engine.core.models import Signal, ValidationResult, LLMConfig
 
 @pytest.fixture
-def mock_stats() -> dict[str, float]:
-    """A sample dictionary of statistics."""
-    return {
-        "win_rate": 55.5,
-        "profit_factor": 1.8,
-        "sample_size": 25,
-        "sector_volatility": 15.2,
-        "hurst_exponent": 0.45,
-    }
+def llm_config() -> LLMConfig:
+    """Fixture for LLM configuration."""
+    return LLMConfig(
+        model="test-model",
+        prompt_template_path=str(Path(__file__).parent / "test_prompt.txt"),
+        confidence_threshold=0.7,
+    )
 
+@pytest.fixture
+def sample_signal() -> Signal:
+    """A sample signal for testing."""
+    return Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["daily"], sector_vol=15.0)
 
-@patch.dict(
-    "os.environ",
-    {
-        "OPENROUTER_API_KEY": "test_key",
-        "OPENROUTER_BASE_URL": "https://test.com",
-        "OPENROUTER_MODEL": "test_model",
-    },
-)
+@pytest.fixture
+def sample_validation() -> ValidationResult:
+    """A sample validation result for testing."""
+    return ValidationResult(is_valid=True)
+
 @patch("praxis_engine.services.llm_audit_service.OpenAI")
 def test_get_confidence_score_success(
-    mock_openai: MagicMock, mock_stats: dict[str, float]
+    mock_openai: MagicMock, llm_config: LLMConfig, sample_signal: Signal, sample_validation: ValidationResult
 ) -> None:
     """Tests a successful call to get_confidence_score."""
     mock_completion = MagicMock()
     mock_completion.choices[0].message.content = "  0.85  "
-    mock_openai.return_value.chat.completions.create.return_value = (
-        mock_completion
-    )
+    mock_openai.return_value.chat.completions.create.return_value = mock_completion
 
-    service = LLMAuditService()
-    score = service.get_confidence_score(mock_stats)
+    service = LLMAuditService(config=llm_config)
+
+    # Create a dummy dataframe
+    df = pd.DataFrame({'Close': [100.0]})
+
+    score = service.get_confidence_score(df, sample_signal, sample_validation)
 
     assert score == 0.85
     mock_openai.return_value.chat.completions.create.assert_called_once()
-    # You could also assert that the prompt was formatted correctly
-    # called_prompt = mock_openai.return_value.chat.completions.create.call_args[1]['messages'][0]['content']
-    # assert str(mock_stats['hurst_exponent']) in called_prompt
 
-
-@patch.dict(
-    "os.environ",
-    {
-        "OPENROUTER_API_KEY": "test_key",
-        "OPENROUTER_BASE_URL": "https://test.com",
-        "OPENROUTER_MODEL": "test_model",
-    },
-)
 @patch("praxis_engine.services.llm_audit_service.OpenAI")
 def test_get_confidence_score_invalid_response(
-    mock_openai: MagicMock, mock_stats: dict[str, float]
+    mock_openai: MagicMock, llm_config: LLMConfig, sample_signal: Signal, sample_validation: ValidationResult
 ) -> None:
     """Tests the case where the LLM returns an invalid (non-float) response."""
     mock_completion = MagicMock()
     mock_completion.choices[0].message.content = "This is not a float"
-    mock_openai.return_value.chat.completions.create.return_value = (
-        mock_completion
-    )
+    mock_openai.return_value.chat.completions.create.return_value = mock_completion
 
-    service = LLMAuditService()
-    score = service.get_confidence_score(mock_stats)
+    service = LLMAuditService(config=llm_config)
+    df = pd.DataFrame({'Close': [100.0]})
+    score = service.get_confidence_score(df, sample_signal, sample_validation)
 
     assert score == 0.0
 
-
-@patch.dict(
-    "os.environ",
-    {
-        "OPENROUTER_API_KEY": "test_key",
-        "OPENROUTER_BASE_URL": "https://test.com",
-        "OPENROUTER_MODEL": "test_model",
-    },
-)
 @patch("praxis_engine.services.llm_audit_service.OpenAI")
 def test_get_confidence_score_api_error(
-    mock_openai: MagicMock, mock_stats: dict[str, float]
+    mock_openai: MagicMock, llm_config: LLMConfig, sample_signal: Signal, sample_validation: ValidationResult
 ) -> None:
     """Tests the case where the OpenAI API call raises an exception."""
-    mock_openai.return_value.chat.completions.create.side_effect = Exception(
-        "API Error"
-    )
+    mock_openai.return_value.chat.completions.create.side_effect = Exception("API Error")
 
-    service = LLMAuditService()
-    score = service.get_confidence_score(mock_stats)
+    service = LLMAuditService(config=llm_config)
+    df = pd.DataFrame({'Close': [100.0]})
+    score = service.get_confidence_score(df, sample_signal, sample_validation)
 
     assert score == 0.0

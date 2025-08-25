@@ -24,7 +24,7 @@ class Orchestrator:
         self.data_service = DataService(config.data.cache_dir)
         self.signal_engine = SignalEngine(config.strategy_params, config.signal_logic)
         self.validation_service = ValidationService(config.filters, config.strategy_params)
-        self.llm_audit_service = LLMAuditService()
+        self.llm_audit_service = LLMAuditService(config.llm)
         self.execution_simulator = ExecutionSimulator()
 
     def run_backtest(self, stock: str, start_date: str, end_date: str) -> List[Trade]:

@@ -37,6 +37,12 @@ hurst_threshold = 0.5
 confidence_threshold = 0.6
 model = "test/model"
 prompt_template_path = "test/prompt.txt"
+
+[signal_logic]
+require_daily_oversold = true
+require_weekly_oversold = true
+require_monthly_not_oversold = true
+rsi_threshold = 30
 """
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)

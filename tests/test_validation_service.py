@@ -4,7 +4,8 @@ Unit tests for the ValidationService.
 import pandas as pd
 import pytest
 import numpy as np
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+from pathlib import Path
 
 from praxis_engine.core.models import FiltersConfig, Signal, StrategyParamsConfig, ValidationResult
 from praxis_engine.services.validation_service import ValidationService
@@ -45,14 +46,14 @@ def create_test_df(days: int, close_price: float, volume: float) -> pd.DataFrame
         "sector_vol": np.full(days, 15.0),
     })
 
-def test_validate_success(validation_service: ValidationService, sample_signal: Signal):
+def test_validate_success(validation_service: ValidationService, sample_signal: Signal) -> None:
     """Test a successful validation where all guardrails pass."""
     # Create data that should pass: high liquidity, low vol, mean-reverting (flat series)
     df = create_test_df(days=200, close_price=100.0, volume=10_00_000) # 10Cr turnover
     result = validation_service.validate(df, sample_signal)
     assert result.is_valid is True
 
-def test_validate_liquidity_fail(validation_service: ValidationService, sample_signal: Signal):
+def test_validate_liquidity_fail(validation_service: ValidationService, sample_signal: Signal) -> None:
     """Test failure due to low liquidity."""
     df = create_test_df(days=200, close_price=100.0, volume=100) # Low turnover
     result = validation_service.validate(df, sample_signal)
@@ -60,7 +61,7 @@ def test_validate_liquidity_fail(validation_service: ValidationService, sample_s
     assert result.liquidity_check is False
     assert result.reason == "Low Liquidity"
 
-def test_validate_regime_fail(validation_service: ValidationService, sample_signal: Signal):
+def test_validate_regime_fail(validation_service: ValidationService, sample_signal: Signal) -> None:
     """Test failure due to high sector volatility."""
     df = create_test_df(days=200, close_price=100.0, volume=10_00_000)
     sample_signal.sector_vol = 25.0 # High volatility
@@ -70,7 +71,7 @@ def test_validate_regime_fail(validation_service: ValidationService, sample_sign
     assert result.reason == "High Sector Volatility"
 
 @patch('praxis_engine.services.validation_service.adf_test', return_value=0.1)
-def test_validate_adf_fail(mock_adf, validation_service: ValidationService, sample_signal: Signal):
+def test_validate_adf_fail(mock_adf: MagicMock, validation_service: ValidationService, sample_signal: Signal) -> None:
     """Test failure due to ADF test."""
     df = create_test_df(days=200, close_price=100.0, volume=10_00_000)
     result = validation_service.validate(df, sample_signal)
@@ -79,7 +80,7 @@ def test_validate_adf_fail(mock_adf, validation_service: ValidationService, samp
     assert result.reason == "ADF test failed"
 
 @patch('praxis_engine.services.validation_service.hurst_exponent', return_value=0.6)
-def test_validate_hurst_fail(mock_hurst, validation_service: ValidationService, sample_signal: Signal):
+def test_validate_hurst_fail(mock_hurst: MagicMock, validation_service: ValidationService, sample_signal: Signal) -> None:
     """Test failure due to Hurst exponent."""
     df = create_test_df(days=200, close_price=100.0, volume=10_00_000)
     result = validation_service.validate(df, sample_signal)
