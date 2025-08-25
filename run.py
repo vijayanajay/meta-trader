@@ -2,13 +2,13 @@
 """
 A simple runner script for the Praxis Engine.
 """
-import os
+from praxis_engine.main import app
 
-def main():
+def main() -> None:
     """
     Runs the backtest command with default settings.
     """
-    os.system("python -m praxis_engine.main backtest")
+    app()
 
 if __name__ == "__main__":
     main()

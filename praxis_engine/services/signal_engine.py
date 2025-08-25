@@ -1,7 +1,7 @@
 """
 Service for generating trading signals based on technical indicators.
 """
-from typing import Optional
+from typing import Optional, Tuple
 import pandas as pd
 
 from praxis_engine.core.models import Signal, StrategyParamsConfig, SignalLogicConfig
@@ -9,6 +9,7 @@ from praxis_engine.core.logger import get_logger
 from praxis_engine.core.indicators import bbands, rsi
 
 log = get_logger(__name__)
+
 
 class SignalEngine:
     """
@@ -19,6 +20,35 @@ class SignalEngine:
         self.params = params
         self.logic = logic
 
+    def _prepare_dataframes(
+        self, df_daily: pd.DataFrame
+    ) -> Optional[Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]]:
+        """
+        Prepares daily, weekly, and monthly dataframes with indicators.
+        """
+        # -- Daily Indicators --
+        bb_daily = bbands(
+            df_daily["Close"], length=self.params.bb_length, std=self.params.bb_std
+        )
+        rsi_daily = rsi(df_daily["Close"], length=self.params.rsi_length)
+        df_daily = pd.concat([df_daily, bb_daily, rsi_daily], axis=1)
+
+        # -- Weekly Indicators --
+        df_weekly = df_daily.resample("W-MON").last()
+        if len(df_weekly) < 10:
+            return None
+        bb_weekly = bbands(df_weekly["Close"], length=10, std=2.5)
+        df_weekly = pd.concat([df_weekly, bb_weekly], axis=1)
+
+        # -- Monthly Indicators --
+        df_monthly = df_daily.resample("MS").last()
+        if len(df_monthly) < 6:
+            return None
+        bb_monthly = bbands(df_monthly["Close"], length=6, std=3.0)
+        df_monthly = pd.concat([df_monthly, bb_monthly], axis=1)
+
+        return df_daily, df_weekly, df_monthly
+
     def generate_signal(self, df_daily: pd.DataFrame) -> Optional[Signal]:
         """
         Generates a signal based on Bollinger Band and RSI alignment
@@ -27,24 +57,11 @@ class SignalEngine:
         if len(df_daily) < self.params.bb_length:
             return None
 
-        # -- Daily Indicators --
-        bb_daily = bbands(df_daily["Close"], length=self.params.bb_length, std=self.params.bb_std)
-        rsi_daily = rsi(df_daily["Close"], length=self.params.rsi_length)
-        df_daily = pd.concat([df_daily, bb_daily, rsi_daily], axis=1)
-
-        # -- Weekly Indicators --
-        df_weekly = df_daily.resample('W-MON').last()
-        if len(df_weekly) < 10:
+        prepared_data = self._prepare_dataframes(df_daily)
+        if prepared_data is None:
             return None
-        bb_weekly = bbands(df_weekly["Close"], length=10, std=2.5)
-        df_weekly = pd.concat([df_weekly, bb_weekly], axis=1)
 
-        # -- Monthly Indicators --
-        df_monthly = df_daily.resample('MS').last()
-        if len(df_monthly) < 6:
-            return None
-        bb_monthly = bbands(df_monthly["Close"], length=6, std=3.0)
-        df_monthly = pd.concat([df_monthly, bb_monthly], axis=1)
+        df_daily, df_weekly, df_monthly = prepared_data
 
         # Check for sufficient data after resampling
         if df_daily.empty or df_weekly.empty or df_monthly.empty:
@@ -89,9 +106,8 @@ class SignalEngine:
                 stop_loss=stop_loss,
                 exit_target_days=self.params.exit_days,
                 frames_aligned=["daily", "weekly"],
-                sector_vol=latest_daily["sector_vol"]
+                sector_vol=latest_daily["sector_vol"],
             )
-            log.info(f"Signal generated: {signal}")
             return signal
 
         return None

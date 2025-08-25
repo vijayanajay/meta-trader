@@ -133,7 +133,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `signal_engine.py` and its tests are implemented and committed.
 *   **Time estimate:** 4 hours
-*   **Status:** Not Started
+*   **Status:** Complete
 
 ---
 
