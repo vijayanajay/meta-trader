@@ -26,6 +26,14 @@ bb_std = 1.5
 rsi_length = 7
 hurst_length = 50
 exit_days = 10
+min_history_days = 200
+liquidity_lookback_days = 5
+
+[cost_model]
+brokerage_rate = 0.0003
+brokerage_min = 20.0
+stt_rate = 0.00025
+slippage_pct = 0.001
 
 [filters]
 sector_vol_threshold = 25.0
@@ -70,6 +78,14 @@ bb_std = 1.5
 rsi_length = 7
 hurst_length = 50
 exit_days = 10
+min_history_days = 200
+liquidity_lookback_days = 5
+
+[cost_model]
+brokerage_rate = 0.0003
+brokerage_min = 20.0
+stt_rate = 0.00025
+slippage_pct = 0.001
 
 [filters]
 sector_vol_threshold = 25.0
@@ -106,6 +122,14 @@ bb_std = 1.5
 rsi_length = 7
 hurst_length = 50
 exit_days = 10
+min_history_days = 200
+liquidity_lookback_days = 5
+
+[cost_model]
+brokerage_rate = 0.0003
+brokerage_min = 20.0
+stt_rate = 0.00025
+slippage_pct = 0.001
 
 [filters]
 sector_vol_threshold = 25.0

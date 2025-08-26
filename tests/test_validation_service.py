@@ -23,7 +23,15 @@ def filters_config() -> FiltersConfig:
 @pytest.fixture
 def strategy_params() -> StrategyParamsConfig:
     """Fixture for strategy parameters."""
-    return StrategyParamsConfig(bb_length=20, bb_std=2.0, rsi_length=14, hurst_length=100, exit_days=10)
+    return StrategyParamsConfig(
+        bb_length=20,
+        bb_std=2.0,
+        rsi_length=14,
+        hurst_length=100,
+        exit_days=10,
+        min_history_days=200,
+        liquidity_lookback_days=5,
+    )
 
 @pytest.fixture
 def validation_service(filters_config: FiltersConfig, strategy_params: StrategyParamsConfig) -> ValidationService:
@@ -44,7 +52,7 @@ def create_test_df(days: int, close_price: float, volume: float) -> pd.DataFrame
         "Close": close_prices,
         "Volume": np.full(days, volume),
         "sector_vol": np.full(days, 15.0),
-    })
+    }, index=dates)
 
 def test_validate_success(validation_service: ValidationService, sample_signal: Signal) -> None:
     """Test a successful validation where all guardrails pass."""
@@ -70,7 +78,7 @@ def test_validate_regime_fail(validation_service: ValidationService, sample_sign
     assert result.regime_check is False
     assert result.reason == "High Sector Volatility"
 
-@patch('praxis_engine.services.validation_service.adf_test', return_value=0.1)
+@patch('praxis_engine.core.guards.stat_guard.adf_test', return_value=0.1)
 def test_validate_adf_fail(mock_adf: MagicMock, validation_service: ValidationService, sample_signal: Signal) -> None:
     """Test failure due to ADF test."""
     df = create_test_df(days=200, close_price=100.0, volume=10_00_000)
@@ -79,7 +87,7 @@ def test_validate_adf_fail(mock_adf: MagicMock, validation_service: ValidationSe
     assert result.stat_check is False
     assert result.reason == "ADF test failed"
 
-@patch('praxis_engine.services.validation_service.hurst_exponent', return_value=0.6)
+@patch('praxis_engine.core.guards.stat_guard.hurst_exponent', return_value=0.6)
 def test_validate_hurst_fail(mock_hurst: MagicMock, validation_service: ValidationService, sample_signal: Signal) -> None:
     """Test failure due to Hurst exponent."""
     df = create_test_df(days=200, close_price=100.0, volume=10_00_000)

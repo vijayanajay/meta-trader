@@ -32,6 +32,12 @@ class LLMConfig(BaseModel):
     model: str
     prompt_template_path: str
 
+class CostModelConfig(BaseModel):
+    brokerage_rate: float = Field(..., ge=0)
+    brokerage_min: float = Field(..., ge=0)
+    stt_rate: float = Field(..., ge=0)
+    slippage_pct: float = Field(..., ge=0)
+
 class SignalLogicConfig(BaseModel):
     require_daily_oversold: bool
     require_weekly_oversold: bool
@@ -81,3 +87,4 @@ class Config(BaseModel):
     filters: FiltersConfig
     signal_logic: SignalLogicConfig
     llm: LLMConfig
+    cost_model: CostModelConfig
