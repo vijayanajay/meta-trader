@@ -4,7 +4,10 @@ The main orchestrator for running backtests.
 from typing import List
 import pandas as pd
 
-from praxis_engine.core.models import Config, Trade
+import datetime
+from typing import Optional
+
+from praxis_engine.core.models import Config, Trade, Opportunity
 from praxis_engine.services.data_service import DataService
 from praxis_engine.services.signal_engine import SignalEngine
 from praxis_engine.services.validation_service import ValidationService
@@ -106,3 +109,54 @@ class Orchestrator:
 
         log.info(f"Backtest for {stock} complete. Found {len(trades)} trades.")
         return trades
+
+    def generate_opportunities(
+        self, stock: str, lookback_days: int = 365
+    ) -> Optional[Opportunity]:
+        """
+        Checks for a new trading opportunity on the most recent data for a single stock.
+        """
+        log.info(f"Checking for new opportunities for {stock}...")
+        end_date = datetime.date.today()
+        start_date = end_date - datetime.timedelta(days=lookback_days)
+
+        sector_ticker = self.config.data.sector_map.get(stock)
+        full_df = self.data_service.get_data(
+            stock, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"), sector_ticker
+        )
+
+        if full_df is None or len(full_df) < self.config.strategy_params.min_history_days:
+            log.warning(f"Not enough data for {stock} to generate a signal.")
+            return None
+
+        # Run pipeline on the most recent data point
+        signal = self.signal_engine.generate_signal(full_df.copy())
+        if not signal:
+            return None
+
+        log.info(f"Preliminary signal found for {stock} on {full_df.index[-1].date()}")
+
+        validation = self.validation_service.validate(full_df, signal)
+        if not validation.is_valid:
+            log.info(f"Signal for {stock} rejected by guardrails: {validation.reason}")
+            return None
+
+        confidence_score = self.llm_audit_service.get_confidence_score(
+            full_df, signal, validation
+        )
+
+        if confidence_score < self.config.llm.confidence_threshold:
+            log.info(
+                f"Signal for {stock} rejected by LLM audit (score: {confidence_score})"
+            )
+            return None
+
+        # If we get here, it's a valid opportunity
+        opportunity = Opportunity(
+            stock=stock,
+            signal_date=full_df.index[-1],
+            signal=signal,
+            confidence_score=confidence_score,
+        )
+        log.info(f"High-confidence opportunity found: {opportunity}")
+        return opportunity

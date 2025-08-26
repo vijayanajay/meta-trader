@@ -5,7 +5,7 @@ from typing import List
 import pandas as pd
 import numpy as np
 
-from praxis_engine.core.models import Trade
+from praxis_engine.core.models import Trade, Opportunity
 
 class ReportGenerator:
     """
@@ -89,3 +89,26 @@ class ReportGenerator:
             "max_drawdown": max_drawdown,
             "win_rate": win_rate,
         }
+
+    def generate_opportunities_report(
+        self, opportunities: List[Opportunity]
+    ) -> str:
+        """
+        Generates a markdown report for new trading opportunities.
+        """
+        if not opportunities:
+            return "## Weekly Opportunities Report\n\nNo new high-confidence opportunities found."
+
+        header = "| Stock | Signal Date | Entry Price | Stop-Loss | Confidence Score |\n"
+        separator = "|---|---|---|---|---|\n"
+        rows = [
+            f"| {opp.stock} | {opp.signal_date.date()} | {opp.signal.entry_price:.2f} | {opp.signal.stop_loss:.2f} | {opp.confidence_score:.2f} |"
+            for opp in opportunities
+        ]
+
+        return (
+            "## Weekly Opportunities Report\n\n"
+            + header
+            + separator
+            + "\n".join(rows)
+        )

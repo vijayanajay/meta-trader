@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from typing import List
 
-from praxis_engine.core.models import Trade
+from praxis_engine.core.models import Trade, Signal
 from praxis_engine.services.report_generator import ReportGenerator
 
 @pytest.fixture
@@ -10,6 +10,14 @@ def sample_trades() -> List[Trade]:
     """
     Provides a sample list of Trade objects for testing.
     """
+    # Create a dummy signal to be used in trades
+    dummy_signal = Signal(
+        entry_price=100.0,
+        stop_loss=95.0,
+        exit_target_days=20,
+        frames_aligned=["daily"],
+        sector_vol=0.15,
+    )
     trades = [
         Trade(
             stock="RELIANCE.NS",
@@ -19,6 +27,7 @@ def sample_trades() -> List[Trade]:
             exit_price=110.0,
             net_return_pct=0.10,
             confidence_score=0.8,
+            signal=dummy_signal,
         ),
         Trade(
             stock="RELIANCE.NS",
@@ -28,6 +37,7 @@ def sample_trades() -> List[Trade]:
             exit_price=105.0,
             net_return_pct=-0.045,
             confidence_score=0.75,
+            signal=dummy_signal,
         ),
         Trade(
             stock="TCS.NS",
@@ -37,6 +47,7 @@ def sample_trades() -> List[Trade]:
             exit_price=220.0,
             net_return_pct=0.10,
             confidence_score=0.9,
+            signal=dummy_signal,
         ),
     ]
     return trades

@@ -62,7 +62,7 @@ This table maps the PRD's functional requirements directly to architectural comp
 
 | Component | Responsibility | Inputs | Outputs | PRD Mapping | Implementation Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Orchestrator** | The brain. Manages the primary application modes (`backtest`, `generate-report`). In `backtest` mode, it runs the walk-forward loop over the entire dataset for each stock. | CLI arguments (`mode`, `config_path`). | Final report files to the filesystem. | FR7, FR8 | The walk-forward logic is its core responsibility. It slices the main DataFrame into expanding windows and passes them to the pipeline for each time step. |
+| **Orchestrator** | The brain. Manages the primary application modes (`backtest`, `generate-report`). In `backtest` mode, it runs the walk-forward loop. In `generate-report` mode, it runs a point-in-time check on the latest data. | CLI arguments (`mode`, `config_path`). | `Trade` or `Opportunity` objects; report files to the filesystem. | FR7, FR8 | Its core responsibilities are the `run_backtest` walk-forward loop and the efficient `generate_opportunities` point-in-time check. |
 | **Config Service** | Parses and validates `config.ini`, providing a typed configuration object (Pydantic model) to the system. | `config.ini` file path. | A `Config` data object. | NFR (Maintainability) | All thresholds (volatility, liquidity, Hurst, etc.) and parameters (lookback periods) are defined here. |
  | **Data Service** | Fetches, cleans, caches, and prepares market data. Handles Indian market specifics. | Stock symbol, sector map, date range. | A `pandas` DataFrame with OHLCV, volume, and `sector_vol` columns. | **FR1** | Uses `yfinance` for equities and sector indices. Caches data in Parquet format keyed by stock and date range. Includes logic to handle Indian market holidays. |
 | **Signal Engine** | Generates preliminary mean-reversion signals based on multi-frame indicator alignment. | A `pandas` DataFrame window. | A `Signal` object (or `None`) containing entry/stop-loss targets. | **FR2** | Resamples the daily data to create weekly and monthly views. Calculates BBands and RSI on all three frames and applies the alignment logic from `project_brief.md`. |
@@ -73,7 +73,7 @@ This table maps the PRD's functional requirements directly to architectural comp
 
 ## 5. Data Flow & The Filtering Cascade
 
-This flow describes the `backtest` mode, which is the most comprehensive execution path. The `generate-report` mode is identical but runs only once on the most recent data window.
+This flow primarily describes the `backtest` mode. The `generate-report` mode follows a similar, but much more efficient, path: it calls the dedicated `Orchestrator.generate_opportunities` method, which fetches only a limited recent data window (e.g., 365 days) and runs the entire validation pipeline on only the single most recent data point. It does not perform a walk-forward loop.
 
 1.  **Initialization:** The `Orchestrator` is invoked. It loads the configuration via `ConfigService`, which includes the list of Nifty 500 stocks and all system parameters.
 

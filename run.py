@@ -1,53 +1,25 @@
-#!/usr/bin/env python
 """
-Main CLI entry point for the Praxis Engine.
+Main entry point for the Praxis Engine application.
+
+This script is responsible for:
+1. Loading environment variables from the .env file.
+2. Setting up the Typer CLI application.
 """
+from pathlib import Path
 import typer
 from dotenv import load_dotenv
 
-from praxis_engine import main
+# --- Application Startup ---
+# Load environment variables FIRST, before any application code is imported.
+# Explicitly provide the path to the .env file to avoid ambiguity.
+dotenv_path = Path('.env')
+load_dotenv(dotenv_path=dotenv_path)
 
-# Load environment variables from .env file
-load_dotenv()
+# Import the application's CLI module AFTER loading the environment.
+from praxis_engine import main as cli_main
 
-app = typer.Typer(
-    name="praxis-engine",
-    help="A quantitative trading system for the Indian stock market.",
-    pretty_exceptions_show_locals=False,
-)
-
-@app.command()
-def verify_config(
-    config_path: str = typer.Option(
-        "config.ini", "--config", "-c", help="Path to config."
-    )
-) -> None:
-    """
-    Loads and verifies the configuration file.
-    """
-    main.verify_config(config_path)
-
-@app.command()
-def backtest(
-    config_path: str = typer.Option(
-        "config.ini", "--config", "-c", help="Path to config."
-    )
-) -> None:
-    """
-    Runs a backtest for stocks defined in the config file.
-    """
-    main.backtest(config_path)
-
-@app.command()
-def generate_report(
-    config_path: str = typer.Option(
-        "config.ini", "--config", "-c", help="Path to config."
-    )
-) -> None:
-    """
-    Runs the engine on the latest data to find new opportunities.
-    """
-    main.generate_report(config_path)
+# The `app` object in `cli_main` is the Typer application.
+app = cli_main.app
 
 if __name__ == "__main__":
     app()
