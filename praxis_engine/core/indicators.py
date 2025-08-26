@@ -24,7 +24,8 @@ def bbands(
     Returns:
         A pandas DataFrame with Bollinger Bands columns or None if calculation fails.
     """
-    if series.empty or len(series) < length:
+    # Calculation requires at least `length` + 1 data points to be meaningful
+    if series.empty or len(series) <= length:
         return None
 
     middle_band = series.rolling(window=length).mean()
