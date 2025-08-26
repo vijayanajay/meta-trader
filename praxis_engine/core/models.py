@@ -18,6 +18,8 @@ class StrategyParamsConfig(BaseModel):
     rsi_length: int = Field(..., gt=0)
     hurst_length: int = Field(..., gt=0)
     exit_days: int = Field(..., gt=0)
+    min_history_days: int = Field(..., gt=0)
+    liquidity_lookback_days: int = Field(..., gt=0)
 
 class FiltersConfig(BaseModel):
     sector_vol_threshold: float = Field(..., ge=0)

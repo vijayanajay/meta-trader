@@ -211,7 +211,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `execution_simulator.py` and its validation tests are implemented.
 *   **Time estimate:** 3 hours
-*   **Status:** Not Started
+*   **Status:** Implemented (Incorrectly)
 
 ---
 
@@ -239,6 +239,17 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The backtesting orchestration logic in `orchestrator.py` is implemented and tested.
 *   **Time estimate:** 4 hours
+*   **Status:** Implemented (Incorrectly)
+
+---
+
+### Task 10 - Refactor Core Backtesting Engine
+*   **Rationale:** The existing backtesting engine contains critical data leakage and lacks a cost model. The validation service is monolithic, violating the specified architecture. These issues must be fixed to ensure the scientific validity and maintainability of the system.
+*   **Items:**
+    *   Fix data leakage in `Orchestrator` and `ExecutionSimulator` by ensuring the simulator only has access to data up to the point of trade entry.
+    *   Implement the full, realistic cost model (brokerage, STT, slippage) in `ExecutionSimulator`.
+    *   Refactor the monolithic `ValidationService` into modular `Guard` classes within the `core/guards/` directory as per the architecture.
+    *   Move all magic numbers from the code (`min_history_days`, lookback periods) to `config.ini`.
 *   **Status:** Not Started
 
 ---

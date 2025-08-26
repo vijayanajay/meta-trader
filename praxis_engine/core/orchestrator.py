@@ -41,12 +41,14 @@ class Orchestrator:
             return []
 
         trades: List[Trade] = []
-        min_history_days = 200 # A reasonable minimum number of days for indicators to be stable
+        min_history_days = self.config.strategy_params.min_history_days
 
         for i in range(min_history_days, len(full_df)):
             window = full_df.iloc[0:i]
 
-            signal = self.signal_engine.generate_signal(window)
+            # The signal generation should be based on the data available at that point in time
+            signal_df = window.copy()
+            signal = self.signal_engine.generate_signal(signal_df)
             if not signal:
                 continue
 
@@ -67,9 +69,9 @@ class Orchestrator:
 
             trade = self.execution_simulator.simulate_trade(
                 stock=stock,
-                df=full_df, # Pass the full df to look into the future for exit price
+                entry_window=window,
+                full_data=full_df,
                 signal=signal,
-                entry_index=i,
                 confidence_score=confidence_score
             )
 
