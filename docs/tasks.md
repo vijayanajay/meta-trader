@@ -157,7 +157,28 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `validation_service.py` and its comprehensive tests are implemented.
 *   **Time estimate:** 4 hours
-*   **Status:** Not Started
+*   **Status:** Complete
+
+---
+
+### Task 5.1 — Verify, Fix, and Document
+
+*   **Rationale:** The codebase was ahead of the documentation. This task involves verifying the existing implementation, fixing any issues found, and bringing the documentation in sync with the code.
+*   **Items to implement:**
+    *   Fix the test suite by resolving dependency issues (`requirements.txt` vs `pyproject.toml`).
+    *   Fix failing tests by creating missing test files (`test_prompt.txt`).
+    *   Investigate and document the Typer CLI bug.
+    *   Refactor the CLI entry points for simplicity and clarity.
+*   **Tests to cover:**
+    *   N/A
+*   **Acceptance Criteria (AC):**
+    *   All tests pass without warnings.
+    *   The `backtest` command runs successfully.
+    *   The codebase is verified and documented.
+*   **Definition of Done (DoD):**
+    *   The project is in a stable, verifiable state.
+*   **Time estimate:** 2 hours
+*   **Status:** Complete
 
 ---
 

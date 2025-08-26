@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+
+  File "/app/run.py", line 8, in <module>
+    app()
+
+TypeError: Parameter.make_metavar() missing 1 required positional argument: 'ctx'

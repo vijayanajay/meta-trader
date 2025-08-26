@@ -62,9 +62,3 @@ def backtest(
             log.info(trade)
     else:
         log.info("Backtest complete. No trades were executed.")
-
-def main() -> None:
-    """
-    CLI entry point.
-    """
-    app()
