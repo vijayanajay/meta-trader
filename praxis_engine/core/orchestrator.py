@@ -24,8 +24,13 @@ class Orchestrator:
         self.data_service = DataService(config.data.cache_dir)
         self.signal_engine = SignalEngine(config.strategy_params, config.signal_logic)
         self.validation_service = ValidationService(config.filters, config.strategy_params)
-        self.llm_audit_service = LLMAuditService(config.llm)
         self.execution_simulator = ExecutionSimulator(config.cost_model)
+        self.llm_audit_service = LLMAuditService(
+            config.llm,
+            self.signal_engine,
+            self.validation_service,
+            self.execution_simulator,
+        )
 
     def run_backtest(self, stock: str, start_date: str, end_date: str) -> List[Trade]:
         """
@@ -59,9 +64,9 @@ class Orchestrator:
                 log.info(f"Signal for {stock} rejected by guardrails: {validation.reason}")
                 continue
 
-            # For now, we'll use a dummy confidence score to avoid LLM calls during dev
-            confidence_score = 0.8
-            # confidence_score = self.llm_audit_service.get_confidence_score(...)
+            confidence_score = self.llm_audit_service.get_confidence_score(
+                window, signal, validation
+            )
 
             if confidence_score < self.config.llm.confidence_threshold:
                 log.info(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")

@@ -92,3 +92,9 @@ During the initial project scaffolding, the following issues were identified and
 4.  **Poetry Environment Mismatch:** Tests were failing with `ModuleNotFoundError` even after packages were installed with `pip`. This was because the project is managed by `poetry`, which uses its own virtual environment.
     *   **Fix:** The correct dependencies were installed using `poetry install`. Commands were then run within the poetry environment using `poetry run ...`.
     *   **Lesson:** When a project uses a dependency manager like `poetry` or `pdm`, all interactions (installing, running scripts, running tests) must be done through the manager's interface (e.g., `poetry run`) to ensure the correct virtual environment and dependencies are used.
+
+## LLM Audit Service Implementation Learnings
+
+1.  **Incomplete Service Implementation:** The `LLMAuditService` was using hardcoded placeholder values for historical statistics (win_rate, profit_factor, etc.) instead of calculating them. This made the LLM audit meaningless.
+    *   **Fix:** Implemented a `_calculate_historical_performance` method within the service. This method runs a "mini-backtest" on the historical data window to compute real performance metrics, ensuring the LLM receives accurate data for its audit. This required injecting the `SignalEngine`, `ValidationService`, and `ExecutionSimulator` into the `LLMAuditService` and updating the `Orchestrator` to provide them.
+    *   **Lesson:** A service's implementation must be complete and correct before it is integrated into the main application flow. Using placeholders is acceptable during initial development, but they must be replaced with real logic to fulfill the service's contract.
