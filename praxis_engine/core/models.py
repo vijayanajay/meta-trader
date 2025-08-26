@@ -75,6 +75,19 @@ class Trade(BaseModel):
     exit_price: float
     net_return_pct: float
     confidence_score: float
+    signal: Signal # Keep track of the signal that generated the trade
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class Opportunity(BaseModel):
+    """
+    Represents a potential trade opportunity that has been validated.
+    """
+    stock: str
+    signal_date: pd.Timestamp
+    signal: Signal
+    confidence_score: float
 
     model_config = {"arbitrary_types_allowed": True}
 

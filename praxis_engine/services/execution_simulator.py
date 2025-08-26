@@ -105,4 +105,5 @@ class ExecutionSimulator:
             exit_price=exit_price,
             net_return_pct=net_return_pct,
             confidence_score=confidence_score,
+            signal=signal,
         )

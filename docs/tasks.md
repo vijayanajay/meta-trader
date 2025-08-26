@@ -312,4 +312,15 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The reporting services and the final user-facing CLI are complete and functional.
 *   **Time estimate:** 4 hours
-*   **Status:** Not Started
+*   **Status:** In Progress - *Initial implementation of `generate-report` is functionally incorrect and inefficient. Requires refactoring.*
+
+---
+
+### Task 11 - Refactor `generate-report` Functionality
+*   **Rationale:** The current `generate-report` command is an inefficient placeholder. It must be refactored to use a dedicated, efficient "live" mode in the orchestrator to align with the project's quality standards.
+*   **Items:**
+    *   Implement `Orchestrator.generate_opportunities()` to check for signals on the latest data point only.
+    *   Implement `ReportGenerator.generate_opportunities_report()` to create the formatted Markdown table.
+    *   Refactor the `generate_report` CLI function to use the new orchestrator and generator methods.
+    *   Ensure the final report is saved to the `results/` directory.
+*   **Status:** Complete
