@@ -1,27 +1,18 @@
 """
-Main CLI entry point for the Praxis Engine.
+Core command functions for the Praxis Engine CLI.
 """
+import datetime
+from pathlib import Path
+import pandas as pd
 import typer
-from dotenv import load_dotenv
 
-from praxis_engine.services.config_service import load_config
 from praxis_engine.core.logger import get_logger
-
-# Load environment variables from .env file
-load_dotenv()
+from praxis_engine.services.config_service import load_config
 
 log = get_logger(__name__)
 
-app = typer.Typer(
-    name="praxis-engine",
-    help="A quantitative trading system for the Indian stock market.",
-    pretty_exceptions_show_locals=False,
-)
 
-@app.command()
-def verify_config(
-    config_path: str = typer.Option("config.ini", "--config", "-c", help="Path to config.")
-) -> None:
+def verify_config(config_path: str) -> None:
     """
     Loads and verifies the configuration file.
     """
@@ -35,13 +26,7 @@ def verify_config(
         raise typer.Exit(code=1)
 
 
-import os
-from pathlib import Path
-
-@app.command()
-def backtest(
-    config_path: str = typer.Option("config.ini", "--config", "-c", help="Path to config."),
-) -> None:
+def backtest(config_path: str) -> None:
     """
     Runs a backtest for stocks defined in the config file.
     """
@@ -77,20 +62,15 @@ def backtest(
 
         log.info(f"Backtest report saved to {report_path}")
         log.info("\n" + report)
-
     else:
         log.info("Backtest complete. No trades were executed.")
 
 
-@app.command()
-def generate_report(
-    config_path: str = typer.Option("config.ini", "--config", "-c", help="Path to config."),
-) -> None:
+def generate_report(config_path: str) -> None:
     """
     Runs the engine on the latest data to find new opportunities.
     """
     from praxis_engine.core.orchestrator import Orchestrator
-    import datetime
 
     log.info("Loading configuration...")
     config = load_config(config_path)
@@ -100,7 +80,9 @@ def generate_report(
     # For weekly report, we are interested in the latest signals.
     # We run the "backtest" but only care about signals from the last few days.
     end_date = datetime.date.today().strftime("%Y-%m-%d")
-    start_date = (datetime.date.today() - datetime.timedelta(days=365*5)).strftime("%Y-%m-%d") # 5 years of data for context
+    start_date = (datetime.date.today() - datetime.timedelta(days=365 * 5)).strftime(
+        "%Y-%m-%d"
+    )  # 5 years of data for context
 
     all_opportunities = []
 
@@ -118,6 +100,8 @@ def generate_report(
     if all_opportunities:
         log.info("=== Weekly Opportunities Report ===")
         for opp in all_opportunities:
-            log.info(f"Stock: {opp.stock}, Entry: {opp.entry_price:.2f}, Confidence: {opp.confidence_score:.2f}")
+            log.info(
+                f"Stock: {opp.stock}, Entry: {opp.entry_price:.2f}, Confidence: {opp.confidence_score:.2f}"
+            )
     else:
         log.info("No new opportunities found in the last 7 days.")
