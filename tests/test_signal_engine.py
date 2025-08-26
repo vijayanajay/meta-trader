@@ -14,7 +14,13 @@ from praxis_engine.services.signal_engine import SignalEngine
 def strategy_params() -> StrategyParamsConfig:
     """Fixture for default strategy parameters."""
     return StrategyParamsConfig(
-        bb_length=20, bb_std=2.0, rsi_length=14, hurst_length=100, exit_days=10
+        bb_length=20,
+        bb_std=2.0,
+        rsi_length=14,
+        hurst_length=100,
+        exit_days=10,
+        min_history_days=200,
+        liquidity_lookback_days=5,
     )
 
 @pytest.fixture

@@ -74,3 +74,21 @@ During the initial project scaffolding, the following issues were identified and
 ## Task 5 Learnings
 
 1.  **Typer CLI Bug:** The CLI fails with a `TypeError: Parameter.make_metavar() missing 1 required positional argument: 'ctx'` when run with `--help`. This issue was investigated, and several refactorings of the entry point scripts (`run.py`, `praxis_engine/main.py`) were attempted. The bug persists, suggesting a deeper issue within the Typer library version or its dependencies. As the core `backtest` command works correctly, further investigation was deprioritized in favor of maintaining functional progress. The recommended way to run the application is `poetry run python run.py [COMMAND]`.
+
+## Backtesting Engine Refactoring Learnings
+
+1.  **Critical Data Leakage in Backtester:** The `Orchestrator` was passing the entire historical DataFrame (including future data) to the `ExecutionSimulator`. The simulator was then using this future data to determine entry and exit prices. This is a severe form of lookahead bias that completely invalidates backtest results.
+    *   **Fix:** The `ExecutionSimulator` was refactored to be a pure function. Its `simulate_trade` method was changed to no longer accept the full DataFrame. Instead, the `Orchestrator`, which simulates the passage of time, determines the exact entry/exit prices and dates from the full dataset and passes only these primitive values to the simulator.
+    *   **Lesson:** The component responsible for simulating trade execution *must* be isolated from future data. Its API should enforce this by only accepting the data available at the moment of the trade. The orchestrator/backtest loop is the only component that should have access to the full timeline.
+
+2.  **Incorrect Cost Model Implementation:** The `ExecutionSimulator`'s cost model did not match the PRD specifications. Brokerage was calculated with `min()` instead of `max()`, and the STT rate was incorrect. Furthermore, all cost parameters were hardcoded ("magic numbers").
+    *   **Fix:** The cost calculations were corrected to match the PRD. All cost-related magic numbers were moved to a new `[cost_model]` section in `config.ini` and loaded via a corresponding `CostModelConfig` Pydantic model. The `ExecutionSimulator` was updated to receive this config during initialization.
+    *   **Lesson:** All strategy and environment parameters, including cost models, must be centralized in a configuration file. This prevents magic numbers, makes the system easier to audit and modify, and enforces the "Configuration is Centralized and Immutable" rule (`[H-10]`).
+
+3.  **Brittle Test Fixtures:** The test suite had multiple failures due to Pydantic `ValidationError`s. Test fixtures were creating model instances without providing all required fields, because the models had been updated since the tests were written.
+    *   **Fix:** All test fixtures that create Pydantic models were updated to provide all required fields, resolving the validation errors. The mock config data in `test_config_service.py` was also updated.
+    *   **Lesson:** When using Pydantic models for configuration and data structures, the test suite must be kept in sync with model changes. A failing test due to a missing required field is a feature, not a bug, as it correctly identifies that a component's data contract has changed.
+
+4.  **Poetry Environment Mismatch:** Tests were failing with `ModuleNotFoundError` even after packages were installed with `pip`. This was because the project is managed by `poetry`, which uses its own virtual environment.
+    *   **Fix:** The correct dependencies were installed using `poetry install`. Commands were then run within the poetry environment using `poetry run ...`.
+    *   **Lesson:** When a project uses a dependency manager like `poetry` or `pdm`, all interactions (installing, running scripts, running tests) must be done through the manager's interface (e.g., `poetry run`) to ensure the correct virtual environment and dependencies are used.

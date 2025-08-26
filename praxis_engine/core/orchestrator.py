@@ -25,7 +25,7 @@ class Orchestrator:
         self.signal_engine = SignalEngine(config.strategy_params, config.signal_logic)
         self.validation_service = ValidationService(config.filters, config.strategy_params)
         self.llm_audit_service = LLMAuditService(config.llm)
-        self.execution_simulator = ExecutionSimulator()
+        self.execution_simulator = ExecutionSimulator(config.cost_model)
 
     def run_backtest(self, stock: str, start_date: str, end_date: str) -> List[Trade]:
         """
@@ -43,16 +43,16 @@ class Orchestrator:
         trades: List[Trade] = []
         min_history_days = self.config.strategy_params.min_history_days
 
-        for i in range(min_history_days, len(full_df)):
+        for i in range(min_history_days, len(full_df) - 1): # -1 to ensure there's a next day for entry
             window = full_df.iloc[0:i]
+            signal_date = window.index[-1]
 
             # The signal generation should be based on the data available at that point in time
-            signal_df = window.copy()
-            signal = self.signal_engine.generate_signal(signal_df)
+            signal = self.signal_engine.generate_signal(window.copy())
             if not signal:
                 continue
 
-            log.info(f"Preliminary signal found for {stock} on {window.index[-1].date()}")
+            log.info(f"Preliminary signal found for {stock} on {signal_date.date()}")
 
             validation = self.validation_service.validate(window, signal)
             if not validation.is_valid:
@@ -67,12 +67,32 @@ class Orchestrator:
                 log.info(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
                 continue
 
+            # --- DATA LEAKAGE FIX: Determine trade parameters inside the loop ---
+            # The orchestrator is allowed to "see the future" relative to the window,
+            # because it simulates the passage of time. The simulator is not.
+
+            entry_date_actual = full_df.index[i]
+            entry_price = full_df.iloc[i]["Open"]
+            entry_volume = full_df.iloc[i]["Volume"]
+
+            exit_date_target_index = i + signal.exit_target_days
+            if exit_date_target_index >= len(full_df):
+                # If exit is beyond the dataset, exit on the last day
+                exit_date_actual = full_df.index[-1]
+                exit_price = full_df.iloc[-1]["Close"]
+            else:
+                exit_date_actual = full_df.index[exit_date_target_index]
+                exit_price = full_df.iloc[exit_date_target_index]["Close"]
+
             trade = self.execution_simulator.simulate_trade(
                 stock=stock,
-                entry_window=window,
-                full_data=full_df,
+                entry_price=entry_price,
+                exit_price=exit_price,
+                entry_date=entry_date_actual,
+                exit_date=exit_date_actual,
                 signal=signal,
-                confidence_score=confidence_score
+                confidence_score=confidence_score,
+                entry_volume=entry_volume
             )
 
             if trade:

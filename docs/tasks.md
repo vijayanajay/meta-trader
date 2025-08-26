@@ -211,7 +211,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   `execution_simulator.py` and its validation tests are implemented.
 *   **Time estimate:** 3 hours
-*   **Status:** Implemented (Incorrectly)
+*   **Status:** Complete
 
 ---
 
@@ -239,7 +239,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The backtesting orchestration logic in `orchestrator.py` is implemented and tested.
 *   **Time estimate:** 4 hours
-*   **Status:** Implemented (Incorrectly)
+*   **Status:** Complete
 
 ---
 
@@ -250,7 +250,7 @@ This document provides a detailed, sequential list of tasks required to build th
     *   Implement the full, realistic cost model (brokerage, STT, slippage) in `ExecutionSimulator`.
     *   Refactor the monolithic `ValidationService` into modular `Guard` classes within the `core/guards/` directory as per the architecture.
     *   Move all magic numbers from the code (`min_history_days`, lookback periods) to `config.ini`.
-*   **Status:** Not Started
+*   **Status:** Complete
 
 ---
 
