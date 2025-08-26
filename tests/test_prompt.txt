@@ -1,0 +1,6 @@
+Confidence score for:
+- Win rate: {{ win_rate }}
+- Profit factor: {{ profit_factor }}
+- Sample size: {{ sample_size }}
+- Sector volatility: {{ sector_vol }}
+- Hurst exponent: {{ hurst_exponent }}
