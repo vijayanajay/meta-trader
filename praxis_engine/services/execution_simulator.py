@@ -20,6 +20,25 @@ class ExecutionSimulator:
     def __init__(self, cost_model: CostModelConfig):
         self.cost_model = cost_model
 
+    def calculate_net_return(self, entry_price: float, exit_price: float, volume: float) -> float:
+        """
+        Calculates the net return after applying the full cost model.
+        This method is pure and can be used by other services.
+        """
+        entry_price_with_slippage = entry_price * (1 + self.cost_model.slippage_pct)
+        exit_price_with_slippage = exit_price * (1 - self.cost_model.slippage_pct)
+
+        entry_cost_per_share = self._calculate_costs(entry_price_with_slippage)
+        exit_cost_per_share = self._calculate_costs(exit_price_with_slippage)
+
+        final_entry_price = entry_price_with_slippage + entry_cost_per_share
+        final_exit_price = exit_price_with_slippage - exit_cost_per_share
+
+        if final_entry_price == 0:
+            return 0.0
+
+        return (final_exit_price / final_entry_price) - 1.0
+
     def _calculate_costs(self, trade_value: float) -> float:
         """
         Calculates brokerage and STT for a single transaction (entry or exit).

@@ -260,29 +260,32 @@ This document provides a detailed, sequential list of tasks required to build th
 
 ---
 
-### Task 8 — Local LLM Audit Service
+### Task 8 — LLM Audit Service with OpenRouter
 
-*   **Rationale:** To integrate the LLM in its narrowly defined role: a statistical auditor. This service will be responsible for all communication with the local LLM, strictly enforcing the "no price data" rule.
+*   **Rationale:** To integrate the LLM in its narrowly defined role: a statistical auditor. This service will be responsible for all communication with the LLM, strictly enforcing the "no price data" rule.
 *   **Items to implement:**
-    *   Add `ollama` to `requirements.txt`.
+    *   Add `openai` to dependencies (used to connect to OpenRouter).
+    *   Create `.env` file with OpenRouter API key.
     *   Create `prompts/statistical_auditor.txt` with the Jinja2 template for the prompt, as specified in the PRD.
     *   Implement `services/llm_audit_service.py` with an `LLMAuditService` class.
     *   The `get_confidence_score(df_window, signal)` method must:
         1.  Calculate the required historical statistics from the `df_window` (win rate, profit factor, sample size).
         2.  Render the prompt template with these statistics.
-        3.  Call the local Ollama instance with the prompt.
+        3.  Call the OpenRouter API (using the `openai` client) with the prompt.
         4.  Parse the response, ensuring it's a valid float between 0.0 and 1.0. Handle errors gracefully by returning 0.0 if the response is malformed.
+    *   Refactor the service to fix a data leakage issue in the historical performance calculation.
 *   **Tests to cover:**
     *   Create `tests/test_llm_audit_service.py`.
-    *   Mock the `ollama.chat` client. Verify that the service constructs the correct prompt string from a sample data window.
+    *   Mock the `openai` client. Verify that the service constructs the correct prompt string from a sample data window.
     *   Test the response parsing for valid floats, invalid text, and out-of-range numbers.
+    *   Test the historical performance calculation logic.
 *   **Acceptance Criteria (AC):**
-    *   The service can query the local LLM with a correctly formatted, statistics-only prompt.
+    *   The service can query the OpenRouter API with a correctly formatted, statistics-only prompt.
     *   It robustly handles and sanitizes the LLM's response.
 *   **Definition of Done (DoD):**
-    *   `llm_audit_service.py` and its tests are implemented.
+    *   `llm_audit_service.py` and its tests are implemented and verified.
 *   **Time estimate:** 3.5 hours
-*   **Status:** In-progress
+*   **Status:** Complete
 
 ---
 
