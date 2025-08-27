@@ -1,25 +1,20 @@
-"""
-Main entry point for the Praxis Engine application.
+from praxis_engine import ConfigService, Orchestrator, Config
 
-This script is responsible for:
-1. Loading environment variables from the .env file.
-2. Setting up the Typer CLI application.
-"""
-from pathlib import Path
-import typer
-from dotenv import load_dotenv
+# Load the configuration
+config_service = ConfigService("config.ini")
+config: Config = config_service.load_config()
 
-# --- Application Startup ---
-# Load environment variables FIRST, before any application code is imported.
-# Explicitly provide the path to the .env file to avoid ambiguity.
-dotenv_path = Path('.env')
-load_dotenv(dotenv_path=dotenv_path)
+# Create an orchestrator
+orchestrator = Orchestrator(config)
 
-# Import the application's CLI module AFTER loading the environment.
-from praxis_engine import main as cli_main
+# Run a backtest for a single stock
+stock_to_backtest = "RELIANCE.NS"  # Example stock
+trades = orchestrator.run_backtest(
+    stock=stock_to_backtest,
+    start_date=config.data.start_date,
+    end_date=config.data.end_date,
+)
 
-# The `app` object in `cli_main` is the Typer application.
-app = cli_main.app
-
-if __name__ == "__main__":
-    app()
+# Print the trades
+for trade in trades:
+    print(trade)

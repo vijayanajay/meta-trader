@@ -28,6 +28,7 @@ class FiltersConfig(BaseModel):
     hurst_threshold: float = Field(..., ge=0, le=1)
 
 class LLMConfig(BaseModel):
+    provider: str
     confidence_threshold: float = Field(..., ge=0, le=1)
     model: str
     prompt_template_path: str

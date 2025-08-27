@@ -44,6 +44,7 @@ def llm_config() -> LLMConfig:
     prompt_path = Path(__file__).parent / "test_prompt.txt"
     prompt_path.write_text(PROMPT_TEMPLATE)
     return LLMConfig(
+        provider="test",
         model="test-model",
         prompt_template_path=str(prompt_path),
         confidence_threshold=0.7,
