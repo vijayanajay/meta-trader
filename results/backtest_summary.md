@@ -12,3 +12,4 @@
 | Profit Factor | 3.84 |
 | Maximum Drawdown | -19.74% |
 | Win Rate | 82.35% |
+

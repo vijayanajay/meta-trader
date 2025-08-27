@@ -3,7 +3,7 @@ import re
 from typing import Optional, Dict, Any
 import jinja2
 import pandas as pd
-from openai import OpenAI, APIConnectionError, RateLimitError
+from openai import OpenAI, APIConnectionError, RateLimitError, AuthenticationError
 
 from praxis_engine.core.models import Signal, ValidationResult, LLMConfig
 from praxis_engine.core.logger import get_logger
@@ -27,26 +27,29 @@ class LLMAuditService:
         self.config = config
         self.client = None
 
-        llm_provider = os.getenv("LLM_PROVIDER", self.config.provider)
+        self.llm_provider = os.getenv("LLM_PROVIDER", self.config.provider)
         api_key: Optional[str] = None
         base_url: Optional[str] = None
 
-        if llm_provider == "openrouter":
+        if self.llm_provider == "openrouter":
             api_key = os.getenv("OPENROUTER_API_KEY")
             base_url = os.getenv("OPENROUTER_BASE_URL")
             self.model = os.getenv("OPENROUTER_MODEL", self.config.model)
-        elif llm_provider == "openai":
+            log.debug(f"OpenRouter API key loaded: {api_key[:10]}...{api_key[-4:] if api_key else 'None'}")
+            log.debug(f"OpenRouter base URL: {base_url}")
+        elif self.llm_provider == "openai":
             api_key = os.getenv("OPENAI_API_KEY")
             self.model = self.config.model
         else:
-            log.warning(f"LLM_PROVIDER '{llm_provider}' is not supported. LLM Audit will be skipped.")
+            log.warning(f"LLM_PROVIDER '{self.llm_provider}' is not supported. LLM Audit will be skipped.")
             return
 
         if not api_key:
-            log.warning(f"API key for {llm_provider} not found in environment variables. LLM Audit will be skipped.")
+            log.warning(f"API key for {self.llm_provider} not found in environment variables. LLM Audit will be skipped.")
             return
 
         self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=30.0)
+        log.info(f"Initialized LLM client for {self.llm_provider} with base_url: {base_url}")
         self.prompt_template_path = config.prompt_template_path
 
     def _parse_llm_response(self, response: Optional[str]) -> float:
@@ -120,6 +123,12 @@ class LLMAuditService:
 
         except (APIConnectionError, RateLimitError) as e:
             log.error(f"LLM API Error: {e.__class__.__name__}. Returning score 0.")
+            return 0.0
+        except AuthenticationError as e:
+            if self.llm_provider == "openrouter":
+                log.error(f"OpenRouter API key error. Please check your OPENROUTER_API_KEY at https://openrouter.ai/keys. Returning score 0.")
+            else:
+                log.error(f"LLM API Authentication Error: {e}. Returning score 0.")
             return 0.0
         except jinja2.TemplateNotFound:
             log.error(f"Prompt template not found at {self.prompt_template_path}. Returning score 0.")

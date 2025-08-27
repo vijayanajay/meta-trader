@@ -1,6 +1,7 @@
 import typer
 from pathlib import Path
 import datetime
+from dotenv import load_dotenv
 
 from praxis_engine.core.logger import get_logger
 from praxis_engine.services.config_service import ConfigService
@@ -8,6 +9,9 @@ from praxis_engine.core.orchestrator import Orchestrator
 from praxis_engine.core.models import Config, Opportunity, Trade
 from praxis_engine.services.report_generator import ReportGenerator
 from typing import List
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize Typer app
 app = typer.Typer()
