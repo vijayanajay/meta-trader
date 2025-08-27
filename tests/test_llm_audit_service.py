@@ -103,9 +103,6 @@ def sample_dataframe() -> pd.DataFrame:
 @pytest.fixture
 def llm_audit_service(
     llm_config: LLMConfig,
-    mock_signal_engine: MagicMock,
-    mock_validation_service: MagicMock,
-    mock_execution_simulator: MagicMock,
 ) -> Generator[LLMAuditService, None, None]:
     """Fixture for an initialized LLMAuditService with a mocked OpenAI client."""
     with patch("praxis_engine.services.llm_audit_service.OpenAI") as mock_openai:
@@ -118,12 +115,7 @@ def llm_audit_service(
                 "OPENROUTER_MODEL": "test-model",
             },
         ):
-            service = LLMAuditService(
-                config=llm_config,
-                signal_engine=mock_signal_engine,
-                validation_service=mock_validation_service,
-                execution_simulator=mock_execution_simulator,
-            )
+            service = LLMAuditService(config=llm_config)
             service.mock_openai_client = mock_openai.return_value # type: ignore
             yield service
 
@@ -149,44 +141,6 @@ class TestParseLLMResponse:
         assert llm_audit_service._parse_llm_response("-0.5") == 0.0
 
 
-class TestCalculateHistoricalPerformance:
-    def test_calculates_performance_correctly(
-        self,
-        llm_audit_service: LLMAuditService,
-        mock_signal_engine: MagicMock,
-        mock_validation_service: MagicMock,
-        mock_execution_simulator: MagicMock,
-        sample_dataframe: pd.DataFrame,
-    ) -> None:
-        # Arrange
-        num_signals = 20
-        mock_signal_engine.generate_signal.side_effect = itertools.cycle(
-            [
-                Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15),
-                None,
-            ]
-        )
-        mock_validation_service.validate.return_value = ValidationResult(is_valid=True)
-        mock_execution_simulator.calculate_net_return.side_effect = [0.05] * 10 + [-0.02] * 10
-
-        # Act
-        stats = llm_audit_service._calculate_historical_performance(sample_dataframe)
-
-        # Assert
-        assert stats["sample_size"] == num_signals
-        assert stats["win_rate"] == pytest.approx(50.0)
-        assert stats["profit_factor"] == pytest.approx(2.5)
-
-    def test_no_signals_returns_zero(
-        self, llm_audit_service: LLMAuditService, mock_signal_engine: MagicMock, sample_dataframe: pd.DataFrame
-    ) -> None:
-        mock_signal_engine.generate_signal.return_value = None
-        stats = llm_audit_service._calculate_historical_performance(sample_dataframe)
-        assert stats["sample_size"] == 0
-        assert stats["win_rate"] == 0.0
-        assert stats["profit_factor"] == 0.0
-
-
 class TestGetConfidenceScore:
     def test_success_case(
         self, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame
@@ -197,19 +151,19 @@ class TestGetConfidenceScore:
         mock_completion.choices[0].message.content = "0.85"
         mock_client.chat.completions.create.return_value = mock_completion
 
-        with patch.object(llm_audit_service, "_calculate_historical_performance") as mock_perf:
-            mock_perf.return_value = {"win_rate": 60.0, "profit_factor": 2.5, "sample_size": 10}
-            # Act
-            score = llm_audit_service.get_confidence_score(
-                df_window=sample_dataframe,
-                signal=Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15),
-                validation=ValidationResult(is_valid=True),
-            )
-            # Assert
-            assert score == 0.85
-            prompt = mock_client.chat.completions.create.call_args[1]["messages"][0]["content"]
-            assert "60.0" in prompt
-            assert "2.50" in prompt
+        historical_stats = {"win_rate": 60.0, "profit_factor": 2.5, "sample_size": 10}
+
+        # Act
+        score = llm_audit_service.get_confidence_score(
+            historical_stats=historical_stats,
+            df_window=sample_dataframe,
+            signal=Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15),
+        )
+        # Assert
+        assert score == 0.85
+        prompt = mock_client.chat.completions.create.call_args[1]["messages"][0]["content"]
+        assert "60.0" in prompt
+        assert "2.50" in prompt
 
     def test_api_error_returns_zero(
         self, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame
@@ -219,9 +173,9 @@ class TestGetConfidenceScore:
         mock_client.chat.completions.create.side_effect = Exception("API Error")
         # Act
         score = llm_audit_service.get_confidence_score(
+            historical_stats={},
             df_window=sample_dataframe,
             signal=Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15),
-            validation=ValidationResult(is_valid=True),
         )
         # Assert
         assert score == 0.0

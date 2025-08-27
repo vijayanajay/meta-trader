@@ -9,11 +9,13 @@ from praxis_engine.services.execution_simulator import ExecutionSimulator
 def cost_model_config() -> CostModelConfig:
     """Provides a sample cost model configuration."""
     return CostModelConfig(
-        brokerage_rate=0.0003,  # 0.03%
+        brokerage_rate=0.0003,
         brokerage_max=20.0,
-        stt_rate=0.00025,      # 0.025%
-        slippage_impact_factor=0.1,
+        stt_rate=0.00025,
         assumed_trade_value_inr=100000,
+        slippage_volume_threshold=1000000,
+        slippage_rate_high_liquidity=0.001,
+        slippage_rate_low_liquidity=0.005,
     )
 
 @pytest.fixture
@@ -35,35 +37,28 @@ def sample_signal() -> Signal:
 def test_simulate_trade_profit(execution_simulator: ExecutionSimulator, sample_signal: Signal) -> None:
     """
     Tests a profitable trade scenario with the new cost model.
-    Entry: 100, Exit: 110
+    Entry: 100, Exit: 110. This is a low liquidity scenario.
     """
     entry_price = 100.0
     exit_price = 110.0
-    daily_volume = 100000
+    daily_volume = 500000  # Below the 1M threshold
 
     # --- Manual Calculation ---
     cm = execution_simulator.cost_model
+    slippage_rate = cm.slippage_rate_low_liquidity
 
     # Slippage
-    trade_volume_entry = cm.assumed_trade_value_inr / entry_price
-    volume_share_entry = trade_volume_entry / daily_volume
-    slippage_pct_entry = cm.slippage_impact_factor * math.sqrt(volume_share_entry)
-    entry_slippage = entry_price * slippage_pct_entry
-
-    # Assuming exit volume is the same for manual calculation
-    trade_volume_exit = cm.assumed_trade_value_inr / exit_price
-    volume_share_exit = trade_volume_exit / daily_volume
-    slippage_pct_exit = cm.slippage_impact_factor * math.sqrt(volume_share_exit)
-    exit_slippage = exit_price * slippage_pct_exit
+    entry_slippage = entry_price * slippage_rate
+    exit_slippage = exit_price * slippage_rate
 
     # Entry
     entry_price_adj = entry_price + entry_slippage
-    entry_costs = min(cm.brokerage_rate * entry_price_adj, cm.brokerage_max) + (cm.stt_rate * entry_price_adj)
+    entry_costs = execution_simulator._calculate_costs(entry_price_adj)
     final_entry_price = entry_price_adj + entry_costs
 
     # Exit
     exit_price_adj = exit_price - exit_slippage
-    exit_costs = min(cm.brokerage_rate * exit_price_adj, cm.brokerage_max) + (cm.stt_rate * exit_price_adj)
+    exit_costs = execution_simulator._calculate_costs(exit_price_adj)
     final_exit_price = exit_price_adj - exit_costs
 
     expected_return = (final_exit_price / final_entry_price) - 1.0
@@ -76,7 +71,7 @@ def test_simulate_trade_profit(execution_simulator: ExecutionSimulator, sample_s
         exit_date=pd.Timestamp("2023-01-11"),
         signal=sample_signal,
         confidence_score=0.9,
-        entry_volume=daily_volume
+        entry_volume=daily_volume,
     )
 
     assert trade is not None
@@ -85,34 +80,28 @@ def test_simulate_trade_profit(execution_simulator: ExecutionSimulator, sample_s
 def test_simulate_trade_loss(execution_simulator: ExecutionSimulator, sample_signal: Signal) -> None:
     """
     Tests a losing trade scenario with the new cost model.
-    Entry: 100, Exit: 90
+    Entry: 100, Exit: 90. This is a high liquidity scenario.
     """
     entry_price = 100.0
     exit_price = 90.0
-    daily_volume = 100000
+    daily_volume = 2000000  # Above the 1M threshold
 
     # --- Manual Calculation ---
     cm = execution_simulator.cost_model
+    slippage_rate = cm.slippage_rate_high_liquidity
 
     # Slippage
-    trade_volume_entry = cm.assumed_trade_value_inr / entry_price
-    volume_share_entry = trade_volume_entry / daily_volume
-    slippage_pct_entry = cm.slippage_impact_factor * math.sqrt(volume_share_entry)
-    entry_slippage = entry_price * slippage_pct_entry
-
-    trade_volume_exit = cm.assumed_trade_value_inr / exit_price
-    volume_share_exit = trade_volume_exit / daily_volume
-    slippage_pct_exit = cm.slippage_impact_factor * math.sqrt(volume_share_exit)
-    exit_slippage = exit_price * slippage_pct_exit
+    entry_slippage = entry_price * slippage_rate
+    exit_slippage = exit_price * slippage_rate
 
     # Entry
     entry_price_adj = entry_price + entry_slippage
-    entry_costs = min(cm.brokerage_rate * entry_price_adj, cm.brokerage_max) + (cm.stt_rate * entry_price_adj)
+    entry_costs = execution_simulator._calculate_costs(entry_price_adj)
     final_entry_price = entry_price_adj + entry_costs
 
     # Exit
     exit_price_adj = exit_price - exit_slippage
-    exit_costs = min(cm.brokerage_rate * exit_price_adj, cm.brokerage_max) + (cm.stt_rate * exit_price_adj)
+    exit_costs = execution_simulator._calculate_costs(exit_price_adj)
     final_exit_price = exit_price_adj - exit_costs
 
     expected_return = (final_exit_price / final_entry_price) - 1.0
@@ -125,7 +114,7 @@ def test_simulate_trade_loss(execution_simulator: ExecutionSimulator, sample_sig
         exit_date=pd.Timestamp("2023-01-11"),
         signal=sample_signal,
         confidence_score=0.9,
-        entry_volume=daily_volume
+        entry_volume=daily_volume,
     )
 
     assert trade is not None

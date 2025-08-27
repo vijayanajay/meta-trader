@@ -11,9 +11,7 @@ from openai import OpenAI, APIConnectionError, RateLimitError
 from praxis_engine.core.models import Signal, ValidationResult, LLMConfig
 from praxis_engine.core.logger import get_logger
 from praxis_engine.core.statistics import hurst_exponent
-from praxis_engine.services.signal_engine import SignalEngine
-from praxis_engine.services.validation_service import ValidationService
-from praxis_engine.services.execution_simulator import ExecutionSimulator
+from praxis_engine.core.statistics import hurst_exponent
 
 log = get_logger(__name__)
 
@@ -26,17 +24,11 @@ class LLMAuditService:
     def __init__(
         self,
         config: LLMConfig,
-        signal_engine: SignalEngine,
-        validation_service: ValidationService,
-        execution_simulator: ExecutionSimulator,
     ) -> None:
         """
         Initializes the LLMAuditService.
         """
         self.config = config
-        self.signal_engine = signal_engine
-        self.validation_service = validation_service
-        self.execution_simulator = execution_simulator
 
         llm_provider = os.getenv("LLM_PROVIDER", "openai")
         api_key: Optional[str] = None
@@ -55,59 +47,6 @@ class LLMAuditService:
 
         self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=30.0)
         self.prompt_template_path = config.prompt_template_path
-
-    def _calculate_historical_performance(
-        self, df_window: pd.DataFrame
-    ) -> Dict[str, Any]:
-        """
-        Runs a mini-backtest on the historical window to get performance stats.
-        This method contains the simulation logic to avoid data leakage.
-        """
-        returns = []
-        min_history_days = self.signal_engine.params.min_history_days
-        exit_days = self.signal_engine.params.exit_days
-
-        for i in range(min_history_days, len(df_window) - exit_days):
-            historical_sub_window = df_window.iloc[0:i]
-            if len(historical_sub_window) < min_history_days:
-                continue
-
-            signal = self.signal_engine.generate_signal(historical_sub_window.copy())
-            if not signal:
-                continue
-
-            validation = self.validation_service.validate(historical_sub_window, signal)
-            if not validation.is_valid:
-                continue
-
-            # --- Perform cost-aware simulation for this historical trade ---
-            entry_price = df_window.iloc[i]["Open"]
-            exit_price = df_window.iloc[i + exit_days]["Close"]
-            volume = df_window.iloc[i]["Volume"]
-
-            net_return = self.execution_simulator.calculate_net_return(
-                entry_price=entry_price, exit_price=exit_price, daily_volume=volume
-            )
-            returns.append(net_return)
-
-        if not returns:
-            return {"win_rate": 0.0, "profit_factor": 0.0, "sample_size": 0}
-
-        wins = [r for r in returns if r > 0.0177]
-        losses = [r for r in returns if r <= 0]
-
-        win_rate = len(wins) / len(returns) if returns else 0.0
-
-        total_profit = sum(wins)
-        total_loss = abs(sum(losses))
-
-        profit_factor = total_profit / total_loss if total_loss > 0 else float("inf")
-
-        return {
-            "win_rate": win_rate * 100,
-            "profit_factor": profit_factor,
-            "sample_size": len(returns),
-        }
 
     def _parse_llm_response(self, response: Optional[str]) -> float:
         """
@@ -133,7 +72,10 @@ class LLMAuditService:
 
     # impure
     def get_confidence_score(
-        self, df_window: pd.DataFrame, signal: Signal, validation: ValidationResult
+        self,
+        historical_stats: Dict[str, Any],
+        signal: Signal,
+        df_window: pd.DataFrame,
     ) -> float:
         """
         Queries the LLM with a statistical summary to get a confidence score.
@@ -145,14 +87,10 @@ class LLMAuditService:
                 log.warning("Could not calculate Hurst exponent. Returning score 0.")
                 return 0.0
 
-            historical_stats = self._calculate_historical_performance(df_window)
-
             context = {
-                "win_rate": f"{historical_stats['win_rate']:.1f}",
-                "profit_factor": f"{historical_stats['profit_factor']:.2f}"
-                if historical_stats["profit_factor"] != float("inf")
-                else "Infinity",
-                "sample_size": historical_stats["sample_size"],
+                "win_rate": f"{historical_stats.get('win_rate', 0.0):.1f}",
+                "profit_factor": f"{historical_stats.get('profit_factor', 0.0):.2f}",
+                "sample_size": historical_stats.get("sample_size", 0),
                 "sector_volatility": f"{signal.sector_vol:.1f}",
                 "hurst_exponent": f"{H:.2f}",
             }

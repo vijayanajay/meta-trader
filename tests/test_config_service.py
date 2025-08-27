@@ -33,8 +33,10 @@ liquidity_lookback_days = 5
 brokerage_rate = 0.0003
 brokerage_max = 20.0
 stt_rate = 0.00025
-slippage_impact_factor = 0.1
 assumed_trade_value_inr = 100000
+slippage_volume_threshold = 1000000
+slippage_rate_high_liquidity = 0.001
+slippage_rate_low_liquidity = 0.005
 
 [filters]
 sector_vol_threshold = 25.0
@@ -86,8 +88,10 @@ liquidity_lookback_days = 5
 brokerage_rate = 0.0003
 brokerage_max = 20.0
 stt_rate = 0.00025
-slippage_impact_factor = 0.1
 assumed_trade_value_inr = 100000
+slippage_volume_threshold = 1000000
+slippage_rate_high_liquidity = 0.001
+slippage_rate_low_liquidity = 0.005
 
 [filters]
 sector_vol_threshold = 25.0
@@ -137,8 +141,10 @@ liquidity_lookback_days = 5
 brokerage_rate = 0.0003
 brokerage_max = 20.0
 stt_rate = 0.00025
-slippage_impact_factor = 0.1
 assumed_trade_value_inr = 100000
+slippage_volume_threshold = 1000000
+slippage_rate_high_liquidity = 0.001
+slippage_rate_low_liquidity = 0.005
 
 [filters]
 sector_vol_threshold = 25.0
