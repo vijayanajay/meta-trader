@@ -149,3 +149,27 @@ This document provides a detailed, sequential list of tasks required to build th
     *   Implement `generate_backtest_report` and `generate_opportunities_report` methods.
     *   Expand the Typer CLI in `main.py` with `backtest` and `generate-report` commands.
 *   **Status:** Complete. **Resolution**: The `generate-report` command was previously incorrect and inefficient. It has been refactored to be correct and consistent with the backtesting logic. The CLI is now robustly accessible via a poetry script entry point.
+
+
+### Task 11 — Implement Dynamic, Volatility-Based Exits
+
+*   **Rationale:** The current fixed 20-day exit is a blunt, arbitrary instrument. It's a magic number that ignores the single most important variable after a trade is entered: volatility. A strategy cannot be considered robust if its exit logic is static while the market is dynamic. This task replaces the fixed exit with a data-driven one based on the stock's own recent volatility (ATR), making our risk management adaptive and provably linked to market conditions. This directly addresses a key future enhancement noted in the PRD.
+*   **Items to implement:**
+    1.  In `core/indicators.py`, add a new function `atr(high_series, low_series, close_series, length)` to calculate the Average True Range.
+    2.  In `config.ini`, add a new `[exit_logic]` section. Include parameters like `use_atr_exit = True`, `atr_period = 14`, `atr_stop_loss_multiplier = 2.5`, and `max_holding_days = 40`.
+    3.  In `core/models.py`, add a corresponding `ExitLogicConfig` Pydantic model and integrate it into the main `Config` model.
+    4.  Modify the `Orchestrator.run_backtest` loop. The current logic that determines the exit (`exit_date_target_index = i + signal.exit_target_days`) must be replaced.
+    5.  After a trade is initiated at index `i`, the orchestrator must now loop forward day-by-day (up to `max_holding_days`).
+    6.  In this new inner loop, it will calculate the ATR-based trailing stop-loss for each day. The exit is triggered on the first day the low price breaches the stop-loss.
+    7.  The orchestrator will pass the determined `exit_date_actual` and `exit_price` to the `ExecutionSimulator`, whose interface will not need to change, thus preserving architectural boundaries.
+*   **Tests to cover:**
+    *   Add a test to `tests/test_indicators.py` for the new `atr` function, validating its output against a known result.
+    *   In `tests/test_orchestrator.py`, create a new integration test with a synthetic DataFrame where the price clearly hits a pre-calculated ATR stop-loss. Assert that the trade exits on the correct day and at the correct price.
+    *   Create another test where the price meanders and never hits the stop-loss. Assert that it exits on the `max_holding_days` timeout.
+*   **Acceptance Criteria (AC):**
+    *   The backtester can be configured via `config.ini` to use either the legacy fixed-day exit or the new ATR-based exit.
+    *   When the ATR exit is enabled, trades correctly exit based on hitting the trailing stop-loss or the max holding period.
+*   **Definition of Done (DoD):**
+    *   All new code is implemented, unit-tested, and integrated into the orchestrator. The `config.ini` is updated with the new section and documentation.
+*   **Time estimate:** 6 hours
+*   **Status:** Not Started
