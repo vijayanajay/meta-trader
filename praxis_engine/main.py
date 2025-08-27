@@ -26,7 +26,7 @@ def backtest(
         "-c",
         help="Path to the configuration file.",
     ),
-):
+) -> None:
     """
     Runs a backtest for stocks defined in the config file.
     """
@@ -70,7 +70,7 @@ def generate_report(
         "-c",
         help="Path to the configuration file.",
     ),
-):
+) -> None:
     """
     Generates a report of new opportunities based on the latest data.
     """

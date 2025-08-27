@@ -1,12 +1,13 @@
 """
 The main orchestrator for running backtests.
 """
-from typing import List
+from typing import List, Dict
 import pandas as pd
 
 import datetime
 from typing import Optional
 
+from praxis_engine.core.indicators import atr
 from praxis_engine.core.models import Config, Trade, Opportunity
 from praxis_engine.services.data_service import DataService
 from praxis_engine.services.signal_engine import SignalEngine
@@ -43,6 +44,18 @@ class Orchestrator:
             log.warning(f"No data found for {stock}. Skipping backtest.")
             return []
 
+        # Calculate ATR for the entire dataframe once for efficiency
+        atr_series = atr(
+            full_df["High"],
+            full_df["Low"],
+            full_df["Close"],
+            length=self.config.exit_logic.atr_period,
+        )
+        if atr_series is not None:
+            full_df = full_df.join(atr_series)
+            # Use bfill() and assign back to the column to avoid SettingWithCopyWarning
+            full_df[atr_series.name] = full_df[atr_series.name].bfill()
+
         trades: List[Trade] = []
         historical_returns: List[float] = []
         min_history_days = self.config.strategy_params.min_history_days
@@ -76,21 +89,44 @@ class Orchestrator:
                 continue
 
             # --- DATA LEAKAGE FIX: Determine trade parameters inside the loop ---
-            # The orchestrator is allowed to "see the future" relative to the window,
-            # because it simulates the passage of time. The simulator is not.
-
             entry_date_actual = full_df.index[i]
             entry_price = full_df.iloc[i]["Open"]
             entry_volume = full_df.iloc[i]["Volume"]
 
-            exit_date_target_index = i + signal.exit_target_days
-            if exit_date_target_index >= len(full_df):
-                # If exit is beyond the dataset, exit on the last day
-                exit_date_actual = full_df.index[-1]
-                exit_price = full_df.iloc[-1]["Close"]
-            else:
-                exit_date_actual = full_df.index[exit_date_target_index]
-                exit_price = full_df.iloc[exit_date_target_index]["Close"]
+            exit_date_actual = None
+            exit_price = None
+
+            atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
+            if self.config.exit_logic.use_atr_exit and atr_col_name in full_df.columns:
+                atr_at_signal = full_df.iloc[i][atr_col_name]
+                stop_loss_price = entry_price - (atr_at_signal * self.config.exit_logic.atr_stop_loss_multiplier)
+
+                max_hold = self.config.exit_logic.max_holding_days
+                # Loop to check for stop-loss breach or timeout
+                for j in range(i + 1, min(i + 1 + max_hold, len(full_df))):
+                    if full_df.iloc[j]["Low"] <= stop_loss_price:
+                        exit_date_actual = full_df.index[j]
+                        exit_price = stop_loss_price  # Exit at the exact stop price
+                        log.debug(f"ATR stop-loss triggered for {stock} on {exit_date_actual.date()}")
+                        break
+
+                # If stop was not hit, exit due to timeout
+                if exit_date_actual is None:
+                    timeout_index = min(i + max_hold, len(full_df) - 1)
+                    exit_date_actual = full_df.index[timeout_index]
+                    exit_price = full_df.iloc[timeout_index]["Close"]
+                    log.debug(f"Max hold period triggered for {stock} on {exit_date_actual.date()}")
+
+            else:  # Use legacy fixed-day exit
+                exit_date_target_index = i + signal.exit_target_days
+                if exit_date_target_index >= len(full_df):
+                    exit_date_actual = full_df.index[-1]
+                    exit_price = full_df.iloc[-1]["Close"]
+                else:
+                    exit_date_actual = full_df.index[exit_date_target_index]
+                    exit_price = full_df.iloc[exit_date_target_index]["Close"]
+
+            assert exit_date_actual is not None and exit_price is not None
 
             trade = self.execution_simulator.simulate_trade(
                 stock=stock,
@@ -111,7 +147,7 @@ class Orchestrator:
         log.info(f"Backtest for {stock} complete. Found {len(trades)} trades.")
         return trades
 
-    def _calculate_stats_from_returns(self, returns: List[float]) -> dict:
+    def _calculate_stats_from_returns(self, returns: List[float]) -> Dict[str, float | int]:
         """Calculates performance statistics from a list of returns."""
         if not returns:
             return {"win_rate": 0.0, "profit_factor": 0.0, "sample_size": 0}

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from praxis_engine.core.indicators import bbands, rsi
+from praxis_engine.core.indicators import bbands, rsi, atr
 
 
 @pytest.fixture
@@ -17,6 +17,7 @@ def sample_series() -> pd.Series:
         50.0, 51.0, 52.0, 53.0, 54.0
     ]
     return pd.Series(data, name="close")
+
 
 def test_bbands_values(sample_series: pd.Series) -> None:
     """Test the bbands function with known values."""
@@ -71,3 +72,32 @@ def test_rsi_short() -> None:
     """Test rsi with a short series."""
     short_series = pd.Series(np.random.rand(10), dtype=float)
     assert rsi(short_series, length=14) is None
+
+
+def test_atr_values() -> None:
+    """Test the atr function with known values from a manually calculated example."""
+    data = {
+        'High': [10, 12, 11, 13],
+        'Low':  [8, 9, 10, 9],
+        'Close':[9, 11, 10, 12]
+    }
+    df = pd.DataFrame(data)
+    result = atr(df["High"], df["Low"], df["Close"], length=3)
+    assert result is not None
+    assert isinstance(result, pd.Series)
+    # Manually calculated based on Wilder's smoothing:
+    # TR = [2, 3, 1, 4]
+    # ATR = [2, 2.333, 1.888, 2.59259]
+    assert np.isclose(result.iloc[-1], 2.59259, atol=1e-4)
+
+
+def test_atr_empty() -> None:
+    """Test atr with an empty series."""
+    empty_series = pd.Series([], dtype=float)
+    assert atr(empty_series, empty_series, empty_series) is None
+
+
+def test_atr_short() -> None:
+    """Test atr with a short series."""
+    short_series = pd.Series(np.random.rand(10), dtype=float)
+    assert atr(short_series, short_series, short_series, length=14) is None

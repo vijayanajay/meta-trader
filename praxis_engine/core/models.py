@@ -42,6 +42,13 @@ class CostModelConfig(BaseModel):
     slippage_rate_high_liquidity: float = Field(..., ge=0)
     slippage_rate_low_liquidity: float = Field(..., ge=0)
 
+
+class ExitLogicConfig(BaseModel):
+    use_atr_exit: bool
+    atr_period: int = Field(..., gt=0)
+    atr_stop_loss_multiplier: float = Field(..., gt=0)
+    max_holding_days: int = Field(..., gt=0)
+
 class SignalLogicConfig(BaseModel):
     require_daily_oversold: bool
     require_weekly_oversold: bool
@@ -105,3 +112,4 @@ class Config(BaseModel):
     signal_logic: SignalLogicConfig
     llm: LLMConfig
     cost_model: CostModelConfig
+    exit_logic: ExitLogicConfig

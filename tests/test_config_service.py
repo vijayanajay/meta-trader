@@ -52,6 +52,12 @@ require_daily_oversold = true
 require_weekly_oversold = true
 require_monthly_not_oversold = true
 rsi_threshold = 30
+
+[exit_logic]
+use_atr_exit = false
+atr_period = 10
+atr_stop_loss_multiplier = 2.0
+max_holding_days = 25
 """
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)
@@ -63,6 +69,7 @@ rsi_threshold = 30
     assert config.strategy_params.bb_length == 10
     assert config.filters.sector_vol_threshold == 25.0
     assert config.llm.model == "test/model"
+    assert config.exit_logic.use_atr_exit is False
 
 def test_load_config_missing_key(tmp_path: Path) -> None:
     """
@@ -111,6 +118,12 @@ require_daily_oversold = true
 require_weekly_oversold = true
 require_monthly_not_oversold = true
 rsi_threshold = 30
+
+[exit_logic]
+use_atr_exit = false
+atr_period = 10
+atr_stop_loss_multiplier = 2.0
+max_holding_days = 25
 """
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)
@@ -165,6 +178,12 @@ require_daily_oversold = true
 require_weekly_oversold = true
 require_monthly_not_oversold = true
 rsi_threshold = 30
+
+[exit_logic]
+use_atr_exit = false
+atr_period = 10
+atr_stop_loss_multiplier = 2.0
+max_holding_days = 25
 """
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)
