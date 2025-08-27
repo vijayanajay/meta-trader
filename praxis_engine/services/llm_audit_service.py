@@ -35,7 +35,6 @@ class LLMAuditService:
             api_key = os.getenv("OPENROUTER_API_KEY")
             base_url = os.getenv("OPENROUTER_BASE_URL")
             self.model = os.getenv("OPENROUTER_MODEL", self.config.model)
-            log.debug(f"OpenRouter API key loaded: {api_key[:10]}...{api_key[-4:] if api_key else 'None'}")
             log.debug(f"OpenRouter base URL: {base_url}")
         elif self.llm_provider == "openai":
             api_key = os.getenv("OPENAI_API_KEY")
@@ -47,6 +46,9 @@ class LLMAuditService:
         if not api_key:
             log.warning(f"API key for {self.llm_provider} not found in environment variables. LLM Audit will be skipped.")
             return
+
+        if self.llm_provider == "openrouter":
+            log.debug(f"OpenRouter API key loaded: {api_key[:10]}...{api_key[-4:]}")
 
         self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=30.0)
         log.info(f"Initialized LLM client for {self.llm_provider} with base_url: {base_url}")

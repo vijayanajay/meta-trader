@@ -65,3 +65,35 @@ def rsi(series: pd.Series, length: int = 14) -> Optional[pd.Series]:
     rsi_series.name = f"RSI_{length}"
 
     return rsi_series
+
+
+def atr(
+    high: pd.Series, low: pd.Series, close: pd.Series, length: int = 14
+) -> Optional[pd.Series]:
+    """
+    Calculates the Average True Range (ATR).
+
+    Args:
+        high: The high price series.
+        low: The low price series.
+        close: The closing price series.
+        length: The ATR period.
+
+    Returns:
+        A pandas Series with ATR values or None if calculation fails.
+    """
+    if high.empty or low.empty or close.empty or len(high) < length:
+        return None
+
+    prev_close = close.shift(1)
+    tr1 = high - low
+    tr2 = abs(high - prev_close)
+    tr3 = abs(low - prev_close)
+
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+    # Use Wilder's smoothing (exponential moving average with alpha = 1/length)
+    atr_series = tr.ewm(alpha=1 / length, adjust=False).mean()
+    atr_series.name = f"ATR_{length}"
+
+    return atr_series
