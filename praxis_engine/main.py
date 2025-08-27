@@ -1,47 +1,71 @@
-"""
-CLI command definitions for the Praxis Engine.
-"""
 import typer
-import praxis_engine as main_logic
+from praxis_engine.core.logger import get_logger
+from praxis_engine.services.config_service import ConfigService
+from praxis_engine.core.orchestrator import Orchestrator
+from praxis_engine.core.models import Config, Opportunity
+from praxis_engine.services.report_generator import ReportGenerator
+from typing import List
 
-app = typer.Typer(
-    name="praxis-engine",
-    help="A quantitative trading system for the Indian stock market.",
-    pretty_exceptions_show_locals=False,
-)
+# Initialize Typer app
+app = typer.Typer()
+logger = get_logger(__name__)
 
-@app.command()
-def verify_config(
-    config_path: str = typer.Option(
-        "config.ini", "--config", "-c", help="Path to config."
-    )
-) -> None:
-    """
-    Loads and verifies the configuration file.
-    """
-    main_logic.verify_config(config_path)
 
 @app.command()
 def backtest(
     config_path: str = typer.Option(
-        "config.ini", "--config", "-c", help="Path to config."
-    )
-) -> None:
+        "config.ini",
+        "--config",
+        "-c",
+        help="Path to the configuration file.",
+    ),
+):
     """
     Runs a backtest for stocks defined in the config file.
     """
-    main_logic.backtest(config_path)
+    config_service = ConfigService(config_path)
+    config: Config = config_service.load_config()
+    orchestrator = Orchestrator(config)
+    all_trades = []
+
+    for stock in config.data.stocks_to_backtest:
+        trades = orchestrator.run_backtest(
+            stock=stock,
+            start_date=config.data.start_date,
+            end_date=config.data.end_date,
+        )
+        all_trades.extend(trades)
+
+    report_generator = ReportGenerator()
+    report = report_generator.generate_backtest_report(all_trades, config.data.start_date, config.data.end_date)
+    logger.info(report)
+
 
 @app.command()
 def generate_report(
     config_path: str = typer.Option(
-        "config.ini", "--config", "-c", help="Path to config."
-    )
-) -> None:
+        "config.ini",
+        "--config",
+        "-c",
+        help="Path to the configuration file.",
+    ),
+):
     """
-    Runs the engine on the latest data to find new opportunities.
+    Generates a report based on the backtest results.
     """
-    main_logic.generate_report(config_path)
+    config_service = ConfigService(config_path)
+    config: Config = config_service.load_config()
+    orchestrator = Orchestrator(config)
+    opportunities: List[Opportunity] = []
+    for stock in config.data.stocks:
+        opportunity = orchestrator.generate_opportunities(stock)
+        if opportunity:
+            opportunities.append(opportunity)
+
+    report_generator = ReportGenerator()
+    report = report_generator.generate_opportunities_report(opportunities)
+    logger.info(report)
+
 
 if __name__ == "__main__":
     app()

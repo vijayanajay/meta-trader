@@ -122,3 +122,9 @@ During the initial project scaffolding, the following issues were identified and
 2.  **Previous Data Leakage Vulnerability:** An earlier version of the `ExecutionSimulator` contained a critical data leakage flaw where the `simulate_trade` function was passed the entire future price history to determine exits.
     *   **Fix:** The service was refactored into a pure component that receives only the necessary point-in-time data (entry/exit prices), with the `Orchestrator` being responsible for managing the timeline.
     *   **Lesson:** This is a recurring and critical theme. Services that simulate trade outcomes *must* have APIs that programmatically prevent access to future data. This architectural principle is non-negotiable for valid backtesting.
+
+## Environment Refactoring Learnings
+
+1.  **Removal of Poetry:** The project was initially set up to use Poetry for dependency management. This was causing issues and was not in line with the desired simple Python environment.
+    *   **Fix:** All Poetry-related files (`poetry.lock`, `pyproject.toml`) were removed. The project now uses a simple environment with dependencies installed via `pip`.
+    *   **Lesson:** The choice of dependency management tool should be appropriate for the project's needs and the user's preferences. A simple `pip` and `requirements.txt` (or in this case, just `pip install`) can be more straightforward for smaller projects or when explicit user preference is stated.

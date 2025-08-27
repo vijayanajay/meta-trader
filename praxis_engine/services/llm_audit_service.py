@@ -1,6 +1,3 @@
-"""
-Service for interacting with the LLM to audit statistical summaries.
-"""
 import os
 import re
 from typing import Optional, Dict, Any
@@ -10,7 +7,6 @@ from openai import OpenAI, APIConnectionError, RateLimitError
 
 from praxis_engine.core.models import Signal, ValidationResult, LLMConfig
 from praxis_engine.core.logger import get_logger
-from praxis_engine.core.statistics import hurst_exponent
 from praxis_engine.core.statistics import hurst_exponent
 
 log = get_logger(__name__)
@@ -29,8 +25,9 @@ class LLMAuditService:
         Initializes the LLMAuditService.
         """
         self.config = config
+        self.client = None
 
-        llm_provider = os.getenv("LLM_PROVIDER", "openai")
+        llm_provider = os.getenv("LLM_PROVIDER", self.config.provider)
         api_key: Optional[str] = None
         base_url: Optional[str] = None
 
@@ -38,12 +35,16 @@ class LLMAuditService:
             api_key = os.getenv("OPENROUTER_API_KEY")
             base_url = os.getenv("OPENROUTER_BASE_URL")
             self.model = os.getenv("OPENROUTER_MODEL", self.config.model)
-        else:
+        elif llm_provider == "openai":
             api_key = os.getenv("OPENAI_API_KEY")
             self.model = self.config.model
+        else:
+            log.warning(f"LLM_PROVIDER '{llm_provider}' is not supported. LLM Audit will be skipped.")
+            return
 
         if not api_key:
-            raise ValueError(f"API key for {llm_provider} not found in environment variables.")
+            log.warning(f"API key for {llm_provider} not found in environment variables. LLM Audit will be skipped.")
+            return
 
         self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=30.0)
         self.prompt_template_path = config.prompt_template_path
@@ -81,6 +82,8 @@ class LLMAuditService:
         Queries the LLM with a statistical summary to get a confidence score.
         Adheres to H-7 (Side Effects Must Be Labeled).
         """
+        if not self.client:
+            return self.config.confidence_threshold # Default score if LLM is not configured
         try:
             H = hurst_exponent(df_window["Close"])
             if H is None:
