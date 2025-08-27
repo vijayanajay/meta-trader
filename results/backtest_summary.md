@@ -7,8 +7,8 @@
 ### Key Performance Indicators
 | Metric | Value |
 | --- | --- |
-| Net Annualized Return | -67.26% |
-| Sharpe Ratio | -1.51 |
-| Profit Factor | 0.00 |
-| Maximum Drawdown | -99.62% |
-| Win Rate | 0.00% |
+| Net Annualized Return | 11.92% |
+| Sharpe Ratio | 0.81 |
+| Profit Factor | 3.84 |
+| Maximum Drawdown | -19.74% |
+| Win Rate | 82.35% |

@@ -1,20 +1,11 @@
-from praxis_engine import ConfigService, Orchestrator, Config
+#!/usr/bin/env python
+import sys
+from pathlib import Path
 
-# Load the configuration
-config_service = ConfigService("config.ini")
-config: Config = config_service.load_config()
+# Add the project root to the python path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-# Create an orchestrator
-orchestrator = Orchestrator(config)
+from praxis_engine.main import app
 
-# Run a backtest for a single stock
-stock_to_backtest = "RELIANCE.NS"  # Example stock
-trades = orchestrator.run_backtest(
-    stock=stock_to_backtest,
-    start_date=config.data.start_date,
-    end_date=config.data.end_date,
-)
-
-# Print the trades
-for trade in trades:
-    print(trade)
+if __name__ == "__main__":
+    app()
