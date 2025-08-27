@@ -40,7 +40,7 @@ class ReportGenerator:
 """
         return report
 
-    def _calculate_kpis(self, trades: List[Trade], start_date: str, end_date: str) -> dict:
+    def _calculate_kpis(self, trades: List[Trade], start_date: str, end_date: str) -> dict[str, float]:
         """
         Calculates the key performance indicators for the backtest.
         """
@@ -61,7 +61,7 @@ class ReportGenerator:
         full_date_range = pd.to_datetime(pd.date_range(start=start_date, end=end_date))
 
         # Create a daily portfolio return series
-        daily_returns = pd.Series(0, index=full_date_range)
+        daily_returns = pd.Series(0.0, index=full_date_range, dtype="float64")
         # This is a simplification. A real implementation would allocate capital.
         # For now, we assume each trade uses an equal portion of capital,
         # so the daily return is the average of returns on that day.

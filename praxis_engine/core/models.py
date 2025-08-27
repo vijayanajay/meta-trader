@@ -34,9 +34,10 @@ class LLMConfig(BaseModel):
 
 class CostModelConfig(BaseModel):
     brokerage_rate: float = Field(..., ge=0)
-    brokerage_min: float = Field(..., ge=0)
+    brokerage_max: float = Field(..., ge=0)
     stt_rate: float = Field(..., ge=0)
-    slippage_pct: float = Field(..., ge=0)
+    slippage_impact_factor: float = Field(..., ge=0)
+    assumed_trade_value_inr: float = Field(..., ge=0)
 
 class SignalLogicConfig(BaseModel):
     require_daily_oversold: bool

@@ -86,7 +86,7 @@ class LLMAuditService:
             volume = df_window.iloc[i]["Volume"]
 
             net_return = self.execution_simulator.calculate_net_return(
-                entry_price=entry_price, exit_price=exit_price, volume=volume
+                entry_price=entry_price, exit_price=exit_price, daily_volume=volume
             )
             returns.append(net_return)
 

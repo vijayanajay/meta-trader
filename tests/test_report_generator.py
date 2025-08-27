@@ -53,7 +53,7 @@ def sample_trades() -> List[Trade]:
     return trades
 
 
-def test_generate_backtest_report_no_trades():
+def test_generate_backtest_report_no_trades() -> None:
     """
     Tests that the report generator handles the case with no trades.
     """
@@ -62,7 +62,7 @@ def test_generate_backtest_report_no_trades():
     assert "No trades were executed" in report
 
 
-def test_calculate_kpis_with_sample_data(sample_trades):
+def test_calculate_kpis_with_sample_data(sample_trades: List[Trade]) -> None:
     """
     Tests the KPI calculations with a sample set of trades.
     """
