@@ -58,10 +58,9 @@ class ExecutionSimulator:
 
     def _calculate_slippage(self, price: float, daily_volume: float) -> float:
         """
-        Calculates the slippage cost per share based on a market impact model.
-
-        Slippage is modeled as a function of the trade's size relative to the
-        total daily volume, making it non-linear.
+        Calculates the slippage cost per share based on a tiered model.
+        This implements the slippage model defined in architecture.md.
+        Handles the case of zero volume, which makes a trade impossible.
 
         Args:
             price: The execution price before slippage.
@@ -70,23 +69,15 @@ class ExecutionSimulator:
         Returns:
             The estimated slippage cost per share.
         """
-        if daily_volume == 0 or price == 0:
-            # Cannot execute if there is no volume or price, return a large slippage
-            # to make the trade unprofitable.
+        if daily_volume == 0:
+            # If volume is zero, trade is impossible. Return full price as slippage
+            # to ensure the trade results in a ~100% loss.
             return price
 
-        # TODO: Replace assumed trade value with actual position size when available
-        trade_volume = self.cost_model.assumed_trade_value_inr / price
-
-        # Ensure trade volume does not exceed daily volume
-        if trade_volume > daily_volume:
-            trade_volume = daily_volume
-
-        volume_share = trade_volume / daily_volume
-
-        # Slippage pct is a function of the share of volume traded.
-        # Using a square root to make the impact less extreme.
-        slippage_pct = self.cost_model.slippage_impact_factor * math.sqrt(volume_share)
+        if daily_volume < self.cost_model.slippage_volume_threshold:
+            slippage_pct = self.cost_model.slippage_rate_low_liquidity
+        else:
+            slippage_pct = self.cost_model.slippage_rate_high_liquidity
 
         return price * slippage_pct
 

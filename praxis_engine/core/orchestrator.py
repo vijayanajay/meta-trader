@@ -28,12 +28,7 @@ class Orchestrator:
         self.signal_engine = SignalEngine(config.strategy_params, config.signal_logic)
         self.validation_service = ValidationService(config.filters, config.strategy_params)
         self.execution_simulator = ExecutionSimulator(config.cost_model)
-        self.llm_audit_service = LLMAuditService(
-            config.llm,
-            self.signal_engine,
-            self.validation_service,
-            self.execution_simulator,
-        )
+        self.llm_audit_service = LLMAuditService(config.llm)
 
     def run_backtest(self, stock: str, start_date: str, end_date: str) -> List[Trade]:
         """
@@ -49,13 +44,13 @@ class Orchestrator:
             return []
 
         trades: List[Trade] = []
+        historical_returns: List[float] = []
         min_history_days = self.config.strategy_params.min_history_days
 
-        for i in range(min_history_days, len(full_df) - 1): # -1 to ensure there's a next day for entry
+        for i in range(min_history_days, len(full_df) - 1):  # -1 to ensure there's a next day for entry
             window = full_df.iloc[0:i]
             signal_date = window.index[-1]
 
-            # The signal generation should be based on the data available at that point in time
             signal = self.signal_engine.generate_signal(window.copy())
             if not signal:
                 continue
@@ -67,8 +62,13 @@ class Orchestrator:
                 log.info(f"Signal for {stock} rejected by guardrails: {validation.reason}")
                 continue
 
+            # Calculate historical stats from trades executed so far
+            historical_stats = self._calculate_stats_from_returns(historical_returns)
+
             confidence_score = self.llm_audit_service.get_confidence_score(
-                window, signal, validation
+                historical_stats=historical_stats,
+                signal=signal,
+                df_window=window,
             )
 
             if confidence_score < self.config.llm.confidence_threshold:
@@ -106,9 +106,29 @@ class Orchestrator:
             if trade:
                 log.info(f"Trade simulated: {trade}")
                 trades.append(trade)
+                historical_returns.append(trade.net_return_pct)
 
         log.info(f"Backtest for {stock} complete. Found {len(trades)} trades.")
         return trades
+
+    def _calculate_stats_from_returns(self, returns: List[float]) -> dict:
+        """Calculates performance statistics from a list of returns."""
+        if not returns:
+            return {"win_rate": 0.0, "profit_factor": 0.0, "sample_size": 0}
+
+        wins = [r for r in returns if r > 0.0177]  # As per PRD
+        losses = [r for r in returns if r <= 0]
+
+        win_rate = len(wins) / len(returns) if returns else 0.0
+        total_profit = sum(wins)
+        total_loss = abs(sum(losses))
+        profit_factor = total_profit / total_loss if total_loss > 0 else float("inf")
+
+        return {
+            "win_rate": win_rate * 100,
+            "profit_factor": profit_factor,
+            "sample_size": len(returns),
+        }
 
     def generate_opportunities(
         self, stock: str, lookback_days: int = 365
@@ -129,9 +149,20 @@ class Orchestrator:
             log.warning(f"Not enough data for {stock} to generate a signal.")
             return None
 
-        # Run pipeline on the most recent data point
+        # First, run a backtest on the lookback period to get historical context
+        # Note: This is computationally intensive but necessary for the LLM audit
+        log.info(f"Running lookback backtest for {stock} to gather historical stats...")
+        historical_trades = self.run_backtest(
+            stock, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")
+        )
+        historical_returns = [trade.net_return_pct for trade in historical_trades]
+        historical_stats = self._calculate_stats_from_returns(historical_returns)
+        log.info(f"Historical stats for {stock}: {historical_stats}")
+
+        # Now, check for a signal on the most recent data point
         signal = self.signal_engine.generate_signal(full_df.copy())
         if not signal:
+            log.info(f"No preliminary signal for {stock} on the latest data.")
             return None
 
         log.info(f"Preliminary signal found for {stock} on {full_df.index[-1].date()}")
@@ -142,7 +173,9 @@ class Orchestrator:
             return None
 
         confidence_score = self.llm_audit_service.get_confidence_score(
-            full_df, signal, validation
+            historical_stats=historical_stats,
+            signal=signal,
+            df_window=full_df,
         )
 
         if confidence_score < self.config.llm.confidence_threshold:
