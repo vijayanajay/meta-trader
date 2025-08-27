@@ -112,3 +112,13 @@ During the initial project scaffolding, the following issues were identified and
 3.  **Robust LLM Response Parsing:** The initial code used a naive `float(response)` to parse the LLM's output. This is brittle and would fail if the LLM returned any extra text, violating the principle of a constrained action space (`[H-25]`).
     *   **Fix:** A private helper method, `_parse_llm_response`, was implemented. It uses a regular expression to find the first floating-point number in the response string. It also includes error handling and clamps the final value between 0.0 and 1.0, ensuring the service always returns a valid score.
     *   **Lesson:** Never trust external service outputs. Always parse and validate responses from APIs, especially LLMs, to ensure they conform to the expected format. Defensive parsing prevents system failures due to unexpected or malformed responses.
+
+## Execution Simulator Refinement Learnings
+
+1.  **Inaccurate Task Documentation:** The main project task list (`docs/tasks.md`) incorrectly marked the `ExecutionSimulator` and its cost model (Tasks #6 and #10) as "Complete". However, code review revealed that the slippage model was only a placeholder (a fixed percentage) and not the volume-based model required by the PRD.
+    *   **Fix:** The task list in `docs/tasks.md` was updated to mark the relevant tasks as "In Progress" to reflect the actual state of the codebase.
+    *   **Lesson:** Documentation, especially task tracking, must be treated like code and kept rigorously in sync with the implementation. An out-of-date task list can hide significant remaining work and lead to incorrect project status assessments.
+
+2.  **Previous Data Leakage Vulnerability:** An earlier version of the `ExecutionSimulator` contained a critical data leakage flaw where the `simulate_trade` function was passed the entire future price history to determine exits.
+    *   **Fix:** The service was refactored into a pure component that receives only the necessary point-in-time data (entry/exit prices), with the `Orchestrator` being responsible for managing the timeline.
+    *   **Lesson:** This is a recurring and critical theme. Services that simulate trade outcomes *must* have APIs that programmatically prevent access to future data. This architectural principle is non-negotiable for valid backtesting.

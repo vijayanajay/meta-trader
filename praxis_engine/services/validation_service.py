@@ -2,6 +2,7 @@
 Service for validating a trade signal against a set of guardrails.
 """
 import pandas as pd
+from typing import Protocol, List
 
 from praxis_engine.core.models import Signal, FiltersConfig, ValidationResult, StrategyParamsConfig
 from praxis_engine.core.logger import get_logger
@@ -10,6 +11,14 @@ from praxis_engine.core.guards.regime_guard import RegimeGuard
 from praxis_engine.core.guards.stat_guard import StatGuard
 
 log = get_logger(__name__)
+
+
+class GuardProtocol(Protocol):
+    """
+    Defines the interface for a validation guard.
+    """
+    def validate(self, df: pd.DataFrame, signal: Signal) -> ValidationResult:
+        ...
 
 
 class ValidationService:
@@ -21,7 +30,7 @@ class ValidationService:
         """
         Initializes the validation service with all required guards.
         """
-        self.guards = [
+        self.guards: List[GuardProtocol] = [
             LiquidityGuard(filters, params),
             RegimeGuard(filters),
             StatGuard(filters, params),

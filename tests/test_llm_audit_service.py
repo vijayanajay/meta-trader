@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import itertools
+from typing import Generator
 
 from praxis_engine.services.llm_audit_service import LLMAuditService
 from praxis_engine.services.signal_engine import SignalEngine
@@ -68,19 +69,19 @@ def mock_signal_engine(strategy_params: StrategyParamsConfig) -> MagicMock:
     """Fixture for a mocked SignalEngine."""
     mock = create_autospec(SignalEngine, instance=True)
     mock.params = strategy_params
-    return mock
+    return mock # type: ignore [no-any-return]
 
 
 @pytest.fixture
 def mock_validation_service() -> MagicMock:
     """Fixture for a mocked ValidationService."""
-    return create_autospec(ValidationService, instance=True)
+    return create_autospec(ValidationService, instance=True) # type: ignore [no-any-return]
 
 
 @pytest.fixture
 def mock_execution_simulator() -> MagicMock:
     """Fixture for a mocked ExecutionSimulator."""
-    return create_autospec(ExecutionSimulator, instance=True)
+    return create_autospec(ExecutionSimulator, instance=True) # type: ignore [no-any-return]
 
 
 @pytest.fixture
@@ -105,7 +106,7 @@ def llm_audit_service(
     mock_signal_engine: MagicMock,
     mock_validation_service: MagicMock,
     mock_execution_simulator: MagicMock,
-) -> LLMAuditService:
+) -> Generator[LLMAuditService, None, None]:
     """Fixture for an initialized LLMAuditService with a mocked OpenAI client."""
     with patch("praxis_engine.services.llm_audit_service.OpenAI") as mock_openai:
         with patch.dict(
@@ -123,28 +124,28 @@ def llm_audit_service(
                 validation_service=mock_validation_service,
                 execution_simulator=mock_execution_simulator,
             )
-            service.mock_openai_client = mock_openai.return_value
+            service.mock_openai_client = mock_openai.return_value # type: ignore
             yield service
 
 
 class TestParseLLMResponse:
-    def test_parse_valid_float(self, llm_audit_service: LLMAuditService):
+    def test_parse_valid_float(self, llm_audit_service: LLMAuditService) -> None:
         assert llm_audit_service._parse_llm_response("0.75") == 0.75
 
-    def test_parse_float_with_text(self, llm_audit_service: LLMAuditService):
+    def test_parse_float_with_text(self, llm_audit_service: LLMAuditService) -> None:
         assert llm_audit_service._parse_llm_response("Confidence: 0.8") == 0.8
 
-    def test_parse_invalid_text(self, llm_audit_service: LLMAuditService):
+    def test_parse_invalid_text(self, llm_audit_service: LLMAuditService) -> None:
         assert llm_audit_service._parse_llm_response("Invalid response") == 0.0
 
-    def test_parse_empty_response(self, llm_audit_service: LLMAuditService):
+    def test_parse_empty_response(self, llm_audit_service: LLMAuditService) -> None:
         assert llm_audit_service._parse_llm_response(None) == 0.0
         assert llm_audit_service._parse_llm_response("") == 0.0
 
-    def test_clamps_above_one(self, llm_audit_service: LLMAuditService):
+    def test_clamps_above_one(self, llm_audit_service: LLMAuditService) -> None:
         assert llm_audit_service._parse_llm_response("1.5") == 1.0
 
-    def test_clamps_below_zero(self, llm_audit_service: LLMAuditService):
+    def test_clamps_below_zero(self, llm_audit_service: LLMAuditService) -> None:
         assert llm_audit_service._parse_llm_response("-0.5") == 0.0
 
 
@@ -156,7 +157,7 @@ class TestCalculateHistoricalPerformance:
         mock_validation_service: MagicMock,
         mock_execution_simulator: MagicMock,
         sample_dataframe: pd.DataFrame,
-    ):
+    ) -> None:
         # Arrange
         num_signals = 20
         mock_signal_engine.generate_signal.side_effect = itertools.cycle(
@@ -178,7 +179,7 @@ class TestCalculateHistoricalPerformance:
 
     def test_no_signals_returns_zero(
         self, llm_audit_service: LLMAuditService, mock_signal_engine: MagicMock, sample_dataframe: pd.DataFrame
-    ):
+    ) -> None:
         mock_signal_engine.generate_signal.return_value = None
         stats = llm_audit_service._calculate_historical_performance(sample_dataframe)
         assert stats["sample_size"] == 0
@@ -189,9 +190,9 @@ class TestCalculateHistoricalPerformance:
 class TestGetConfidenceScore:
     def test_success_case(
         self, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame
-    ):
+    ) -> None:
         # Arrange
-        mock_client = llm_audit_service.mock_openai_client
+        mock_client = llm_audit_service.mock_openai_client # type: ignore
         mock_completion = MagicMock()
         mock_completion.choices[0].message.content = "0.85"
         mock_client.chat.completions.create.return_value = mock_completion
@@ -212,9 +213,9 @@ class TestGetConfidenceScore:
 
     def test_api_error_returns_zero(
         self, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame
-    ):
+    ) -> None:
         # Arrange
-        mock_client = llm_audit_service.mock_openai_client
+        mock_client = llm_audit_service.mock_openai_client # type: ignore
         mock_client.chat.completions.create.side_effect = Exception("API Error")
         # Act
         score = llm_audit_service.get_confidence_score(
