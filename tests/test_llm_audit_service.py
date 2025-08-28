@@ -13,12 +13,15 @@ from praxis_engine.services.llm_audit_service import LLMAuditService
 from praxis_engine.services.signal_engine import SignalEngine
 from praxis_engine.services.validation_service import ValidationService
 from praxis_engine.services.execution_simulator import ExecutionSimulator
+from openai import AuthenticationError
+
 from praxis_engine.core.models import (
     Signal,
     ValidationResult,
     LLMConfig,
     StrategyParamsConfig,
 )
+from praxis_engine.core.exceptions import LLMConnectionError
 
 PROMPT_TEMPLATE = """
 You are a quantitative analyst AI. Your task is to provide a confidence score on a potential mean-reversion trade signal based on its historical performance characteristics.
@@ -166,17 +169,56 @@ class TestGetConfidenceScore:
         assert "60.0" in prompt
         assert "2.50" in prompt
 
-    def test_api_error_returns_zero(
+    def test_authentication_error_raises_llm_connection_error(
         self, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame
     ) -> None:
         # Arrange
         mock_client = llm_audit_service.mock_openai_client # type: ignore
-        mock_client.chat.completions.create.side_effect = Exception("API Error")
-        # Act
-        score = llm_audit_service.get_confidence_score(
-            historical_stats={},
-            df_window=sample_dataframe,
-            signal=Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15),
+        mock_client.chat.completions.create.side_effect = AuthenticationError(
+            message="Invalid API key", response=MagicMock(), body=None
         )
-        # Assert
-        assert score == 0.0
+
+        # Act & Assert
+        with pytest.raises(LLMConnectionError, match="Authentication Error"):
+            llm_audit_service.get_confidence_score(
+                historical_stats={},
+                df_window=sample_dataframe,
+                signal=Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15),
+            )
+        assert llm_audit_service.failed_calls == 1
+        assert llm_audit_service.successful_calls == 0
+
+    def test_counters_increment_correctly(
+        self, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame
+    ) -> None:
+        # Arrange
+        mock_client = llm_audit_service.mock_openai_client # type: ignore
+        mock_completion = MagicMock()
+        mock_completion.choices[0].message.content = "0.85"
+
+        # --- Success Case ---
+        mock_client.chat.completions.create.return_value = mock_completion
+        llm_audit_service.get_confidence_score(
+            historical_stats={}, df_window=sample_dataframe, signal=Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15)
+        )
+        assert llm_audit_service.successful_calls == 1
+        assert llm_audit_service.failed_calls == 0
+
+        # --- API Error Case ---
+        mock_client.chat.completions.create.side_effect = Exception("API Error")
+        with pytest.raises(Exception):
+            llm_audit_service.get_confidence_score(
+                historical_stats={}, df_window=sample_dataframe, signal=Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15)
+            )
+        assert llm_audit_service.successful_calls == 1
+        assert llm_audit_service.failed_calls == 1
+
+        # --- Parsing Error Case ---
+        mock_client.chat.completions.create.side_effect = None
+        mock_client.chat.completions.create.return_value = mock_completion
+        mock_completion.choices[0].message.content = "invalid response"
+        llm_audit_service.get_confidence_score(
+            historical_stats={}, df_window=sample_dataframe, signal=Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15)
+        )
+        assert llm_audit_service.successful_calls == 1
+        assert llm_audit_service.failed_calls == 2

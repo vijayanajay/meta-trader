@@ -159,3 +159,13 @@ A full code review identified several critical, interacting flaws in the `Orches
     *   **Issue:** The test asserted `with pytest.raises(AttributeError): _set_nested_attr(obj, "a.c", 99)`. However, Python's `setattr()` function creates the attribute if it doesn't exist, so no error is raised.
     *   **Fix:** The assertion was removed and replaced with a positive check to confirm that `setattr`'s behavior is handled correctly, as this behavior is acceptable for the function's purpose.
     *   **Lesson:** Ensure that test assertions match the actual, specified behavior of the code being tested and the underlying language features. A test can fail not because the code is wrong, but because the test's expectation is wrong.
+
+## Task 14/15 Learnings
+
+1.  **Environment Dependency Drift:** The test suite failed with `ModuleNotFoundError` for `statsmodels` and `openai`. This highlights that even with a simplified `pip`-based environment, dependencies can fall out of sync if not explicitly managed. The initial environment setup script or documentation was missing these packages.
+    *   **Fix:** The missing packages were installed manually with `pip`.
+    *   **Lesson:** The project needs a single, authoritative source of truth for dependencies. A `requirements.txt` file should be created and maintained to ensure that the development and testing environments are reproducible. This is a regression from the earlier "Poetry" era and should be rectified to adhere to `[H-8]`.
+
+2.  **Flawed Test Case for `configparser`:** A test for whitespace stripping in `ConfigService` was failing. The issue was not in the service code, but in the test itself. The test was creating a `.ini` file with quoted strings (e.g., `provider = "  value  "`). `configparser` correctly preserves the quotes, and `ast.literal_eval` then correctly evaluates the content *inside* the quotes, including the whitespace.
+    *   **Fix:** The test was corrected to use unquoted strings in the `.ini` file content (e.g., `provider =   value  `). The `ConfigService`'s logic, which strips whitespace from the unquoted value, was then able to pass the test.
+    *   **Lesson:** Tests must accurately reflect the expected input format. A flawed test can lead to unnecessary code changes and mask the real behavior of the system. Understand the behavior of the libraries being used (`configparser` in this case) before writing tests for code that wraps them.

@@ -219,3 +219,32 @@ This document provides a detailed, sequential list of tasks required to build th
     *   All new code for the CLI, orchestrator, and report generator is implemented, unit-tested, and documented. The `config.ini` is updated with a documented example of the new section.
 *   **Time estimate:** 8 hours
 *   **Status:** Done
+
+---
+
+## Epic 6: System Hardening and Usability Refinements
+
+*Goal: To improve the robustness, observability, and usability of the system based on initial feedback. This includes hardening the LLM integration, improving logging, and ensuring the system fails gracefully.*
+
+### Task 14 — Harden LLM Service Integration
+
+*   **Rationale:** The LLM is a critical external dependency. The system must be resilient to its failures and provide clear metrics on its performance. A connection failure on startup should be a fatal error, as it indicates a fundamental configuration problem.
+*   **Items to implement:**
+    1.  In `services/config_service.py`, strip whitespace from all values read from `config.ini` to prevent parsing issues like the one observed with the LLM provider.
+    2.  In `services/llm_audit_service.py`, add counters for successful and failed LLM API calls.
+    3.  Modify the exception handling in `llm_audit_service.py` to raise a custom `LLMConnectionError` on critical API failures (e.g., authentication, connection).
+    4.  Modify `main.py` to catch `LLMConnectionError` and terminate the program with a clear error message.
+    5.  Update `main.py` to log the final success/failure counts from the `LLMAuditService` at the end of each run.
+*   **Time estimate:** 2 hours
+*   **Status:** Done
+
+### Task 15 — Refactor Logging for Clarity and Debugging
+
+*   **Rationale:** The default log output should be a clean, high-level status tracker for normal runs. Detailed debug information should be available via a flag and should always be captured to a file for post-mortem analysis.
+*   **Items to implement:**
+    1.  Refactor `core/logger.py` to accept a `debug` flag.
+    2.  The console handler will show a simple format for `INFO` and a detailed format for `DEBUG`.
+    3.  A file handler will be added to write all `DEBUG`-level logs to `results/results.txt` on every run. The file should be overwritten for each run.
+    4.  Add a `--debug` flag to all CLI commands in `main.py` to control the console's log level.
+*   **Time estimate:** 2 hours
+*   **Status:** Done

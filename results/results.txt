@@ -1,0 +1,251 @@
+2025-08-28 21:20:19,761 - praxis_engine.main - INFO - LLM Audit Stats: 11 successful, 0 failed.
+2025-08-28 21:20:19,761 - praxis_engine.main - INFO - Backtest complete. No trades were executed.
+ID.NS data from cache.
+2025-08-28 21:19:02,969 - praxis_engine.services.data_service - INFO - Loading HINDUNILVR.NS data from cache.
+2025-08-28 21:19:42,075 - praxis_engine.services.data_service - INFO - Loading ITC.NS data from cache.
+ - praxis_engine.services.llm_audit_service - DEBUG - LLM Audit Prompt:
+You are a quantitative analyst AI. Your task is to provide a confidence score on a potential mean-reversion trade signal based on its historical performance characteristics.
+
+**Do not provide any explanation or commentary. Your response must be a single floating-point number between 0.0 and 1.0.**
+
+Here are the statistics for the signal on a given stock:
+- Historical Win Rate (>1.77% net return in 20 days): 0.0%
+- Historical Profit Factor: 0.00
+- Historical Sample Size (number of past signals): 0
+- Current Sector Volatility (annualized): 0.1%
+- Current Hurst Exponent: 0.43
+
+Based on these statistics, what is the confidence that this signal is not a statistical anomaly and is likely to be a profitable trade?
+
+Confidence Score:
+2025-08-28 21:18:14,925 - praxis_engine.services.llm_audit_service - DEBUG - LLM Audit Raw Response: 0.0
+2025-08-28 21:18:14,925 - praxis_engine.services.llm_audit_service - INFO - LLM Audit Parsed Score: 0.0
+2025-08-28 21:18:15,086 - praxis_engine.services.llm_audit_service - DEBUG - LLM Audit Prompt:
+You are a quantitative analyst AI. Your task is to provide a confidence score on a potential mean-reversion trade signal based on its historical performance characteristics.
+
+**Do not provide any explanation or commentary. Your response must be a single floating-point number between 0.0 and 1.0.**
+
+Here are the statistics for the signal on a given stock:
+- Historical Win Rate (>1.77% net return in 20 days): 0.0%
+- Historical Profit Factor: 0.00
+- Historical Sample Size (number of past signals): 0
+- Current Sector Volatility (annualized): 0.1%
+- Current Hurst Exponent: 0.43
+
+Based on these statistics, what is the confidence that this signal is not a statistical anomaly and is likely to be a profitable trade?
+
+Confidence Score:
+2025-08-28 21:18:16,587 - praxis_engine.services.llm_audit_service - DEBUG - LLM Audit Raw Response: 0.0
+2025-08-28 21:18:16,588 - praxis_engine.services.llm_audit_service - INFO - LLM Audit Parsed Score: 0.0
+2025-08-28 21:18:16,628 - praxis_engine.services.llm_audit_service - DEBUG - LLM Audit Prompt:
+You are a quantitative analyst AI. Your task is to provide a confidence score on a potential mean-reversion trade signal based on its historical performance characteristics.
+
+**Do not provide any explanation or commentary. Your response must be a single floating-point number between 0.0 and 1.0.**
+
+Here are the statistics for the signal on a given stock:
+- Historical Win Rate (>1.77% net return in 20 days): 0.0%
+- Historical Profit Factor: 0.00
+- Historical Sample Size (number of past signals): 0
+- Current Sector Volatility (annualized): 0.1%
+- Current Hurst Exponent: 0.43
+
+Based on these statistics, what is the confidence that this signal is not a statistical anomaly and is likely to be a profitable trade?
+
+Confidence Score:
+2025-08-28 21:18:17,704 - praxis_engine.services.llm_audit_service - DEBUG - LLM Audit Raw Response: 0.0
+2025-08-28 21:18:17,705 - praxis_engine.services.llm_audit_service - INFO - LLM Audit Parsed Score: 0.0
+2025-08-28 21:18:17,747 - praxis_engine.services.llm_audit_service - DEBUG - LLM Audit Prompt:
+You are a quantitative analyst AI. Your task is to provide a confidence score on a potential mean-reversion trade signal based on its historical performance characteristics.
+
+**Do not provide any explanation or commentary. Your response must be a single floating-point number between 0.0 and 1.0.**
+
+Here are the statistics for the signal on a given stock:
+- Historical Win Rate (>1.77% net return in 20 days): 0.0%
+- Historical Profit Fac2025-08-28 21:18:42,358 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2022-06-17. Hurst: 0.51
+2025-08-28 21:18:42,426 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2022-06-20. Hurst: 0.51
+2025-08-28 21:18:43,940 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2022-09-23. Hurst: 0.53
+2025-08-28 21:18:44,013 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2022-09-26. Hurst: 0.53
+2025-08-28 21:18:56,762 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-10-23. Hurst: 0.58
+2025-08-28 21:18:58,081 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-12-18. Hurst: 0.58
+2025-08-28 21:18:58,208 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-12-20. Hurst: 0.58
+2025-08-28 21:18:58,336 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-12-24. Hurst: 0.58
+2025-08-28 21:18:58,717 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2025-01-10. Hurst: 0.58
+2025-08-28 21:18:58,820 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2025-01-13. Hurst: 0.58
+2025-08-28 21:18:59,451 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2025-02-10. Hurst: 0.58
+2025-08-28 21:18:59,551 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2025-02-11. Hurst: 0.58
+2025-08-28 21:18:59,652 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2025-02-12. Hurst: 0.58
+2025-08-28 21:19:04,530 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2019-03-06. Hurst: 0.62
+2025-08-28 21:19:05,971 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2019-07-10. Hurst: 0.56
+2025-08-28 21:19:07,880 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2019-12-18. Hurst: 0.58
+2025-08-28 21:19:09,021 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-03-16. Hurst: 0.57
+2025-08-28 21:19:09,103 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-03-19. Hurst: 0.57
+2025-08-28 21:19:09,641 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-05-04. Hurst: 0.55
+2025-08-28 21:19:09,695 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-05-05. Hurst: 0.55
+2025-08-28 21:19:11,870 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-08-31. Hurst: 0.53
+2025-08-28 21:19:14,478 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2021-02-17. Hurst: 0.52
+2025-08-28 21:19:14,537 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2021-02-18. Hurst: 0.52
+2025-08-28 21:19:18,296 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2021-10-19. Hurst: 0.54
+2025-08-28 21:19:18,361 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2021-10-20. Hurst: 0.54
+2025-08-28 21:19:18,426 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2021-10-21. Hurst: 0.54
+2025-08-28 21:19:20,486 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2022-02-24. Hurst: 0.54
+2025-08-28 21:19:20,631 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2022-03-03. Hurst: 0.54
+2025-08-28 21:19:20,703 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2022-03-04. Hurst: 0.54
+2025-08-28 21:19:20,776 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2022-03-07. Hurst: 0.54
+2025-08-28 21:19:27,360 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2023-03-15. Hurst: 0.52
+2025-08-28 21:19:29,588 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2023-08-11. Hurst: 0.52
+2025-08-28 21:19:30,184 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2023-09-15. Hurst: 0.52
+2025-08-28 21:19:32,271 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-01-23. Hurst: 0.52
+2025-08-28 21:19:33,215 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-03-19. Hurst: 0.52
+2025-08-28 21:19:36,754 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-10-24. Hurst: 0.52
+2025-08-28 21:19:36,850 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-10-25. Hurst: 0.52
+2025-08-28 21:19:37,273 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-11-14. Hurst: 0.52
+2025-08-28 21:19:44,361 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2019-05-13. Hurst: 0.46
+2025-08-28 21:19:47,027 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2019-08-07. Hurst: 0.45
+2025-08-28 21:19:47,105 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2019-08-13. Hurst: 0.46
+2025-08-28 21:19:48,574 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2019-12-10. Hurst: 0.47
+2025-08-28 21:19:49,346 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-02-03. Hurst: 0.50
+2025-08-28 21:19:49,820 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-03-04. Hurst: 0.53
+2025-08-28 21:19:49,886 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-03-06. Hurst: 0.53
+2025-08-28 21:19:49,932 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-03-09. Hurst: 0.54
+2025-08-28 21:19:49,994 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-03-12. Hurst: 0.55
+2025-08-28 21:19:50,053 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-03-16. Hurst: 0.56
+2025-08-28 21:19:50,705 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-05-06. Hurst: 0.57
+2025-08-28 21:19:50,756 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-05-07. Hurst: 0.57
+2025-08-28 21:19:50,803 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-05-08. Hurst: 0.57
+2025-08-28 21:19:52,406 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-09-04. Hurst: 0.58
+2025-08-28 21:19:52,492 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-09-09. Hurst: 0.58
+2025-08-28 21:19:52,728 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2020-09-24. Hurst: 0.58
+2025-08-28 21:19:55,638 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2021-05-04. Hurst: 0.56
+2025-08-28 21:20:10,048 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-01-29. Hurst: 0.58
+2025-08-28 21:20:10,143 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-01-30. Hurst: 0.58
+2025-08-28 21:20:10,399 - praxis_engine.core.guards.stat_guard - WARNING - Stat check failed for signal on 2024-02-08. Hurst: 0.58
+68 - praxis_engine.services.llm_audit_service - DEBUG - LLM Audit Raw Response: 0.0
+2025-08-28 21:19:46,968 - praxis_engine.services.llm_audit_service - INFO - LLM Audit Parsed Score: 0.0
+ion_service - INFO - Signal passed all validation guardrails.
+2025-08-28 21:19:47,008 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2019-08-07...
+2025-08-28 21:19:47,085 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2019-08-13...
+2025-08-28 21:19:48,555 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2019-12-10...
+2025-08-28 21:19:49,323 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-02-03...
+2025-08-28 21:19:49,793 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-03-04...
+2025-08-28 21:19:49,861 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-03-06...
+2025-08-28 21:19:49,907 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-03-09...
+2025-08-28 21:19:49,971 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-03-12...
+2025-08-28 21:19:50,030 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-03-16...
+2025-08-28 21:19:50,676 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-05-06...
+2025-08-28 21:19:50,728 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-05-07...
+2025-08-28 21:19:50,777 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-05-08...
+2025-08-28 21:19:52,377 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-09-04...
+2025-08-28 21:19:52,463 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-09-09...
+2025-08-28 21:19:52,700 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2020-09-24...
+2025-08-28 21:19:55,604 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2021-05-04...
+2025-08-28 21:20:09,967 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2024-01-29...
+2025-08-28 21:20:10,075 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2024-01-30...
+2025-08-28 21:20:10,330 - praxis_engine.services.validation_service - INFO - Running validation guards for signal on 2024-02-08...
+EBUG - Preliminary signal found for POWERGRID.NS on 2025-01-10
+2025-08-28 21:18:58,717 - praxis_engine.core.orchestrator - DEBUG - Signal for POWERGRID.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:18:58,744 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for POWERGRID.NS on 2025-01-13
+2025-08-28 21:18:58,821 - praxis_engine.core.orchestrator - DEBUG - Signal for POWERGRID.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:18:59,372 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for POWERGRID.NS on 2025-02-10
+2025-08-28 21:18:59,451 - praxis_engine.core.orchestrator - DEBUG - Signal for POWERGRID.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:18:59,477 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for POWERGRID.NS on 2025-02-11
+2025-08-28 21:18:59,552 - praxis_engine.core.orchestrator - DEBUG - Signal for POWERGRID.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:18:59,579 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for POWERGRID.NS on 2025-02-12
+2025-08-28 21:18:59,652 - praxis_engine.core.orchestrator - DEBUG - Signal for POWERGRID.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:02,963 - praxis_engine.core.orchestrator - INFO - Backtest for POWERGRID.NS complete. Found 0 trades.
+2025-08-28 21:19:02,963 - praxis_engine.core.orchestrator - INFO - Starting backtest for HINDUNILVR.NS from 2018-01-01 to 2025-08-25...
+2025-08-28 21:19:04,516 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2019-03-06
+2025-08-28 21:19:04,530 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:05,955 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2019-07-10
+2025-08-28 21:19:05,971 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:07,861 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2019-12-18
+2025-08-28 21:19:07,881 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:08,998 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2020-03-16
+2025-08-28 21:19:09,021 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:09,079 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2020-03-19
+2025-08-28 21:19:09,103 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:09,615 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2020-05-04
+2025-08-28 21:19:09,641 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:09,664 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2020-05-05
+2025-08-28 21:19:09,695 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:11,840 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2020-08-31
+2025-08-28 21:19:11,870 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:14,441 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2021-02-17
+2025-08-28 21:19:14,478 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:14,501 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2021-02-18
+2025-08-28 21:19:14,537 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:18,256 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2021-10-19
+2025-08-28 21:19:18,296 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:18,320 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2021-10-20
+2025-08-28 21:19:18,361 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:18,383 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2021-10-21
+2025-08-28 21:19:18,426 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:20,439 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2022-02-24
+2025-08-28 21:19:20,486 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:20,583 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2022-03-03
+2025-08-28 21:19:20,632 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:20,656 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2022-03-04
+2025-08-28 21:19:20,704 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:20,728 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2022-03-07
+2025-08-28 21:19:20,777 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:27,301 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2023-03-15
+2025-08-28 21:19:27,360 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:29,530 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2023-08-11
+2025-08-28 21:19:29,588 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:30,126 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2023-09-15
+2025-08-28 21:19:30,184 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:32,209 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2024-01-23
+2025-08-28 21:19:32,271 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:33,152 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2024-03-19
+2025-08-28 21:19:33,215 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:36,680 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2024-10-24
+2025-08-28 21:19:36,754 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:36,779 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2024-10-25
+2025-08-28 21:19:36,850 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:37,201 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for HINDUNILVR.NS on 2024-11-14
+2025-08-28 21:19:37,273 - praxis_engine.core.orchestrator - DEBUG - Signal for HINDUNILVR.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:42,070 - praxis_engine.core.orchestrator - INFO - Backtest for HINDUNILVR.NS complete. Found 0 trades.
+2025-08-28 21:19:42,070 - praxis_engine.core.orchestrator - INFO - Starting backtest for ITC.NS from 2018-01-01 to 2025-08-25...
+2025-08-28 21:19:44,345 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2019-05-13
+2025-08-28 21:19:44,362 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:45,408 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2019-08-05
+2025-08-28 21:19:45,425 - praxis_engine.core.orchestrator - INFO - Validated signal found for ITC.NS on 2019-08-05
+2025-08-28 21:19:46,968 - praxis_engine.core.orchestrator - INFO - Signal for ITC.NS rejected by LLM audit (score: 0.0)
+2025-08-28 21:19:47,008 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2019-08-07
+2025-08-28 21:19:47,027 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:47,085 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2019-08-13
+2025-08-28 21:19:47,105 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:48,555 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2019-12-10
+2025-08-28 21:19:48,574 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:49,323 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-02-03
+2025-08-28 21:19:49,346 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:49,792 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-03-04
+2025-08-28 21:19:49,820 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:49,861 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-03-06
+2025-08-28 21:19:49,887 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:49,907 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-03-09
+2025-08-28 21:19:49,932 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:49,971 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-03-12
+2025-08-28 21:19:49,994 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:50,030 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-03-16
+2025-08-28 21:19:50,053 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:50,676 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-05-06
+2025-08-28 21:19:50,706 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:50,728 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-05-07
+2025-08-28 21:19:50,756 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:50,777 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-05-08
+2025-08-28 21:19:50,803 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:52,376 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-09-04
+2025-08-28 21:19:52,406 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:52,463 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-09-09
+2025-08-28 21:19:52,492 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:52,700 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2020-09-24
+2025-08-28 21:19:52,728 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:19:55,603 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2021-05-04
+2025-08-28 21:19:55,639 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:20:09,967 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2024-01-29
+2025-08-28 21:20:10,048 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:20:10,075 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2024-01-30
+2025-08-28 21:20:10,143 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:20:10,330 - praxis_engine.core.orchestrator - DEBUG - Preliminary signal found for ITC.NS on 2024-02-08
+2025-08-28 21:20:10,399 - praxis_engine.core.orchestrator - DEBUG - Signal for ITC.NS rejected by guardrails: Hurst exponent too high
+2025-08-28 21:20:19,760 - praxis_engine.core.orchestrator - INFO - Backtest for ITC.NS complete. Found 0 trades.

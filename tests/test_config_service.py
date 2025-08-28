@@ -203,6 +203,69 @@ step_size = 1.0
     assert config.sensitivity_analysis.end_value == 30.0
     assert config.sensitivity_analysis.step_size == 1.0
 
+def test_load_config_strips_whitespace(tmp_path: Path) -> None:
+    """
+    Tests that leading/trailing whitespace is stripped from config values.
+    """
+    config_content = """
+[llm]
+provider =   openrouter
+model =  test/model
+confidence_threshold = 0.6
+prompt_template_path = "test/prompt.txt"
+
+[data]
+cache_dir = "test_cache"
+stocks_to_backtest = ["TEST.NS"]
+start_date = "2022-01-01"
+end_date = "2023-01-01"
+sector_map = {"TEST": "^TESTINDEX"}
+
+[strategy_params]
+bb_length = 10
+bb_std = 1.5
+rsi_length = 7
+hurst_length = 50
+exit_days = 10
+min_history_days = 200
+liquidity_lookback_days = 5
+
+[cost_model]
+brokerage_rate = 0.0003
+brokerage_max = 20.0
+stt_rate = 0.00025
+assumed_trade_value_inr = 100000
+slippage_volume_threshold = 1000000
+slippage_rate_high_liquidity = 0.001
+slippage_rate_low_liquidity = 0.005
+
+[filters]
+sector_vol_threshold = 25.0
+liquidity_turnover_crores = 2.0
+adf_p_value_threshold = 0.1
+hurst_threshold = 0.5
+
+[signal_logic]
+require_daily_oversold = true
+require_weekly_oversold = true
+require_monthly_not_oversold = true
+rsi_threshold = 30
+
+[exit_logic]
+use_atr_exit = false
+atr_period = 10
+atr_stop_loss_multiplier = 2.0
+max_holding_days = 25
+"""
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(config_content)
+
+    config = ConfigService(str(config_file)).load_config()
+
+    assert config.llm.provider == "openrouter"
+    assert config.llm.model == "test/model"
+
+
 def test_load_config_invalid_type(tmp_path: Path) -> None:
     """
     Tests that a ValidationError is raised if a value has an incorrect type.

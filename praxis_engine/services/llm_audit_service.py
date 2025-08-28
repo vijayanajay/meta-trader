@@ -8,6 +8,7 @@ from openai import OpenAI, APIConnectionError, RateLimitError, AuthenticationErr
 from praxis_engine.core.models import Signal, ValidationResult, LLMConfig
 from praxis_engine.core.logger import get_logger
 from praxis_engine.core.statistics import hurst_exponent
+from praxis_engine.core.exceptions import LLMConnectionError
 
 log = get_logger(__name__)
 
@@ -26,8 +27,10 @@ class LLMAuditService:
         """
         self.config = config
         self.client = None
+        self.successful_calls = 0
+        self.failed_calls = 0
 
-        self.llm_provider = os.getenv("LLM_PROVIDER", self.config.provider)
+        self.llm_provider = os.getenv("LLM_PROVIDER", self.config.provider).strip()
         api_key: Optional[str] = None
         base_url: Optional[str] = None
 
@@ -61,6 +64,7 @@ class LLMAuditService:
         """
         if not response:
             log.warning("LLM response was empty.")
+            self.failed_calls += 1
             return 0.0
 
         numbers = re.findall(r"[-+]?\d*\.\d+|\d+", response)
@@ -68,12 +72,15 @@ class LLMAuditService:
         if numbers:
             try:
                 score = float(numbers[0])
+                self.successful_calls += 1
                 return max(0.0, min(1.0, score))
             except (ValueError, IndexError):
                 log.warning(f"Could not parse float from LLM response: '{response}'")
+                self.failed_calls += 1
                 return 0.0
 
         log.warning(f"No numbers found in LLM response: '{response}'")
+        self.failed_calls += 1
         return 0.0
 
     # impure
@@ -93,6 +100,7 @@ class LLMAuditService:
             H = hurst_exponent(df_window["Close"])
             if H is None:
                 log.warning("Could not calculate Hurst exponent. Returning score 0.")
+                self.failed_calls +=1
                 return 0.0
 
             context = {
@@ -124,17 +132,18 @@ class LLMAuditService:
             return score
 
         except (APIConnectionError, RateLimitError) as e:
-            log.error(f"LLM API Error: {e.__class__.__name__}. Returning score 0.")
-            return 0.0
+            self.failed_calls += 1
+            log.error(f"LLM API Error: {e.__class__.__name__}. Quitting.")
+            raise LLMConnectionError(f"LLM API Error: {e.__class__.__name__}") from e
         except AuthenticationError as e:
-            if self.llm_provider == "openrouter":
-                log.error(f"OpenRouter API key error. Please check your OPENROUTER_API_KEY at https://openrouter.ai/keys. Returning score 0.")
-            else:
-                log.error(f"LLM API Authentication Error: {e}. Returning score 0.")
-            return 0.0
-        except jinja2.TemplateNotFound:
-            log.error(f"Prompt template not found at {self.prompt_template_path}. Returning score 0.")
-            return 0.0
+            self.failed_calls += 1
+            log.error(f"LLM API Authentication Error. Please check your API key. Quitting.")
+            raise LLMConnectionError("LLM API Authentication Error. Please check your API key.") from e
+        except jinja2.TemplateNotFound as e:
+            self.failed_calls += 1
+            log.error(f"Prompt template not found at {self.prompt_template_path}. Quitting.")
+            raise LLMConnectionError(f"Prompt template not found at {self.prompt_template_path}") from e
         except Exception as e:
+            self.failed_calls += 1
             log.critical(f"An unexpected error in get_confidence_score: {e}", exc_info=True)
-            return 0.0
+            raise
