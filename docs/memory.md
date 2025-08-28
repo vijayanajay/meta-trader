@@ -143,3 +143,19 @@ A full code review identified several critical, interacting flaws in the `Orches
         2.  If (and only if) a signal is found and validated, call the new helper method to run a lean, focused backtest on the data *prior* to the signal date.
         3.  Use the returned stats for the LLM audit.
     *   **Lesson:** Avoid re-implementing or calling complex workflows (like a backtest) for simple sub-tasks. When a component needs a piece of data (like historical stats), create a dedicated, efficient function to generate exactly that data, rather than reusing a larger, more complex service that does more than required. This follows the Single Responsibility Principle.
+
+## Task 13 Learnings
+
+1.  **Test Environment Dependencies:** The test suite failed with `ModuleNotFoundError` for `statsmodels` and `openai`. This indicates that the initial dependency installation might be incomplete or that the test environment is not perfectly synchronized.
+    *   **Fix:** The missing packages were installed manually using `pip`.
+    *   **Lesson:** The dependency list, even when specified in a document like `HARD_RULES.md`, must be programmatically enforced. A `requirements.txt` or a more robust dependency management setup in `pyproject.toml` would prevent such issues. The project should standardize on a single, reliable method for environment setup.
+
+2.  **Mocking Strategy for Complex Objects:** The initial test for the `run_sensitivity_analysis` method failed with a `TypeError` and then a `KeyError`. This was due to a flawed mocking strategy.
+    *   **Issue:** The test initially tried to patch a method (`run_backtest`) on the `Orchestrator` class. However, the method being tested creates *new instances* of the `Orchestrator` within its loop. Accessing the `self` or `config` of these dynamically created instances via the mock's `call_args_list` proved difficult and brittle.
+    *   **Fix:** The test was refactored to patch the *entire class* (`@patch('praxis_engine.core.orchestrator.Orchestrator')`). This allows the test to control the mock instances returned when `Orchestrator(...)` is called inside the method. The arguments passed to the constructor (specifically, the modified `config` object) can then be easily inspected via `MockOrchestrator.call_args_list[i].args[0]`.
+    *   **Lesson:** When testing a method that instantiates and uses other objects of the same class, patching the class itself is often a more robust and cleaner approach than patching a method on the class. It provides better control and simplifies assertions about how those new instances are created and used.
+
+3.  **Correctness of Test Assertions:** A test for the `_set_nested_attr` helper function was failing because it incorrectly expected an `AttributeError` to be raised for a non-existent attribute.
+    *   **Issue:** The test asserted `with pytest.raises(AttributeError): _set_nested_attr(obj, "a.c", 99)`. However, Python's `setattr()` function creates the attribute if it doesn't exist, so no error is raised.
+    *   **Fix:** The assertion was removed and replaced with a positive check to confirm that `setattr`'s behavior is handled correctly, as this behavior is acceptable for the function's purpose.
+    *   **Lesson:** Ensure that test assertions match the actual, specified behavior of the code being tested and the underlying language features. A test can fail not because the code is wrong, but because the test's expectation is wrong.

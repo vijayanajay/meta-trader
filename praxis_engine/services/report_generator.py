@@ -5,7 +5,7 @@ from typing import List
 import pandas as pd
 import numpy as np
 
-from praxis_engine.core.models import Trade, Opportunity
+from praxis_engine.core.models import BacktestSummary, Trade, Opportunity
 
 class ReportGenerator:
     """
@@ -108,6 +108,32 @@ class ReportGenerator:
 
         return (
             "## Weekly Opportunities Report\n\n"
+            + header
+            + separator
+            + "\n".join(rows)
+        )
+
+    def generate_sensitivity_report(
+        self, results: List[BacktestSummary], parameter_name: str
+    ) -> str:
+        """
+        Generates a markdown report for a sensitivity analysis run.
+        """
+        if not results:
+            return f"## Sensitivity Analysis Report for '{parameter_name}'\n\nNo results to report."
+
+        header = f"| {parameter_name} | Total Trades | Win Rate (%) | Profit Factor | Avg Net Return (%) | Std Dev Return (%) |\n"
+        separator = "|---|---|---|---|---|---|\n"
+        rows = [
+            f"| {res.parameter_value:.4f} | {res.total_trades} | {res.win_rate_pct:.2f} | {res.profit_factor:.2f} | {res.net_return_pct_mean:.2f} | {res.net_return_pct_std:.2f} |"
+            for res in results
+        ]
+
+        # Sort results by the parameter value for clarity
+        rows.sort(key=lambda x: float(x.split('|')[1].strip()))
+
+        return (
+            f"## Sensitivity Analysis Report for '{parameter_name}'\n\n"
             + header
             + separator
             + "\n".join(rows)

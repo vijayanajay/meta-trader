@@ -102,6 +102,29 @@ class Opportunity(BaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
 
+
+class SensitivityAnalysisConfig(BaseModel):
+    """
+    Configuration for the sensitivity analysis module.
+    """
+    parameter_to_vary: str
+    start_value: float
+    end_value: float
+    step_size: float
+
+
+class BacktestSummary(BaseModel):
+    """
+    Represents the aggregated results of a backtest run.
+    """
+    parameter_value: float
+    total_trades: int
+    win_rate_pct: float
+    profit_factor: float
+    net_return_pct_mean: float
+    net_return_pct_std: float
+
+
 class Config(BaseModel):
     """
     Top-level configuration model.
@@ -113,3 +136,4 @@ class Config(BaseModel):
     llm: LLMConfig
     cost_model: CostModelConfig
     exit_logic: ExitLogicConfig
+    sensitivity_analysis: Optional[SensitivityAnalysisConfig] = None
