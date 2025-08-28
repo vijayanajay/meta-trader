@@ -298,8 +298,16 @@ class Orchestrator:
             # Create a deep copy of the config to avoid side effects
             temp_config = copy.deepcopy(self.config)
 
+            # Convert to integer if the parameter should be an integer
+            final_value = value
+            if param_name in ['strategy_params.bb_length', 'strategy_params.rsi_length', 
+                            'strategy_params.hurst_length', 'strategy_params.exit_days',
+                            'strategy_params.min_history_days', 'strategy_params.liquidity_lookback_days',
+                            'exit_logic.atr_period', 'exit_logic.max_holding_days']:
+                final_value = int(value)
+
             # Dynamically set the nested attribute
-            _set_nested_attr(temp_config, param_name, value)
+            _set_nested_attr(temp_config, param_name, final_value)
 
             # Re-initialize services with the modified config
             orchestrator = Orchestrator(temp_config)
