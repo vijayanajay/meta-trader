@@ -1,14 +1,17 @@
 """
 The main orchestrator for running backtests.
 """
+import copy
 from typing import List, Dict
 import pandas as pd
+import numpy as np
+
 
 import datetime
-from typing import Optional
+from typing import Optional, Any
 
 from praxis_engine.core.indicators import atr
-from praxis_engine.core.models import Config, Trade, Opportunity
+from praxis_engine.core.models import BacktestSummary, Config, Trade, Opportunity
 from praxis_engine.services.data_service import DataService
 from praxis_engine.services.signal_engine import SignalEngine
 from praxis_engine.services.validation_service import ValidationService
@@ -271,3 +274,87 @@ class Orchestrator:
         )
         log.info(f"High-confidence opportunity found: {opportunity}")
         return opportunity
+
+    def run_sensitivity_analysis(self) -> List[BacktestSummary]:
+        """
+        Runs multiple backtests to analyze the sensitivity of a parameter.
+        """
+        if not self.config.sensitivity_analysis:
+            log.error("Sensitivity analysis section not found in config.")
+            return []
+
+        sa_config = self.config.sensitivity_analysis
+        param_name = sa_config.parameter_to_vary
+        start = sa_config.start_value
+        end = sa_config.end_value
+        step = sa_config.step_size
+
+        log.info(f"Starting sensitivity analysis for '{param_name}' from {start} to {end} with step {step}")
+
+        results: List[BacktestSummary] = []
+        for value in np.arange(start, end + step, step):
+            log.info(f"Running backtest with {param_name} = {value:.4f}")
+
+            # Create a deep copy of the config to avoid side effects
+            temp_config = copy.deepcopy(self.config)
+
+            # Dynamically set the nested attribute
+            _set_nested_attr(temp_config, param_name, value)
+
+            # Re-initialize services with the modified config
+            orchestrator = Orchestrator(temp_config)
+
+            all_trades: List[Trade] = []
+            for stock in temp_config.data.stocks_to_backtest:
+                trades = orchestrator.run_backtest(
+                    stock, temp_config.data.start_date, temp_config.data.end_date
+                )
+                all_trades.extend(trades)
+
+            summary = self._aggregate_trades(all_trades, value)
+            results.append(summary)
+            log.info(f"Summary for {param_name} = {value:.4f}: {summary.total_trades} trades")
+
+        return results
+
+    def _aggregate_trades(self, trades: List[Trade], param_value: float) -> BacktestSummary:
+        """
+        Aggregates a list of trades into a BacktestSummary object.
+        """
+        if not trades:
+            return BacktestSummary(
+                parameter_value=param_value,
+                total_trades=0,
+                win_rate_pct=0.0,
+                profit_factor=0.0,
+                net_return_pct_mean=0.0,
+                net_return_pct_std=0.0
+            )
+
+        returns = [t.net_return_pct for t in trades]
+        wins = [r for r in returns if r > 0]
+        losses = [r for r in returns if r <= 0]
+
+        win_rate = len(wins) / len(trades) if trades else 0.0
+        total_profit = sum(wins)
+        total_loss = abs(sum(losses))
+        profit_factor = total_profit / total_loss if total_loss > 0 else 999.0
+
+        return BacktestSummary(
+            parameter_value=param_value,
+            total_trades=len(trades),
+            win_rate_pct=win_rate * 100,
+            profit_factor=profit_factor,
+            net_return_pct_mean=np.mean(returns) * 100,
+            net_return_pct_std=np.std(returns) * 100
+        )
+
+
+def _set_nested_attr(obj: Any, attr_string: str, value: Any):
+    """
+    Sets a nested attribute on an object based on a dot-separated string.
+    """
+    attrs = attr_string.split('.')
+    for attr in attrs[:-1]:
+        obj = getattr(obj, attr)
+    setattr(obj, attrs[-1], value)

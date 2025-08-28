@@ -95,5 +95,46 @@ def generate_report(
     logger.info("\n" + report)
 
 
+@app.command()
+def sensitivity_analysis(
+    config_path: str = typer.Option(
+        "config.ini",
+        "--config",
+        "-c",
+        help="Path to the configuration file.",
+    ),
+) -> None:
+    """
+    Runs a sensitivity analysis for a parameter defined in the config file.
+    """
+    config_service = ConfigService(config_path)
+    config: Config = config_service.load_config()
+
+    if not config.sensitivity_analysis:
+        logger.error("`sensitivity_analysis` section not found in the config file.")
+        raise typer.Exit(code=1)
+
+    orchestrator = Orchestrator(config)
+    results = orchestrator.run_sensitivity_analysis()
+
+    if not results:
+        logger.info("Sensitivity analysis complete. No results to report.")
+        return
+
+    logger.info("Sensitivity analysis complete. Generating report...")
+    report_generator = ReportGenerator()
+    report = report_generator.generate_sensitivity_report(
+        results, config.sensitivity_analysis.parameter_to_vary
+    )
+
+    results_dir = Path("results")
+    results_dir.mkdir(exist_ok=True)
+    report_path = results_dir / "sensitivity_analysis_report.md"
+    report_path.write_text(report)
+
+    logger.info(f"Sensitivity analysis report saved to {report_path}")
+    logger.info("\n" + report)
+
+
 if __name__ == "__main__":
     app()

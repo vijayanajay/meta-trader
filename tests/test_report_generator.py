@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from typing import List
 
-from praxis_engine.core.models import Trade, Signal
+from praxis_engine.core.models import BacktestSummary, Trade, Signal
 from praxis_engine.services.report_generator import ReportGenerator
 
 @pytest.fixture
@@ -90,3 +90,22 @@ def test_calculate_kpis_with_sample_data(sample_trades: List[Trade]) -> None:
     # These are highly dependent on the daily return series construction
     assert kpis["net_annualized_return"] > 0
     assert kpis["sharpe_ratio"] > 0
+
+
+def test_generate_sensitivity_report():
+    """
+    Tests the sensitivity report generation.
+    """
+    results = [
+        BacktestSummary(parameter_value=20.0, total_trades=10, win_rate_pct=50.0, profit_factor=2.5, net_return_pct_mean=1.5, net_return_pct_std=0.5),
+        BacktestSummary(parameter_value=22.0, total_trades=12, win_rate_pct=60.0, profit_factor=3.0, net_return_pct_mean=2.0, net_return_pct_std=0.6),
+    ]
+    parameter_name = "filters.sector_vol_threshold"
+
+    report_generator = ReportGenerator()
+    report = report_generator.generate_sensitivity_report(results, parameter_name)
+
+    assert f"Sensitivity Analysis Report for '{parameter_name}'" in report
+    assert "| filters.sector_vol_threshold | Total Trades | Win Rate (%) | Profit Factor | Avg Net Return (%) | Std Dev Return (%) |" in report
+    assert "| 20.0000 | 10 | 50.00 | 2.50 | 1.50 | 0.50 |" in report
+    assert "| 22.0000 | 12 | 60.00 | 3.00 | 2.00 | 0.60 |" in report
