@@ -173,3 +173,22 @@ This document provides a detailed, sequential list of tasks required to build th
     *   All new code is implemented, unit-tested, and integrated into the orchestrator. The `config.ini` is updated with the new section and documentation.
 *   **Time estimate:** 6 hours
 *   **Status:** Done
+
+---
+
+## Epic 5: Critical Refactoring & Validation
+
+*Goal: To correct severe architectural flaws, data leakage, and inefficiencies discovered during a full-code review. These fixes are non-negotiable for the system to produce scientifically valid results.*
+
+---
+
+### Task 12 — Fix Lookahead Bias and Orchestrator Logic
+
+*   **Rationale:** A full code review uncovered critical flaws that invalidated backtest results. The `Orchestrator` contained lookahead bias in its ATR calculation and had a catastrophically inefficient `generate_opportunities` method. This task corrects these core architectural problems to restore experimental integrity.
+*   **Items to implement:**
+    1.  **Fix ATR Lookahead Bias:** Move the ATR calculation from a pre-computation step on the full dataset to *inside* the `run_backtest` walk-forward loop. The ATR must be calculated only on the point-in-time `window` dataframe at each step.
+    2.  **Refactor `generate_opportunities`:** The existing method, which ran a full backtest for every stock, was deleted. It has been replaced with a new, efficient implementation that:
+        a. Checks for a signal and validates it only on the most recent data point.
+        b. If the signal is valid, it calls a new helper method (`_calculate_historical_stats_for_llm`) to perform a lean, focused backtest on the data *prior* to the signal date.
+        c. This provides the necessary historical context to the LLM without re-running the main backtester.
+*   **Status:** Done
