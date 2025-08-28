@@ -180,8 +180,6 @@ This document provides a detailed, sequential list of tasks required to build th
 
 *Goal: To correct severe architectural flaws, data leakage, and inefficiencies discovered during a full-code review. These fixes are non-negotiable for the system to produce scientifically valid results.*
 
----
-
 ### Task 12 — Fix Lookahead Bias and Orchestrator Logic
 
 *   **Rationale:** A full code review uncovered critical flaws that invalidated backtest results. The `Orchestrator` contained lookahead bias in its ATR calculation and had a catastrophically inefficient `generate_opportunities` method. This task corrects these core architectural problems to restore experimental integrity.
@@ -192,3 +190,32 @@ This document provides a detailed, sequential list of tasks required to build th
         b. If the signal is valid, it calls a new helper method (`_calculate_historical_stats_for_llm`) to perform a lean, focused backtest on the data *prior* to the signal date.
         c. This provides the necessary historical context to the LLM without re-running the main backtester.
 *   **Status:** Done
+
+
+### Task 13 — Implement Systematic Parameter Sensitivity Analysis
+
+*   **Rationale:** Blindly changing parameters in `config.ini` to find a better result is unscientific, inefficient, and prone to overfitting. This task introduces a systematic, reproducible framework to explore the parameter space. It transforms parameter tuning from guesswork into a controlled experiment, providing the data needed to make informed decisions about the system's risk/reward profile. This is fundamental to understanding the model's behavior and the true drivers of its performance (or lack thereof).
+*   **Items to implement:**
+    1.  In `config.ini`, add a new `[sensitivity_analysis]` section. This section will define the parameter to vary (e.g., `parameter_to_vary = "filters.sector_vol_threshold"`), a start value, an end value, and a step size.
+    2.  In `run.py` and `praxis_engine/main.py`, add a new CLI command: `sensitivity-analysis`.
+    3.  Create a new method in `core/orchestrator.py` called `run_sensitivity_analysis()`. This method will:
+        a. Read the analysis parameters from the config.
+        b. Loop through the specified range of values for the target parameter.
+        c. In each iteration, create a *deep copy* of the main `Config` object and dynamically update the single parameter being tested. This is critical to ensure runs are isolated and the base configuration remains immutable.
+        d. Run the full backtest across all configured stocks using this temporary, modified config.
+        e. Store the aggregated KPIs (Sharpe, Profit Factor, Total Trades, etc.) for each parameter value.
+    4.  In `services/report_generator.py`, add a new method `generate_sensitivity_report()`. This method will take the results from the analysis and format them into a clear Markdown table showing how performance metrics change as the parameter changes.
+    5.  The `sensitivity-analysis` command will call the orchestrator and then the report generator, saving the final output to `results/sensitivity_analysis_report.md`.
+*   **Tests to cover:**
+    *   This is a high-level integration test. In a new `tests/test_orchestrator_analysis.py`, mock the `run_backtest` method.
+    *   Call `run_sensitivity_analysis` and assert that `run_backtest` is called the correct number of times, corresponding to the steps in the parameter range.
+    *   Crucially, assert that the `Config` object passed to the services during each mocked run contains the correctly modified parameter value for that specific iteration.
+    *   In `tests/test_report_generator.py`, add a test for `generate_sensitivity_report` to verify the correct formatting of the output table.
+*   **Acceptance Criteria (AC):**
+    *   A new CLI command `praxis sensitivity-analysis` is available.
+    *   Running the command executes multiple backtests as defined in the `[sensitivity_analysis]` section of `config.ini`.
+    *   A Markdown report is generated in the `results/` directory that clearly tabulates the system's performance KPIs against each tested parameter value.
+*   **Definition of Done (DoD):**
+    *   All new code for the CLI, orchestrator, and report generator is implemented, unit-tested, and documented. The `config.ini` is updated with a documented example of the new section.
+*   **Time estimate:** 8 hours
+*   **Status:** Not Started
