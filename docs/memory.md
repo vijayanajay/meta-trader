@@ -128,3 +128,18 @@ During the initial project scaffolding, the following issues were identified and
 1.  **Removal of Poetry:** The project was initially set up to use Poetry for dependency management. This was causing issues and was not in line with the desired simple Python environment.
     *   **Fix:** All Poetry-related files (`poetry.lock`, `pyproject.toml`) were removed. The project now uses a simple environment with dependencies installed via `pip`.
     *   **Lesson:** The choice of dependency management tool should be appropriate for the project's needs and the user's preferences. A simple `pip` and `requirements.txt` (or in this case, just `pip install`) can be more straightforward for smaller projects or when explicit user preference is stated.
+
+## Orchestrator Refactoring Learnings (Post-Review)
+
+A full code review identified several critical, interacting flaws in the `Orchestrator` that undermined the validity and efficiency of the entire system.
+
+1.  **Lookahead Bias in ATR Calculation:** The `run_backtest` method was calculating the ATR indicator on the *entire* dataframe (including future data) before starting the walk-forward loop. It also used `bfill()` to fill `NaN` values, which explicitly uses future data to fill past gaps. This is a subtle but severe form of lookahead bias (`[H-21]`) that invalidates the results of any strategy using the ATR-based exit.
+    *   **Fix:** The ATR calculation was moved *inside* the main walk-forward loop. At each step `i`, the ATR is now calculated *only* on the `window` of data available up to that point. This makes the indicator calculation point-in-time correct and eliminates the lookahead bias.
+    *   **Lesson:** Indicator calculations that involve smoothing or averaging (like ATR, moving averages, etc.) must be performed on the point-in-time data window within a backtest loop. Pre-calculating them on the full dataset is a common but critical error.
+
+2.  **Catastrophic Inefficiency in Opportunity Generation:** The `generate_opportunities` method was designed to find signals on the most recent day. To get historical context for the LLM audit, it was running a full, separate backtest for each stock, for the entire lookback period. This was computationally explosive and architecturally unsound.
+    *   **Fix:** The `generate_opportunities` method was completely rewritten to be lean and efficient. A new private helper, `_calculate_historical_stats_for_llm`, was created. The new flow is:
+        1.  Check for a signal on the latest data point.
+        2.  If (and only if) a signal is found and validated, call the new helper method to run a lean, focused backtest on the data *prior* to the signal date.
+        3.  Use the returned stats for the LLM audit.
+    *   **Lesson:** Avoid re-implementing or calling complex workflows (like a backtest) for simple sub-tasks. When a component needs a piece of data (like historical stats), create a dedicated, efficient function to generate exactly that data, rather than reusing a larger, more complex service that does more than required. This follows the Single Responsibility Principle.
