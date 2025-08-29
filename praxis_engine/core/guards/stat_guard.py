@@ -1,38 +1,63 @@
 """
-A guard to check for statistical validity of the signal.
+A guard to calculate a score for the statistical validity of a signal.
 """
+import math
 import pandas as pd
 
-from praxis_engine.core.models import Signal, FiltersConfig, ValidationResult, StrategyParamsConfig
+from praxis_engine.core.models import Signal, ScoringConfig, StrategyParamsConfig
 from praxis_engine.core.statistics import adf_test, hurst_exponent
 from praxis_engine.core.logger import get_logger
+from praxis_engine.core.guards.scoring_utils import linear_score
 
 log = get_logger(__name__)
 
 
 class StatGuard:
     """
-    Validates the statistical properties of the price series.
+    Calculates a statistical score based on ADF and Hurst tests.
     """
 
-    def __init__(self, filters: FiltersConfig, params: StrategyParamsConfig):
-        self.filters = filters
+    def __init__(self, scoring: ScoringConfig, params: StrategyParamsConfig):
+        self.scoring = scoring
         self.params = params
 
-    def validate(self, df: pd.DataFrame, signal: Signal) -> ValidationResult:
+    # impure
+    def validate(self, df: pd.DataFrame, signal: Signal) -> float:
         """
-        Checks for mean-reverting characteristics using ADF and Hurst tests.
+        Calculates a score based on mean-reverting characteristics.
+        The final score is the geometric mean of the ADF and Hurst scores.
         """
         price_series = df["Close"]
         adf_p_value = adf_test(price_series.pct_change().dropna())
         hurst = hurst_exponent(price_series)
 
-        if adf_p_value is None or adf_p_value > self.filters.adf_p_value_threshold:
-            log.warning(f"Stat check failed for signal on {df.index[-1].date()}. ADF p-value: {adf_p_value}")
-            return ValidationResult(is_valid=False, stat_check=False, reason="ADF test failed")
+        if adf_p_value is None:
+            log.warning(f"ADF test failed for signal on {df.index[-1].date()}. Could not compute p-value.")
+            adf_score = 0.0
+        else:
+            adf_score = linear_score(
+                value=adf_p_value,
+                min_val=self.scoring.adf_score_min_pvalue,
+                max_val=self.scoring.adf_score_max_pvalue,
+            )
 
-        if hurst is None or hurst > self.filters.hurst_threshold:
-            log.warning(f"Stat check failed for signal on {df.index[-1].date()}. Hurst: {hurst:.2f}")
-            return ValidationResult(is_valid=False, stat_check=False, reason="Hurst exponent too high")
+        if hurst is None:
+            log.warning(f"Hurst exponent calculation failed for signal on {df.index[-1].date()}.")
+            hurst_score = 0.0
+        else:
+            hurst_score = linear_score(
+                value=hurst,
+                min_val=self.scoring.hurst_score_min_h,
+                max_val=self.scoring.hurst_score_max_h,
+            )
 
-        return ValidationResult(is_valid=True, stat_check=True)
+        # Geometric mean of the two scores
+        final_score = math.sqrt(adf_score * hurst_score)
+
+        log.debug(
+            f"Stat score for signal on {df.index[-1].date()}: {final_score:.2f} "
+            f"(ADF p-value: {f'{adf_p_value:.4f}' if adf_p_value is not None else 'N/A'}, "
+            f"Hurst: {f'{hurst:.2f}' if hurst is not None else 'N/A'})"
+        )
+
+        return final_score

@@ -27,9 +27,20 @@ class FiltersConfig(BaseModel):
     adf_p_value_threshold: float = Field(..., ge=0, le=1)
     hurst_threshold: float = Field(..., ge=0, le=1)
 
+class ScoringConfig(BaseModel):
+    liquidity_score_min_turnover_crores: float = Field(..., ge=0)
+    liquidity_score_max_turnover_crores: float = Field(..., ge=0)
+    regime_score_min_volatility_pct: float = Field(..., ge=0)
+    regime_score_max_volatility_pct: float = Field(..., ge=0)
+    hurst_score_min_h: float = Field(..., ge=0, le=1)
+    hurst_score_max_h: float = Field(..., ge=0, le=1)
+    adf_score_min_pvalue: float = Field(..., ge=0, le=1)
+    adf_score_max_pvalue: float = Field(..., ge=0, le=1)
+
 class LLMConfig(BaseModel):
     provider: str
     confidence_threshold: float = Field(..., ge=0, le=1)
+    min_composite_score_for_llm: float = Field(0.05, ge=0, le=1)
     model: str
     prompt_template_path: str
 
@@ -65,15 +76,13 @@ class Signal(BaseModel):
     frames_aligned: List[str]
     sector_vol: float
 
-class ValidationResult(BaseModel):
+class ValidationScores(BaseModel):
     """
-    Holds the boolean result of each validation guardrail.
+    Holds the float score (0.0-1.0) from each validation guardrail.
     """
-    is_valid: bool = True
-    liquidity_check: bool = True
-    regime_check: bool = True
-    stat_check: bool = True
-    reason: Optional[str] = None
+    liquidity_score: float
+    regime_score: float
+    stat_score: float
 
 class Trade(BaseModel):
     """
@@ -132,6 +141,7 @@ class Config(BaseModel):
     data: DataConfig
     strategy_params: StrategyParamsConfig
     filters: FiltersConfig
+    scoring: ScoringConfig
     signal_logic: SignalLogicConfig
     llm: LLMConfig
     cost_model: CostModelConfig

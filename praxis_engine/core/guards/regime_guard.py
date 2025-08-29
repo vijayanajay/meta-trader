@@ -1,28 +1,37 @@
 """
-A guard to check for a favorable market regime.
+A guard to calculate a score based on market regime.
 """
 import pandas as pd
 
-from praxis_engine.core.models import Signal, FiltersConfig, ValidationResult
+from praxis_engine.core.models import Signal, ScoringConfig
 from praxis_engine.core.logger import get_logger
+from praxis_engine.core.guards.scoring_utils import linear_score
 
 log = get_logger(__name__)
 
 
 class RegimeGuard:
     """
-    Validates the market regime based on sector volatility.
+    Calculates a regime score based on sector volatility.
     """
 
-    def __init__(self, filters: FiltersConfig):
-        self.filters = filters
+    def __init__(self, scoring: ScoringConfig):
+        self.scoring = scoring
 
-    def validate(self, df: pd.DataFrame, signal: Signal) -> ValidationResult:
+    # impure
+    def validate(self, df: pd.DataFrame, signal: Signal) -> float:
         """
-        Checks if the sector volatility is below the configured threshold.
+        Calculates a score based on the sector volatility. Lower is better.
         """
-        if signal.sector_vol > self.filters.sector_vol_threshold:
-            log.warning(f"Regime check failed for signal on {df.index[-1].date()}. Sector Vol: {signal.sector_vol:.2f}%")
-            return ValidationResult(is_valid=False, regime_check=False, reason="High Sector Volatility")
+        score = linear_score(
+            value=signal.sector_vol,
+            min_val=self.scoring.regime_score_min_volatility_pct,
+            max_val=self.scoring.regime_score_max_volatility_pct,
+        )
 
-        return ValidationResult(is_valid=True, regime_check=True)
+        log.debug(
+            f"Regime score for signal on {df.index[-1].date()}: {score:.2f} "
+            f"(Sector Vol: {signal.sector_vol:.2f}%)"
+        )
+
+        return score

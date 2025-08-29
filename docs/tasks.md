@@ -254,7 +254,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Definition of Done (DoD):**
     *   All code is refactored, all new configuration is added, and all associated unit tests are updated and passing.
 *   **Time estimate:** 8 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 

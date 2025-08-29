@@ -41,6 +41,16 @@ liquidity_turnover_crores = 2.0
 adf_p_value_threshold = 0.1
 hurst_threshold = 0.5
 
+[scoring]
+liquidity_score_min_turnover_crores = 1.0
+liquidity_score_max_turnover_crores = 4.0
+regime_score_min_volatility_pct = 30.0
+regime_score_max_volatility_pct = 15.0
+hurst_score_min_h = 0.5
+hurst_score_max_h = 0.4
+adf_score_min_pvalue = 0.1
+adf_score_max_pvalue = 0.01
+
 [llm]
 provider = "test"
 confidence_threshold = 0.6
@@ -107,6 +117,16 @@ liquidity_turnover_crores = 2.0
 adf_p_value_threshold = 0.1
 hurst_threshold = 0.5
 
+[scoring]
+liquidity_score_min_turnover_crores = 1.0
+liquidity_score_max_turnover_crores = 4.0
+regime_score_min_volatility_pct = 30.0
+regime_score_max_volatility_pct = 15.0
+hurst_score_min_h = 0.5
+hurst_score_max_h = 0.4
+adf_score_min_pvalue = 0.1
+adf_score_max_pvalue = 0.01
+
 [llm]
 provider = "test"
 confidence_threshold = 0.6
@@ -167,6 +187,16 @@ sector_vol_threshold = 25.0
 liquidity_turnover_crores = 2.0
 adf_p_value_threshold = 0.1
 hurst_threshold = 0.5
+
+[scoring]
+liquidity_score_min_turnover_crores = 1.0
+liquidity_score_max_turnover_crores = 4.0
+regime_score_min_volatility_pct = 30.0
+regime_score_max_volatility_pct = 15.0
+hurst_score_min_h = 0.5
+hurst_score_max_h = 0.4
+adf_score_min_pvalue = 0.1
+adf_score_max_pvalue = 0.01
 
 [llm]
 provider = "test"

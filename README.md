@@ -21,14 +21,9 @@ This project adheres to a strict set of [30 hard rules](./docs/HARD_RULES.md) th
     ```
 
 2.  **Install dependencies:**
-    This project uses Poetry for dependency management. It is recommended to install the dependencies in a virtual environment.
+    The project has a number of dependencies that need to be installed. You can install them using pip:
     ```bash
-    pip install poetry
-    poetry install
-    ```
-    Alternatively, for a quick start, you can install the project in editable mode with pip:
-    ```bash
-    pip install -e .
+    pip install pandas yfinance statsmodels numpy pydantic python-dotenv openai typer pyarrow hurst pytest
     ```
 
 3.  **Configure Environment:**
@@ -36,7 +31,7 @@ This project adheres to a strict set of [30 hard rules](./docs/HARD_RULES.md) th
     ```bash
     cp .env.example .env
     ```
-    You do not need to modify this file to get started, as it is pre-configured to use the free tier of the OpenRouter API.
+    You will need to add your OpenRouter API key to the `.env` file for the LLM audit functionality to work.
 
 4.  **Configure the Strategy:**
     All strategy parameters, backtest settings, and filters are controlled by `config.ini`. You can modify this file to change:
@@ -44,39 +39,36 @@ This project adheres to a strict set of [30 hard rules](./docs/HARD_RULES.md) th
     - The backtest date range (`start_date`, `end_date`).
     - The signal generation logic (`[signal_logic]` section).
     - Statistical filter thresholds (`[filters]` section).
+    - Probabilistic scoring boundaries (`[scoring]` section).
 
 
 ## Usage
 
-The primary entry point for the application is the `praxis` command-line interface.
+The primary entry point for the application is `run.py`, which uses Typer to provide a command-line interface.
 
-### Verify Configuration
+### Available Commands
 
-To load and validate your `config.ini` file, run:
+You can see a list of all available commands by running:
 ```bash
-praxis verify-config
+python run.py --help
 ```
 
 ### Run a Backtest
 
 To run a backtest on the stocks defined in your `config.ini`, use the `backtest` command:
 ```bash
-praxis backtest
+python run.py backtest
 ```
-This will fetch the necessary data, run the walk-forward backtest for each stock, and print the results of any simulated trades to the console.
-
-Alternatively, you can use the provided runner script:
-```bash
-python run.py
-```
+This will fetch the necessary data, run the walk-forward backtest for each stock, and print the results to the console.
 
 ## Project Structure
 
 -   `praxis_engine/`: The main source code for the engine.
     -   `core/`: Core components like models, the orchestrator, and pure statistical/indicator functions.
     -   `services/`: Services that perform I/O operations, such as fetching data, interacting with the LLM, or simulating trades.
-    -   `main.py`: The Typer-based CLI application entry point.
+    -   `main.py`: The Typer-based CLI application definition.
 -   `docs/`: Project documentation, including the PRD, architecture, and hard rules.
 -   `tests/`: The pytest unit and integration test suite.
 -   `config.ini`: The central configuration file for all strategy and system parameters.
--   `run.py`: A simple script to execute a default backtest run.
+-   `run.py`: The main script to execute the CLI application.
+-   `.env.example`: An example environment file.
