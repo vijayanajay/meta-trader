@@ -276,3 +276,20 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
     *   All code changes are implemented, the prompt is updated, and all relevant unit and integration tests are passing.
 *   **Time estimate:** 4 hours
 *   **Status:** To Do
+
+---
+
+## Epic 7: User Experience and Reporting
+
+*Goal: To improve the user experience of running backtests and to provide more detailed reporting.*
+
+---
+
+### Task 16 - Improve Backtest UX and Logging
+*   **Rationale:** The backtest output is too verbose, and the detailed logs are not saved. This task will improve the user experience by providing a progress bar and a summary of results, while saving the detailed logs to a file for later analysis.
+*   **Items to implement:**
+    1.  Add a progress bar to the backtest command.
+    2.  After each stock is backtested, provide a summary of results including win rate, sharpe ratio, etc.
+    3.  Provide a complete summary at the end of the backtest.
+    4.  Redirect the detailed log output to a `backtest_results.log` file.
+*   **Status:** Done

@@ -4,6 +4,7 @@ Unit tests for the LLMAuditService.
 import pytest
 from unittest.mock import patch, MagicMock, create_autospec
 import pandas as pd
+import os
 import numpy as np
 from pathlib import Path
 import itertools
@@ -44,10 +45,11 @@ def llm_config() -> LLMConfig:
     prompt_path = Path(__file__).parent / "test_prompt.txt"
     prompt_path.write_text(PROMPT_TEMPLATE)
     return LLMConfig(
-        provider="test",
+        provider="openrouter",
         model="test-model",
         prompt_template_path=str(prompt_path),
         confidence_threshold=0.7,
+        min_composite_score_for_llm=0.5,
     )
 
 
@@ -106,18 +108,21 @@ def llm_audit_service(
     llm_config: LLMConfig,
 ) -> Generator[LLMAuditService, None, None]:
     """Fixture for an initialized LLMAuditService with a mocked OpenAI client."""
-    with patch("praxis_engine.services.llm_audit_service.OpenAI") as mock_openai:
-        with patch.dict(
-            "os.environ",
-            {
-                "LLM_PROVIDER": "openrouter",
-                "OPENROUTER_API_KEY": "test-key",
-                "OPENROUTER_BASE_URL": "https://test.com",
-                "OPENROUTER_MODEL": "test-model",
-            },
-        ):
+    with patch.dict(
+        "os.environ",
+        {
+            "OPENROUTER_API_KEY": "test-key",
+            "OPENROUTER_BASE_URL": "https://test.com",
+        },
+        clear=True,
+    ):
+        # We need to reload the config for it to pick up the mocked env vars
+        llm_config.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+        llm_config.openrouter_base_url = os.getenv("OPENROUTER_BASE_URL")
+
+        with patch("praxis_engine.services.llm_audit_service.OpenAI") as mock_openai:
             service = LLMAuditService(config=llm_config)
-            service.mock_openai_client = mock_openai.return_value # type: ignore
+            service.mock_openai_client = mock_openai.return_value  # type: ignore
             yield service
 
 

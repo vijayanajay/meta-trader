@@ -3,6 +3,9 @@ from pathlib import Path
 import datetime
 from dotenv import load_dotenv
 
+import pandas as pd
+from tqdm import tqdm
+
 from praxis_engine.core.logger import get_logger
 from praxis_engine.services.config_service import ConfigService
 from praxis_engine.core.orchestrator import Orchestrator
@@ -16,6 +19,14 @@ load_dotenv()
 # Initialize Typer app
 app = typer.Typer()
 logger = get_logger(__name__)
+
+
+def _calculate_sharpe_ratio(returns: pd.Series, risk_free_rate: float = 0.0) -> float:
+    """Calculates the Sharpe ratio for a series of returns."""
+    if returns.empty or returns.std() == 0:
+        return 0.0
+    # Annualize the Sharpe ratio
+    return (returns.mean() - risk_free_rate) / returns.std() * (252 ** 0.5)
 
 
 @app.command()
@@ -35,19 +46,37 @@ def backtest(
     orchestrator = Orchestrator(config)
     all_trades: List[Trade] = []
 
-    for stock in config.data.stocks_to_backtest:
-        trades = orchestrator.run_backtest(
-            stock=stock,
-            start_date=config.data.start_date,
-            end_date=config.data.end_date,
-        )
-        all_trades.extend(trades)
+    logger.summary("Starting backtest...")
+
+    stocks_to_backtest = config.data.stocks_to_backtest
+    with tqdm(total=len(stocks_to_backtest), desc="Backtesting Stocks") as pbar:
+        for stock in stocks_to_backtest:
+            pbar.set_description(f"Backtesting {stock}")
+            trades = orchestrator.run_backtest(
+                stock=stock,
+                start_date=config.data.start_date,
+                end_date=config.data.end_date,
+            )
+            if trades:
+                all_trades.extend(trades)
+                returns = pd.Series([t.net_return_pct for t in trades])
+                win_rate = (returns > 0).mean() * 100
+                sharpe = _calculate_sharpe_ratio(returns)
+                logger.summary(
+                    f"  {stock}: {len(trades)} trades, Win Rate: {win_rate:.2f}%, Sharpe: {sharpe:.2f}"
+                )
+            else:
+                logger.summary(f"  {stock}: No trades executed.")
+            pbar.update(1)
 
     if not all_trades:
-        logger.info("Backtest complete. No trades were executed.")
+        logger.summary("\nBacktest complete. No trades were executed across all stocks.")
         return
 
-    logger.info(f"Backtest complete. Total trades executed: {len(all_trades)}")
+    logger.summary("\n" + "=" * 50)
+    logger.summary("Overall Backtest Summary")
+    logger.summary("=" * 50)
+
     report_generator = ReportGenerator()
     report = report_generator.generate_backtest_report(
         all_trades, config.data.start_date, config.data.end_date
@@ -58,8 +87,9 @@ def backtest(
     report_path = results_dir / "backtest_summary.md"
     report_path.write_text(report)
 
-    logger.info(f"Backtest report saved to {report_path}")
-    logger.info("\n" + report)
+    logger.summary(f"\nDetailed backtest report saved to {report_path}")
+    logger.summary("See `results/backtest_results.log` for detailed trade-by-trade logs.")
+    logger.summary("\n" + report)
 
 
 @app.command()

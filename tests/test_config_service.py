@@ -56,6 +56,7 @@ provider = "test"
 confidence_threshold = 0.6
 model = "test/model"
 prompt_template_path = "test/prompt.txt"
+min_composite_score_for_llm = 0.5
 
 [signal_logic]
 require_daily_oversold = true
@@ -203,6 +204,7 @@ provider = "test"
 confidence_threshold = 0.6
 model = "test/model"
 prompt_template_path = "test/prompt.txt"
+min_composite_score_for_llm = 0.5
 
 [signal_logic]
 require_daily_oversold = true
