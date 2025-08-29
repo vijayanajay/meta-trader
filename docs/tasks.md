@@ -219,3 +219,60 @@ This document provides a detailed, sequential list of tasks required to build th
     *   All new code for the CLI, orchestrator, and report generator is implemented, unit-tested, and documented. The `config.ini` is updated with a documented example of the new section.
 *   **Time estimate:** 8 hours
 *   **Status:** Done
+
+Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the remaining work in Option 1, renumbered accordingly.
+
+---
+
+## Epic 6: Transition to Probabilistic Filtering
+
+*Goal: To evolve the system from a rigid, binary filtering cascade into a more nuanced, probabilistic model. This involves refactoring the guards to produce continuous scores instead of true/false verdicts and empowering the LLM to weigh these scores as part of its final audit. This directly addresses the core issue of hyper-selectivity by allowing the system to evaluate signals on a spectrum of quality rather than a simple pass/fail basis.*
+
+---
+
+### Task 14 — Refactor Guards from Binary to Probabilistic Scoring
+
+*   **Rationale:** The current `True/False` validation from the guards is a primary cause of the low trade count. A signal where the Hurst exponent is `0.451` is discarded as readily as one where it is `0.80`. This throws away valuable information. Refactoring the guards to return a continuous score (0.0 to 1.0) will allow the system to understand nuance—that a signal can be "weak but acceptable" in one dimension if it is "excellent" in others.
+*   **Items to implement:**
+    1.  **Models:** In `core/models.py`, create a new Pydantic model `ValidationScores(BaseModel)` with fields: `liquidity_score: float`, `regime_score: float`, `stat_score: float`. The existing `ValidationResult` model will be deprecated and removed.
+    2.  **Guard Interface:** The `GuardProtocol` in `services/validation_service.py` must be updated. The `validate` method will now return a single `float` score.
+    3.  **Guard Implementations:** Each guard's `validate` method must be rewritten to return a score instead of a `ValidationResult`.
+        *   `LiquidityGuard`: Implement a linear scoring function. A turnover of `0.5 * threshold` might score `0.0`, while `2.0 * threshold` scores `1.0`.
+        *   `RegimeGuard`: Implement a linear scoring function for sector volatility. A vol of `25%` might score `0.0`, while `10%` scores `1.0`.
+        *   `StatGuard`: Calculate separate scores for the ADF p-value and the Hurst exponent, then return the geometric mean of the two scores.
+    4.  **Validation Service:** The `ValidationService.validate` method must be completely refactored. It will no longer short-circuit. It must:
+        a. Call every guard in its list.
+        b. Collect the score from each guard.
+        c. Return a populated `ValidationScores` object.
+    5.  **Configuration:** Add new parameters to `config.ini` under a `[scoring]` section to control the boundaries of these new linear scoring functions (e.g., `hurst_score_min = 0.55`, `hurst_score_max = 0.3`).
+*   **Tests to cover:**
+    *   Update all tests in `tests/test_validation_service.py` to reflect the new return types and logic.
+    *   Add specific tests for each guard's scoring function. For example, create a test for `StatGuard` with a known Hurst value and assert that the returned score is mathematically correct based on the configured boundaries.
+*   **Acceptance Criteria (AC):**
+    *   All guards return a float score between 0.0 and 1.0.
+    *   The `ValidationService` successfully aggregates these scores into a `ValidationScores` object.
+*   **Definition of Done (DoD):**
+    *   All code is refactored, all new configuration is added, and all associated unit tests are updated and passing.
+*   **Time estimate:** 8 hours
+*   **Status:** To Do
+
+---
+
+### Task 15 — Empower LLM with Guard Scores for Nuanced Auditing
+
+*   **Rationale:** With the guards now producing rich, probabilistic data, the final step is to feed this information to the LLM. This completes the architectural vision of the LLM as a sophisticated, non-linear function that weighs multiple, continuous inputs to make a final judgment, moving it beyond the limitations of the original, statistics-only prompt.
+*   **Items to implement:**
+    1.  **Prompt Engineering:** Modify the `praxis_engine/prompts/statistical_auditor.txt` template. Add a new section for the guard scores, clearly labeling each one (e.g., `- Current Signal Quality - Liquidity Score: {{ liquidity_score }}`, `- Regime Score: {{ regime_score }}`, `- Statistical Score: {{ stat_score }}`).
+    2.  **LLM Audit Service:** The `get_confidence_score` method in `services/llm_audit_service.py` must be updated. Its signature will now accept the `ValidationScores` object as an argument. The context dictionary passed to the Jinja2 template must be updated to include these new scores.
+    3.  **Orchestrator Integration:** In `core/orchestrator.py`, update the main backtest loop. The call to `validation_service.validate()` will now return a `ValidationScores` object. This object must be passed directly to the subsequent call to `llm_audit_service.get_confidence_score()`.
+    4.  **Orchestrator Pre-filter:** Add a simple pre-filter in the `Orchestrator` after the validation step. If the product of the scores (`liquidity * regime * stat`) is below a new, very low threshold in `config.ini` (e.g., `min_composite_score_for_llm = 0.05`), skip the LLM call to save resources on obviously terrible signals.
+*   **Tests to cover:**
+    *   In `tests/test_llm_audit_service.py`, update the `get_confidence_score` test. It should now pass a mock `ValidationScores` object. The core assertion will be to check that the rendered prompt string correctly includes the formatted scores.
+    *   Update the integration tests in `tests/test_orchestrator.py` to mock the new return value from the `ValidationService` and assert that it is passed correctly to the `LLMAuditService`.
+*   **Acceptance Criteria (AC):**
+    *   The backtest log shows the new, expanded LLM prompt containing the guard scores.
+    *   The system completes a full backtest run using the new end-to-end data flow.
+*   **Definition of Done (DoD):**
+    *   All code changes are implemented, the prompt is updated, and all relevant unit and integration tests are passing.
+*   **Time estimate:** 4 hours
+*   **Status:** To Do
