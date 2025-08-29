@@ -5,7 +5,7 @@ import jinja2
 import pandas as pd
 from openai import OpenAI, APIConnectionError, RateLimitError, AuthenticationError
 
-from praxis_engine.core.models import Signal, ValidationResult, LLMConfig
+from praxis_engine.core.models import Signal, ValidationScores, LLMConfig
 from praxis_engine.core.logger import get_logger
 from praxis_engine.core.statistics import hurst_exponent
 

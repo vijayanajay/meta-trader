@@ -4,7 +4,7 @@ import copy
 import numpy as np
 
 from praxis_engine.core.orchestrator import Orchestrator, _set_nested_attr
-from praxis_engine.core.models import Config, DataConfig, StrategyParamsConfig, FiltersConfig, SignalLogicConfig, LLMConfig, CostModelConfig, ExitLogicConfig, SensitivityAnalysisConfig, BacktestSummary
+from praxis_engine.core.models import Config, DataConfig, StrategyParamsConfig, FiltersConfig, ScoringConfig, SignalLogicConfig, LLMConfig, CostModelConfig, ExitLogicConfig, SensitivityAnalysisConfig, BacktestSummary
 
 # A minimal, valid config for testing
 @pytest.fixture
@@ -13,8 +13,18 @@ def base_config() -> Config:
         data=DataConfig(cache_dir="test", stocks_to_backtest=["TEST.NS"], start_date="2022-01-01", end_date="2022-12-31", sector_map={"TEST.NS": "^NSEI"}),
         strategy_params=StrategyParamsConfig(bb_length=20, bb_std=2, rsi_length=14, hurst_length=100, exit_days=20, min_history_days=200, liquidity_lookback_days=5),
         filters=FiltersConfig(sector_vol_threshold=22.0, liquidity_turnover_crores=5.0, adf_p_value_threshold=0.05, hurst_threshold=0.45),
+        scoring=ScoringConfig(
+            liquidity_score_min_turnover_crores=2.5,
+            liquidity_score_max_turnover_crores=10.0,
+            regime_score_min_volatility_pct=25.0,
+            regime_score_max_volatility_pct=10.0,
+            hurst_score_min_h=0.45,
+            hurst_score_max_h=0.30,
+            adf_score_min_pvalue=0.05,
+            adf_score_max_pvalue=0.00,
+        ),
         signal_logic=SignalLogicConfig(require_daily_oversold=True, require_weekly_oversold=False, require_monthly_not_oversold=True, rsi_threshold=35),
-        llm=LLMConfig(provider="test", confidence_threshold=0.7, model="test", prompt_template_path="test"),
+        llm=LLMConfig(provider="test", confidence_threshold=0.7, min_composite_score_for_llm=0.1, model="test", prompt_template_path="test"),
         cost_model=CostModelConfig(brokerage_rate=0.0003, brokerage_max=20, stt_rate=0.00025, assumed_trade_value_inr=100000, slippage_volume_threshold=100000, slippage_rate_high_liquidity=0.0005, slippage_rate_low_liquidity=0.001),
         exit_logic=ExitLogicConfig(use_atr_exit=True, atr_period=14, atr_stop_loss_multiplier=2.5, max_holding_days=40),
     )

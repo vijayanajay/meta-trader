@@ -30,7 +30,7 @@ class Orchestrator:
         self.config = config
         self.data_service = DataService(config.data.cache_dir)
         self.signal_engine = SignalEngine(config.strategy_params, config.signal_logic)
-        self.validation_service = ValidationService(config.filters, config.strategy_params)
+        self.validation_service = ValidationService(config.scoring, config.strategy_params)
         self.execution_simulator = ExecutionSimulator(config.cost_model)
         self.llm_audit_service = LLMAuditService(config.llm)
 
@@ -53,22 +53,14 @@ class Orchestrator:
         atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
 
         for i in range(min_history_days, len(full_df) - 1):  # -1 to ensure there's a next day for entry
-            window = full_df.iloc[0:i].copy() # Use a copy to avoid SettingWithCopyWarning
+            window = full_df.iloc[0:i].copy()
             signal_date = window.index[-1]
 
-            # --- FIX: Point-in-time correct ATR calculation ---
             if self.config.exit_logic.use_atr_exit:
-                atr_series = atr(
-                    window["High"],
-                    window["Low"],
-                    window["Close"],
-                    length=self.config.exit_logic.atr_period,
-                )
+                atr_series = atr(window["High"], window["Low"], window["Close"], length=self.config.exit_logic.atr_period)
                 if atr_series is not None:
                     window[atr_col_name] = atr_series
-                    # FIX: inplace=True on a copy can fail silently. Reassign instead.
                     window[atr_col_name] = window[atr_col_name].bfill()
-
 
             signal = self.signal_engine.generate_signal(window)
             if not signal:
@@ -76,12 +68,14 @@ class Orchestrator:
 
             log.debug(f"Preliminary signal found for {stock} on {signal_date.date()}")
 
-            validation = self.validation_service.validate(window, signal)
-            if not validation.is_valid:
-                log.debug(f"Signal for {stock} rejected by guardrails: {validation.reason}")
+            scores = self.validation_service.validate(window, signal)
+            composite_score = scores.liquidity_score * scores.regime_score * scores.stat_score
+
+            if composite_score < self.config.llm.min_composite_score_for_llm:
+                log.debug(f"Signal for {stock} rejected by pre-filter. Composite score: {composite_score:.2f}")
                 continue
 
-            log.info(f"Validated signal found for {stock} on {signal_date.date()}")
+            log.info(f"Validated signal found for {stock} on {signal_date.date()} with composite score {composite_score:.2f}")
 
             historical_stats = self._calculate_stats_from_returns(historical_returns)
 
@@ -125,7 +119,6 @@ class Orchestrator:
     def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame):
         """ Determines the exit date and price for a trade. """
         atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
-        # FIX: Check for NaN specifically in the ATR column, not the entire row.
         use_atr = self.config.exit_logic.use_atr_exit and atr_col_name in window_df.columns and not pd.isna(window_df.iloc[-1][atr_col_name])
 
         if use_atr:
@@ -160,13 +153,13 @@ class Orchestrator:
         if not returns:
             return {"win_rate": 0.0, "profit_factor": 0.0, "sample_size": 0}
 
-        wins = [r for r in returns if r > 0.0177]  # As per PRD
+        wins = [r for r in returns if r > 0.0177]
         losses = [r for r in returns if r <= 0]
 
         win_rate = len(wins) / len(returns) if returns else 0.0
         total_profit = sum(wins)
         total_loss = abs(sum(losses))
-        profit_factor = total_profit / total_loss if total_loss > 0 else 999.0 # Avoid inf
+        profit_factor = total_profit / total_loss if total_loss > 0 else 999.0
 
         return {
             "win_rate": win_rate * 100,
@@ -177,7 +170,6 @@ class Orchestrator:
     def _calculate_historical_stats_for_llm(self, stock: str, df: pd.DataFrame) -> Dict[str, float | int]:
         """
         Runs a lean, non-recursive backtest to gather historical stats for the LLM audit.
-        This does NOT call the LLM service itself.
         """
         log.info(f"Calculating historical stats for {stock}...")
         trades: List[Trade] = []
@@ -189,8 +181,9 @@ class Orchestrator:
             if not signal:
                 continue
 
-            validation = self.validation_service.validate(window, signal)
-            if not validation.is_valid:
+            scores = self.validation_service.validate(window, signal)
+            composite_score = scores.liquidity_score * scores.regime_score * scores.stat_score
+            if composite_score < self.config.llm.min_composite_score_for_llm:
                 continue
 
             entry_price = df.iloc[i]["Open"]
@@ -203,7 +196,7 @@ class Orchestrator:
                 entry_date=df.index[i],
                 exit_date=exit_date,
                 signal=signal,
-                confidence_score=1.0, # Not used for historical calculation
+                confidence_score=1.0,
                 entry_volume=df.iloc[i]["Volume"]
             )
             if trade:
@@ -218,11 +211,10 @@ class Orchestrator:
     ) -> Optional[Opportunity]:
         """
         Checks for a new trading opportunity on the most recent data for a single stock.
-        This is now an efficient, non-backtesting version.
         """
         log.info(f"Checking for new opportunities for {stock}...")
         end_date = datetime.date.today()
-        start_date = end_date - datetime.timedelta(days=lookback_days * 2) # Fetch more data for history
+        start_date = end_date - datetime.timedelta(days=lookback_days * 2)
 
         sector_ticker = self.config.data.sector_map.get(stock)
         full_df = self.data_service.get_data(
@@ -233,26 +225,24 @@ class Orchestrator:
             log.warning(f"Not enough data for {stock} to generate a signal.")
             return None
 
-        # 1. Check for a signal on the latest data point
         latest_data_window = full_df.copy()
         signal = self.signal_engine.generate_signal(latest_data_window)
         if not signal:
             log.info(f"No preliminary signal for {stock} on the latest data.")
             return None
 
-        # 2. Validate the signal with guardrails
         log.info(f"Preliminary signal found for {stock} on {full_df.index[-1].date()}")
-        validation = self.validation_service.validate(latest_data_window, signal)
-        if not validation.is_valid:
-            log.info(f"Signal for {stock} rejected by guardrails: {validation.reason}")
+        scores = self.validation_service.validate(latest_data_window, signal)
+        composite_score = scores.liquidity_score * scores.regime_score * scores.stat_score
+
+        if composite_score < self.config.llm.min_composite_score_for_llm:
+            log.info(f"Signal for {stock} rejected by pre-filter. Composite score: {composite_score:.2f}")
             return None
 
-        # 3. If valid, calculate historical stats on data *prior* to the signal
         historical_df = full_df.iloc[:-1]
         historical_stats = self._calculate_historical_stats_for_llm(stock, historical_df)
         log.info(f"Historical stats for {stock}: {historical_stats}")
 
-        # 4. Perform LLM Audit
         confidence_score = self.llm_audit_service.get_confidence_score(
             historical_stats=historical_stats,
             signal=signal,
@@ -260,12 +250,9 @@ class Orchestrator:
         )
 
         if confidence_score < self.config.llm.confidence_threshold:
-            log.info(
-                f"Signal for {stock} rejected by LLM audit (score: {confidence_score})"
-            )
+            log.info(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
             return None
 
-        # 5. If we get here, it's a valid opportunity
         opportunity = Opportunity(
             stock=stock,
             signal_date=full_df.index[-1],
@@ -295,10 +282,8 @@ class Orchestrator:
         for value in np.arange(start, end + step, step):
             log.info(f"Running backtest with {param_name} = {value:.4f}")
 
-            # Create a deep copy of the config to avoid side effects
             temp_config = copy.deepcopy(self.config)
 
-            # Convert to integer if the parameter should be an integer
             final_value = value
             if param_name in ['strategy_params.bb_length', 'strategy_params.rsi_length', 
                             'strategy_params.hurst_length', 'strategy_params.exit_days',
@@ -306,10 +291,8 @@ class Orchestrator:
                             'exit_logic.atr_period', 'exit_logic.max_holding_days']:
                 final_value = int(value)
 
-            # Dynamically set the nested attribute
             _set_nested_attr(temp_config, param_name, final_value)
 
-            # Re-initialize services with the modified config
             orchestrator = Orchestrator(temp_config)
 
             all_trades: List[Trade] = []

@@ -15,7 +15,7 @@ from praxis_engine.services.validation_service import ValidationService
 from praxis_engine.services.execution_simulator import ExecutionSimulator
 from praxis_engine.core.models import (
     Signal,
-    ValidationResult,
+    ValidationScores,
     LLMConfig,
     StrategyParamsConfig,
 )

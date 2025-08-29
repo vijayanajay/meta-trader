@@ -1,10 +1,10 @@
 """
-Service for validating a trade signal against a set of guardrails.
+Service for validating a trade signal by scoring it against a set of guardrails.
 """
 import pandas as pd
 from typing import Protocol, List
 
-from praxis_engine.core.models import Signal, FiltersConfig, ValidationResult, StrategyParamsConfig
+from praxis_engine.core.models import Signal, ScoringConfig, ValidationScores, StrategyParamsConfig
 from praxis_engine.core.logger import get_logger
 from praxis_engine.core.guards.liquidity_guard import LiquidityGuard
 from praxis_engine.core.guards.regime_guard import RegimeGuard
@@ -17,35 +17,39 @@ class GuardProtocol(Protocol):
     """
     Defines the interface for a validation guard.
     """
-    def validate(self, df: pd.DataFrame, signal: Signal) -> ValidationResult:
+    def validate(self, df: pd.DataFrame, signal: Signal) -> float:
         ...
 
 
 class ValidationService:
     """
-    Orchestrates a series of guards to validate a signal.
+    Orchestrates a series of guards to score a signal.
     """
 
-    def __init__(self, filters: FiltersConfig, params: StrategyParamsConfig):
+    def __init__(self, scoring: ScoringConfig, params: StrategyParamsConfig):
         """
         Initializes the validation service with all required guards.
         """
-        self.guards: List[GuardProtocol] = [
-            LiquidityGuard(filters, params),
-            RegimeGuard(filters),
-            StatGuard(filters, params),
-        ]
+        self.liquidity_guard = LiquidityGuard(scoring, params)
+        self.regime_guard = RegimeGuard(scoring)
+        self.stat_guard = StatGuard(scoring, params)
 
-    def validate(self, df: pd.DataFrame, signal: Signal) -> ValidationResult:
+
+    def validate(self, df: pd.DataFrame, signal: Signal) -> ValidationScores:
         """
-        Runs all validation checks sequentially on a given signal.
-        If any guard fails, the process stops and returns the failure reason.
+        Runs all guards and collects their scores.
         """
         log.info(f"Running validation guards for signal on {df.index[-1].date()}...")
-        for guard in self.guards:
-            result = guard.validate(df, signal)
-            if not result.is_valid:
-                return result
 
-        log.info("Signal passed all validation guardrails.")
-        return ValidationResult(is_valid=True)
+        liquidity_score = self.liquidity_guard.validate(df, signal)
+        regime_score = self.regime_guard.validate(df, signal)
+        stat_score = self.stat_guard.validate(df, signal)
+
+        scores = ValidationScores(
+            liquidity_score=liquidity_score,
+            regime_score=regime_score,
+            stat_score=stat_score,
+        )
+
+        log.info(f"Signal scored: {scores}")
+        return scores

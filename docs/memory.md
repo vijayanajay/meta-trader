@@ -159,3 +159,26 @@ A full code review identified several critical, interacting flaws in the `Orches
     *   **Issue:** The test asserted `with pytest.raises(AttributeError): _set_nested_attr(obj, "a.c", 99)`. However, Python's `setattr()` function creates the attribute if it doesn't exist, so no error is raised.
     *   **Fix:** The assertion was removed and replaced with a positive check to confirm that `setattr`'s behavior is handled correctly, as this behavior is acceptable for the function's purpose.
     *   **Lesson:** Ensure that test assertions match the actual, specified behavior of the code being tested and the underlying language features. A test can fail not because the code is wrong, but because the test's expectation is wrong.
+
+## Task 14 Learnings
+
+1.  **Environment and Dependency Management:** The test suite repeatedly failed with `ModuleNotFoundError` for packages like `statsmodels`, `openai`, `typer`, and `pyarrow`, even after `pip install` was run.
+    *   **Issue:** This pointed to a classic environment mismatch, where the `pytest` runner was executing in a different context than the shell where `pip install` was run. The solution of chaining commands (`pip install ... && pytest`) ensures both commands run in the exact same shell session, resolving the issue.
+    *   **Lesson:** For CI/CD and local testing, it is critical to ensure that dependency installation and script execution happen in the same, consistent environment. Chaining commands is a simple way to enforce this. A more robust solution is to use a script (`run_tests.sh`) that sets up the environment and runs the tests in one go.
+
+2.  **Pydantic Model Validation in Tests:** After adding the new `scoring: ScoringConfig` field to the main `Config` model, multiple tests failed with Pydantic `ValidationError`.
+    *   **Issue:** Test fixtures and helper functions were creating `Config` objects or loading `.ini` files that were now missing the required `scoring` section.
+    *   **Lesson:** This is a feature, not a bug. Pydantic's strict validation immediately highlights all the places in the test suite that have become outdated due to a change in the data model. It enforces consistency between the application code and the test code.
+
+3.  **Test Data Accuracy:** The unit test for the `LiquidityGuard`'s scoring logic was failing with an `AssertionError` because the expected score was incorrect.
+    *   **Issue:** The test's input data (the `volume`) was off by a factor of 10, leading to a miscalculation of the turnover value used for scoring.
+    *   **Lesson:** Test data, especially constants and magic numbers used to derive expected outcomes, must be as carefully reviewed as the application code itself. A small error in test data can lead to confusing failures and wasted debugging time.
+
+4.  **Robust String Formatting:** A `TypeError` occurred in a `log.debug` statement within the `StatGuard` when trying to format a `None` value as a float (`f"{hurst:.2f}"`).
+    *   **Issue:** The f-string format specifier `:.2f` cannot be applied to a `NoneType` object.
+    *   **Fix:** The formatting was made safe by using a conditional expression within the f-string: `f"Hurst: {f'{hurst:.2f}' if hurst is not None else 'N/A'}"`.
+    *   **Lesson:** Logging and other string formatting operations should always be defensive and account for the possibility of `None` values, especially for data coming from statistical functions or external sources that can fail.
+
+5.  **Realistic Test Fixtures:** An integration test for the `ValidationService` failed with an `AttributeError` because it was using a simplified `pd.DataFrame` with a default integer index, while the code expected a `DatetimeIndex` to call `.date()`.
+    *   **Fix:** The test was updated to create the DataFrame with a `DatetimeIndex`.
+    *   **Lesson:** While unit tests should be simple, integration test fixtures should be as realistic as possible to catch errors related to data types and structures that might be missed with oversimplified mocks or dummies.

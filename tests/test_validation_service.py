@@ -1,24 +1,33 @@
 """
-Unit tests for the ValidationService.
+Integration tests for the ValidationService.
 """
 import pandas as pd
 import pytest
-import numpy as np
 from unittest.mock import patch, MagicMock
-from pathlib import Path
 
-from praxis_engine.core.models import FiltersConfig, Signal, StrategyParamsConfig, ValidationResult
+from praxis_engine.core.models import (
+    ScoringConfig,
+    StrategyParamsConfig,
+    Signal,
+    ValidationScores,
+)
 from praxis_engine.services.validation_service import ValidationService
 
+
 @pytest.fixture
-def filters_config() -> FiltersConfig:
-    """Fixture for filters configuration."""
-    return FiltersConfig(
-        sector_vol_threshold=22.0,
-        liquidity_turnover_crores=5.0,
-        adf_p_value_threshold=0.05,
-        hurst_threshold=0.5
+def scoring_config() -> ScoringConfig:
+    """Fixture for scoring configuration."""
+    return ScoringConfig(
+        liquidity_score_min_turnover_crores=2.5,
+        liquidity_score_max_turnover_crores=10.0,
+        regime_score_min_volatility_pct=25.0,
+        regime_score_max_volatility_pct=10.0,
+        hurst_score_min_h=0.45,
+        hurst_score_max_h=0.30,
+        adf_score_min_pvalue=0.05,
+        adf_score_max_pvalue=0.00,
     )
+
 
 @pytest.fixture
 def strategy_params() -> StrategyParamsConfig:
@@ -33,65 +42,57 @@ def strategy_params() -> StrategyParamsConfig:
         liquidity_lookback_days=5,
     )
 
-@pytest.fixture
-def validation_service(filters_config: FiltersConfig, strategy_params: StrategyParamsConfig) -> ValidationService:
-    """Fixture for ValidationService."""
-    return ValidationService(filters=filters_config, params=strategy_params)
 
 @pytest.fixture
 def sample_signal() -> Signal:
     """A sample signal for testing."""
-    return Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["daily"], sector_vol=15.0)
+    return Signal(
+        entry_price=100,
+        stop_loss=98,
+        exit_target_days=10,
+        frames_aligned=["daily"],
+        sector_vol=15.0,
+    )
 
-def create_test_df(days: int, close_price: float, volume: float) -> pd.DataFrame:
-    """Creates a sample dataframe for testing."""
-    dates = pd.to_datetime(pd.date_range(end=pd.Timestamp.now(), periods=days, freq='D'))
-    # Create a more realistic series for Close so ADF test can pass
-    close_prices = np.full(days, close_price) + (np.random.randn(days) * 0.1)
-    return pd.DataFrame({
-        "Close": close_prices,
-        "Volume": np.full(days, volume),
-        "sector_vol": np.full(days, 15.0),
-    }, index=dates)
 
-def test_validate_success(validation_service: ValidationService, sample_signal: Signal) -> None:
-    """Test a successful validation where all guardrails pass."""
-    # Create data that should pass: high liquidity, low vol, mean-reverting (flat series)
-    df = create_test_df(days=200, close_price=100.0, volume=10_00_000) # 10Cr turnover
+@patch("praxis_engine.services.validation_service.StatGuard")
+@patch("praxis_engine.services.validation_service.RegimeGuard")
+@patch("praxis_engine.services.validation_service.LiquidityGuard")
+def test_validation_service_aggregation(
+    mock_liquidity_guard_cls: MagicMock,
+    mock_regime_guard_cls: MagicMock,
+    mock_stat_guard_cls: MagicMock,
+    scoring_config: ScoringConfig,
+    strategy_params: StrategyParamsConfig,
+    sample_signal: Signal,
+):
+    """
+    Test that the ValidationService correctly calls each guard
+    and aggregates their scores into a ValidationScores object.
+    """
+    # Arrange: Set the return scores for the mocked guards' validate methods
+    mock_liquidity_guard = mock_liquidity_guard_cls.return_value
+    mock_liquidity_guard.validate.return_value = 0.8
+
+    mock_regime_guard = mock_regime_guard_cls.return_value
+    mock_regime_guard.validate.return_value = 0.6
+
+    mock_stat_guard = mock_stat_guard_cls.return_value
+    mock_stat_guard.validate.return_value = 0.9
+
+    # Act: Instantiate the service (which will use the mocked guard classes)
+    # and call the validate method.
+    validation_service = ValidationService(scoring=scoring_config, params=strategy_params)
+    df = pd.DataFrame({"Close": [100]}, index=[pd.to_datetime("2023-01-01")])
     result = validation_service.validate(df, sample_signal)
-    assert result.is_valid is True
 
-def test_validate_liquidity_fail(validation_service: ValidationService, sample_signal: Signal) -> None:
-    """Test failure due to low liquidity."""
-    df = create_test_df(days=200, close_price=100.0, volume=100) # Low turnover
-    result = validation_service.validate(df, sample_signal)
-    assert result.is_valid is False
-    assert result.liquidity_check is False
-    assert result.reason == "Low Liquidity"
+    # Assert: Check that the result is a ValidationScores object with the correct scores
+    assert isinstance(result, ValidationScores)
+    assert result.liquidity_score == 0.8
+    assert result.regime_score == 0.6
+    assert result.stat_score == 0.9
 
-def test_validate_regime_fail(validation_service: ValidationService, sample_signal: Signal) -> None:
-    """Test failure due to high sector volatility."""
-    df = create_test_df(days=200, close_price=100.0, volume=10_00_000)
-    sample_signal.sector_vol = 25.0 # High volatility
-    result = validation_service.validate(df, sample_signal)
-    assert result.is_valid is False
-    assert result.regime_check is False
-    assert result.reason == "High Sector Volatility"
-
-@patch('praxis_engine.core.guards.stat_guard.adf_test', return_value=0.1)
-def test_validate_adf_fail(mock_adf: MagicMock, validation_service: ValidationService, sample_signal: Signal) -> None:
-    """Test failure due to ADF test."""
-    df = create_test_df(days=200, close_price=100.0, volume=10_00_000)
-    result = validation_service.validate(df, sample_signal)
-    assert result.is_valid is False
-    assert result.stat_check is False
-    assert result.reason == "ADF test failed"
-
-@patch('praxis_engine.core.guards.stat_guard.hurst_exponent', return_value=0.6)
-def test_validate_hurst_fail(mock_hurst: MagicMock, validation_service: ValidationService, sample_signal: Signal) -> None:
-    """Test failure due to Hurst exponent."""
-    df = create_test_df(days=200, close_price=100.0, volume=10_00_000)
-    result = validation_service.validate(df, sample_signal)
-    assert result.is_valid is False
-    assert result.stat_check is False
-    assert result.reason == "Hurst exponent too high"
+    # Assert: Check that each guard's validate method was called exactly once
+    mock_liquidity_guard.validate.assert_called_once_with(df, sample_signal)
+    mock_regime_guard.validate.assert_called_once_with(df, sample_signal)
+    mock_stat_guard.validate.assert_called_once_with(df, sample_signal)
