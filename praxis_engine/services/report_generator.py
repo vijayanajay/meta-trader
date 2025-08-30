@@ -1,11 +1,11 @@
 """
 Service for generating reports from backtest results.
 """
-from typing import List, Optional
+from typing import List, Optional, Dict
 import pandas as pd
 import numpy as np
 
-from praxis_engine.core.models import BacktestSummary, Trade, Opportunity, RunMetadata
+from praxis_engine.core.models import BacktestMetrics, BacktestSummary, Trade, Opportunity, RunMetadata
 from praxis_engine.core.logger import get_logger
 
 log = get_logger(__name__)
@@ -18,6 +18,7 @@ class ReportGenerator:
     def generate_backtest_report(
         self,
         trades: List[Trade],
+        metrics: BacktestMetrics,
         start_date: str,
         end_date: str,
         metadata: Optional[RunMetadata] = None,
@@ -28,8 +29,10 @@ class ReportGenerator:
         if not trades:
             return "## Backtest Report\n\nNo trades were executed."
 
-        # Placeholder for KPI calculations
         kpis = self._calculate_kpis(trades, start_date, end_date)
+        funnel_table = self._generate_filtering_funnel_table(metrics)
+        rejection_table = self._generate_rejection_analysis_table(metrics.rejections_by_guard)
+
 
         metadata_section = ""
         if metadata:
@@ -47,6 +50,9 @@ class ReportGenerator:
 {metadata_section}
 **Period:** {start_date} to {end_date}
 **Total Trades:** {len(trades)}
+
+{funnel_table}
+{rejection_table}
 
 ### Key Performance Indicators
 | Metric | Value |
@@ -109,6 +115,49 @@ class ReportGenerator:
             "max_drawdown": max_drawdown,
             "win_rate": win_rate,
         }
+
+    def _generate_filtering_funnel_table(self, metrics: BacktestMetrics) -> str:
+        """Generates the filtering funnel markdown table."""
+        total_rejections_by_guard = sum(metrics.rejections_by_guard.values())
+        survived_guards = metrics.potential_signals - total_rejections_by_guard
+        survived_llm = survived_guards - metrics.rejections_by_llm
+
+        if metrics.potential_signals == 0:
+            return "### Filtering Funnel\n\nNo potential signals were generated."
+
+        pct_survived_guards = (survived_guards / metrics.potential_signals) * 100
+        pct_survived_llm = (survived_llm / survived_guards) * 100 if survived_guards > 0 else 0
+        pct_executed = (metrics.trades_executed / survived_llm) * 100 if survived_llm > 0 else 0
+
+        table = f"""
+### Filtering Funnel
+| Stage | Count | % of Previous Stage |
+| --- | --- | --- |
+| Potential Signals | {metrics.potential_signals} | 100.00% |
+| Survived Guardrails | {survived_guards} | {pct_survived_guards:.2f}% |
+| Survived LLM Audit | {survived_llm} | {pct_survived_llm:.2f}% |
+| Trades Executed | {metrics.trades_executed} | {pct_executed:.2f}% |
+"""
+        return table
+
+    def _generate_rejection_analysis_table(self, rejections: Dict[str, int]) -> str:
+        """Generates the guardrail rejection analysis markdown table."""
+        if not rejections:
+            return "### Guardrail Rejection Analysis\n\nNo signals were rejected by guardrails."
+
+        total_rejections = sum(rejections.values())
+        header = "| Guardrail | Rejection Count | % of Total Guard Rejections |\n"
+        separator = "| --- | --- | --- |\n"
+        rows = [
+            f"| {guard} | {count} | {(count / total_rejections) * 100:.2f}% |"
+            for guard, count in sorted(rejections.items(), key=lambda item: item[1], reverse=True)
+        ]
+
+        table = f"""
+### Guardrail Rejection Analysis
+{header}{separator}{"\\n".join(rows)}
+"""
+        return table
 
     def generate_opportunities_report(
         self, opportunities: List[Opportunity]

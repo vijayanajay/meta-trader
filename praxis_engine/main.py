@@ -8,7 +8,7 @@ from tqdm import tqdm
 from praxis_engine.core.logger import get_logger, setup_file_logger
 from praxis_engine.services.config_service import ConfigService
 from praxis_engine.core.orchestrator import Orchestrator
-from praxis_engine.core.models import Config, Opportunity, Trade, RunMetadata
+from praxis_engine.core.models import BacktestMetrics, Config, Opportunity, Trade, RunMetadata
 from praxis_engine.services.report_generator import ReportGenerator
 from praxis_engine.utils import get_git_commit_hash
 from typing import List
@@ -40,6 +40,7 @@ def backtest(
     config: Config = config_service.load_config()
     orchestrator = Orchestrator(config)
     all_trades: List[Trade] = []
+    aggregated_metrics = BacktestMetrics()
     report_generator = ReportGenerator()
 
     # --- Metadata Collection ---
@@ -55,16 +56,20 @@ def backtest(
     with tqdm(total=len(stock_list), desc="Backtesting Stocks", file=sys.stderr) as pbar:
         for stock in stock_list:
             pbar.set_description(f"Processing {stock}")
-            trades = orchestrator.run_backtest(
+            trades, metrics = orchestrator.run_backtest(
                 stock=stock,
                 start_date=config.data.start_date,
                 end_date=config.data.end_date,
             )
 
-            if trades:
-                # Per-stock logging is handled by the logger at DEBUG level now.
-                # The final report is the main artifact.
-                all_trades.extend(trades)
+            all_trades.extend(trades)
+            # Aggregate metrics
+            aggregated_metrics.potential_signals += metrics.potential_signals
+            aggregated_metrics.rejections_by_llm += metrics.rejections_by_llm
+            aggregated_metrics.trades_executed += metrics.trades_executed
+            for guard, count in metrics.rejections_by_guard.items():
+                aggregated_metrics.rejections_by_guard[guard] = aggregated_metrics.rejections_by_guard.get(guard, 0) + count
+
 
             pbar.update(1)
 
@@ -73,12 +78,15 @@ def backtest(
         return
 
     logger.info("\n========== Overall Backtest Summary ==========")
+    logger.debug(f"Aggregated metrics for report: {aggregated_metrics}")
     final_report = report_generator.generate_backtest_report(
         trades=all_trades,
+        metrics=aggregated_metrics,
         start_date=config.data.start_date,
         end_date=config.data.end_date,
         metadata=run_metadata,
     )
+    logger.debug(f"Final report string to be written:\n{final_report}")
 
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)

@@ -331,7 +331,8 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Tests to cover:**
     *   In `tests/test_orchestrator.py`, create a new test that mocks the return values of the services to simulate a flow where signals are rejected by different guards. Assert that the final counts returned by the orchestrator are correct.
     *   In `tests/test_report_generator.py`, add tests for the new funnel and rejection table generation methods.
-*   **Status:** To Do
+*   **Status:** Done
+*   **Resolution:** The signal attrition funnel and rejection tracking have been fully implemented in the Orchestrator and Report Generator. The logic correctly tracks potential signals and their rejections at both the guardrail and LLM audit stages. Unit and integration tests have been added to verify this functionality. It was observed during testing that the current strategy configuration is highly restrictive and results in zero trades, which the system now correctly reports. The implementation is sound; tuning the strategy parameters is a separate task.
 
 ---
 

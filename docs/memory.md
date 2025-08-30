@@ -182,3 +182,13 @@ A full code review identified several critical, interacting flaws in the `Orches
 5.  **Realistic Test Fixtures:** An integration test for the `ValidationService` failed with an `AttributeError` because it was using a simplified `pd.DataFrame` with a default integer index, while the code expected a `DatetimeIndex` to call `.date()`.
     *   **Fix:** The test was updated to create the DataFrame with a `DatetimeIndex`.
     *   **Lesson:** While unit tests should be simple, integration test fixtures should be as realistic as possible to catch errors related to data types and structures that might be missed with oversimplified mocks or dummies.
+
+## Task 18 Learnings
+
+1.  **`yfinance` Data Failures:** During a full backtest run, the `DataService` failed to fetch data for `HDFC.NS` and `ICICI.NS`, reporting a `YFTzMissingError`. The error message `possibly delisted; no timezone found` suggests these tickers may have changed or been delisted (e.g., HDFC merged with HDFC Bank).
+    *   **Lesson:** The stock universe is not static. A robust system must handle data fetching errors gracefully, which the `Orchestrator` currently does by skipping the problematic stock. For a production system, a more sophisticated process for maintaining the stock list in `config.ini` would be required, potentially flagging and removing tickers that consistently fail over time.
+
+2.  **CLI Dependency Issues:** The `run.py` script failed with a `ModuleNotFoundError: No module named 'typer'`.
+    *   **Issue:** This indicates that `typer` was not installed in the Python environment used to run the script. This points to an incomplete or inconsistent environment setup process.
+    *   **Fix:** The dependency was installed manually (`pip install typer`).
+    *   **Lesson:** The project's dependency management needs to be solidified. While `HARD_RULES.md` lists the dependencies, there is no single, enforceable `requirements.txt` or similar file being used consistently, leading to environment drift. This was noted in Task 1.2 but appears to be a recurring issue.

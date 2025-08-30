@@ -4,7 +4,7 @@ import copy
 import numpy as np
 
 from praxis_engine.core.orchestrator import Orchestrator, _set_nested_attr
-from praxis_engine.core.models import Config, DataConfig, StrategyParamsConfig, FiltersConfig, ScoringConfig, SignalLogicConfig, LLMConfig, CostModelConfig, ExitLogicConfig, SensitivityAnalysisConfig, BacktestSummary
+from praxis_engine.core.models import BacktestMetrics, Config, DataConfig, StrategyParamsConfig, FiltersConfig, ScoringConfig, SignalLogicConfig, LLMConfig, CostModelConfig, ExitLogicConfig, SensitivityAnalysisConfig, BacktestSummary
 
 # A minimal, valid config for testing
 @pytest.fixture
@@ -43,7 +43,7 @@ def test_run_sensitivity_analysis_efficient(mock_run_backtest: MagicMock, base_c
         step_size=1.0
     )
     orchestrator = Orchestrator(config=base_config)
-    mock_run_backtest.return_value = []  # Each backtest run returns no trades
+    mock_run_backtest.return_value = ([], BacktestMetrics())  # Each backtest run returns no trades and empty metrics
 
     # Act
     orchestrator.run_sensitivity_analysis()
