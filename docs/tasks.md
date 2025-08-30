@@ -288,3 +288,93 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
     3.  **Per-Stock Summary:** After each stock is backtested, generate and print a summary of the results to the console.
     4.  **Less Verbose Orchestrator:** Change verbose `log.info` statements in the `Orchestrator` to `log.debug` to keep the console output clean.
 *   **Status:** Done
+
+## Epic 7: From Output to Insight - Advanced Diagnostics & Reporting
+
+*Goal: To transform the backtest output from a simple KPI summary into a comprehensive diagnostic tool. This is not about changing the core strategy logic, but about instrumenting it to provide the deep, analytical insights required to improve it scientifically. A backtest that only tells you the final P/L is a missed opportunity; a backtest that tells you *why* you achieved that P/L is the foundation for progress. We will make our system's thinking transparent and auditable.*
+
+---
+
+### Task 17 — Instrument Backtest Runs with Reproducibility Metadata
+
+*   **Rationale:** A backtest is a scientific experiment. An experiment without documented initial conditions is unreproducible and therefore invalid. This task ensures that every report is stamped with the exact context in which it was generated, adhering to `[H-23]`.
+*   **Items to implement:**
+    1.  **Git Hash:** Create a utility function (e.g., in a new `praxis_engine/utils.py`) that uses the `subprocess` module to execute `git rev-parse --short HEAD` and retrieve the current commit hash. This function must handle cases where Git is not installed or it's not a Git repository.
+    2.  **Orchestrator:** The `Orchestrator` must gather the run timestamp, the path to the config file, and the Git hash at the beginning of a run.
+    3.  **Report Generator:** The `generate_backtest_report` method in `services/report_generator.py` must be updated to accept this metadata.
+    4.  **Output:** Add a new "Run Configuration & Metadata" section to the top of `backtest_summary.md` that displays this information in a clean Markdown table.
+*   **Tests to cover:**
+    *   A unit test for the new Git hash utility function, mocking the `subprocess.run` call.
+    *   Update `tests/test_report_generator.py` to check that the metadata section is correctly rendered in the output string.
+*   **Status:** To Do
+
+---
+
+### Task 18 — Implement Signal Attrition Funnel and Guardrail Rejection Tracking
+
+*   **Rationale:** The system's primary function is to filter. We are blind to its effectiveness if we don't measure what it filters. This task instruments the entire decision-making pipeline to produce a "funnel," showing exactly how many signals are discarded at each stage and, crucially, *why*. This is the most direct way to identify which guardrail is doing the most work, per `[The Nadh Principle]` of pragmatic simplicity.
+*   **Items to implement:**
+    1.  **Orchestrator State:** Modify the `Orchestrator`'s main `backtest` loop in `praxis_engine/main.py`. It must now maintain counters for: `potential_signals`, `rejections_by_guard`, `rejections_by_llm`, and `trades_executed`. The `rejections_by_guard` should be a dictionary counting rejections per guard type (e.g., `{'StatGuard': 0, 'RegimeGuard': 0}`).
+    2.  **Rejection Logic:** In `core/orchestrator.py`, after `validation_service.validate()` returns the `ValidationScores`, if the composite score is below the `min_composite_score_for_llm` threshold, determine the primary reason for rejection by finding which score (`liquidity`, `regime`, or `stat`) was the lowest. Increment the corresponding counter.
+    3.  **Data Aggregation:** The main loop must aggregate these counts across all stocks.
+    4.  **Report Generator:** Create new methods in `services/report_generator.py` to generate the "Filtering Funnel" and "Guardrail Rejection Analysis" tables from the aggregated counter data.
+*   **Tests to cover:**
+    *   In `tests/test_orchestrator.py`, create a new test that mocks the return values of the services to simulate a flow where signals are rejected by different guards. Assert that the final counts returned by the orchestrator are correct.
+    *   In `tests/test_report_generator.py`, add tests for the new funnel and rejection table generation methods.
+*   **Status:** To Do
+
+---
+
+### Task 19 — Add Per-Stock Performance Breakdown
+
+*   **Rationale:** System-wide averages are deceptive; they hide excellence and mediocrity. A strategy might be brilliant on 5 stocks and terrible on 20. This task provides the granular, per-stock data needed to understand where the strategy actually works, enabling intelligent pruning of the stock universe.
+*   **Items to implement:**
+    1.  **Orchestrator Return Value:** The `Orchestrator.run_backtest` method must be refactored. Instead of just returning a list of trades, it should return a dictionary or a data class containing the trades for that stock *and* the rejection counts for that stock.
+    2.  **CLI Aggregation:** The `backtest` command in `praxis_engine/main.py` must be updated to handle this new return type. It will aggregate the per-stock results into a master data structure (e.g., a dictionary keyed by stock symbol).
+    3.  **Report Generator:** Add a new method `generate_per_stock_report` to `services/report_generator.py`. This method will take the aggregated per-stock data and format it into the specified Markdown table, including trade counts, P/L, and rejection statistics for each stock.
+*   **Tests to cover:**
+    *   Update tests in `tests/test_orchestrator.py` to reflect the new return signature of `run_backtest`.
+    *   Add a new test in `tests/test_report_generator.py` to verify the correct formatting of the per-stock table.
+*   **Status:** To Do
+
+---
+
+### Task 20 — Implement Trade Distribution and Statistical Analysis
+
+*   **Rationale:** To move beyond simple averages and understand the *character* of the strategy's returns, per the Hinton mindset. A strategy with a positive average return driven by one massive outlier is fundamentally different and riskier than one with consistent small gains. This task adds the statistical measures (skew, kurtosis) and visualizations needed to see the true shape of the P/L distribution.
+*   **Items to implement:**
+    1.  **Pandas Dependency:** Ensure `pandas` is used for statistical calculations to avoid adding new dependencies like `scipy`, adhering to `[H-8]`.
+    2.  **Report Generator:** In `services/report_generator.py`, enhance the `_calculate_kpis` method (or create a new one) to compute:
+        *   Average Win %, Average Loss %
+        *   Best Trade %, Worst Trade %
+        *   Average Holding Period in days.
+        *   Skewness and Kurtosis of the net return series (`pd.Series(returns).skew()`, `.kurt()`).
+    3.  **ASCII Histogram:** Create a new, pure utility function (e.g., in `praxis_engine/utils.py`) called `generate_ascii_histogram(data: List[float]) -> str`. This function will bin the returns and generate a simple text-based histogram.
+    4.  **Output:** Integrate the new table and the histogram into the `backtest_summary.md` output.
+*   **Tests to cover:**
+    *   A unit test for the `generate_ascii_histogram` utility with a known data set to verify the output format.
+    *   Update `tests/test_report_generator.py` to assert that the new distribution table and histogram are present and correctly formatted in the final report string.
+*   **Status:** To Do
+
+---
+
+### Task 21 — Implement LLM Performance Uplift Analysis
+
+*   **Rationale:** The LLM is the most expensive and opaque component of the system. Its value cannot be assumed; it must be rigorously quantified. This task implements a baseline comparison to measure the LLM's direct contribution (or harm) to the strategy's performance, adhering to Hinton's principle of isolating and measuring the impact of intelligent components (`[H-26]`).
+*   **Items to implement:**
+    1.  **Orchestrator Logic Change:** This is a critical refactoring of `core/orchestrator.py`.
+        a. After a signal passes the guardrail pre-filter, the `Orchestrator` must immediately simulate the trade as if it were to be executed. This trade object is stored in a new list, `pre_llm_trades`.
+        b. *Then*, the signal is sent to the `LLMAuditService`.
+        c. If the LLM confidence score is sufficient, the *exact same trade object* is also appended to the final `trades` list.
+        d. The `run_backtest` method must now return both lists: `pre_llm_trades` and `final_trades`.
+    2.  **LLM Score Logging:** The `Orchestrator` must collect every confidence score returned by the `LLMAuditService` throughout the backtest into a list.
+    3.  **Report Generator:** Create a new method `generate_llm_uplift_report`. It will:
+        a. Accept the `pre_llm_trades` and `final_trades` lists.
+        b. Calculate KPIs for both sets of trades.
+        c. Compute the percentage uplift (or decline) for key metrics like Profit Factor and Win Rate.
+        d. Use the `generate_ascii_histogram` utility to create a distribution chart of the collected LLM scores.
+        e. Format all of this into the "LLM Audit Performance Analysis" section.
+*   **Tests to cover:**
+    *   This requires a significant update to `tests/test_orchestrator.py`. Create a new integration test that simulates a scenario where some signals pass the guards but are then rejected by the LLM. Assert that `run_backtest` returns two lists of trades with the correct contents.
+    *   Add a new test to `tests/test_report_generator.py` for `generate_llm_uplift_report`, providing it with two mock lists of trades and asserting the final table and uplift calculations are correct.
+*   **Status:** To Do

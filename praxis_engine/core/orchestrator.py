@@ -48,7 +48,6 @@ class Orchestrator:
             return []
 
         trades: List[Trade] = []
-        historical_returns: List[float] = []
         min_history_days = self.config.strategy_params.min_history_days
         atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
 
@@ -77,7 +76,10 @@ class Orchestrator:
 
             log.debug(f"Validated signal found for {stock} on {signal_date.date()} with composite score {composite_score:.2f}")
 
-            historical_stats = self._calculate_stats_from_returns(historical_returns)
+            # Calculate historical stats on all data *prior* to the current signal.
+            # This prevents lookahead bias.
+            historical_df = full_df.iloc[0:i-1]
+            historical_stats = self._calculate_historical_stats_for_llm(stock, historical_df)
 
             confidence_score = self.llm_audit_service.get_confidence_score(
                 historical_stats=historical_stats,
@@ -111,7 +113,6 @@ class Orchestrator:
             if trade:
                 log.debug(f"Trade simulated: {trade}")
                 trades.append(trade)
-                historical_returns.append(trade.net_return_pct)
 
         log.debug(f"Backtest for {stock} complete. Found {len(trades)} trades.")
         return trades
