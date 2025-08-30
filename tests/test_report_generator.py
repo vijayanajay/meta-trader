@@ -112,7 +112,7 @@ def test_calculate_kpis_with_sample_data(sample_trades: List[Trade]) -> None:
     assert kpis["sharpe_ratio"] > 0
 
 
-def test_generate_sensitivity_report():
+def test_generate_sensitivity_report() -> None:
     """
     Tests the sensitivity report generation.
     """

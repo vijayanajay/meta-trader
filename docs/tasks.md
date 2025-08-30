@@ -32,7 +32,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Items to implement:**
     *   Investigate the `Typer` invocation issue mentioned in `docs/memory.md`.
     *   Fix the issue and ensure that `python -m praxis_engine.main verify-config` works as expected.
-*   **Status:** Complete. **Resolution**: The CLI invocation was fixed by establishing a robust poetry script entry point (`poetry run praxis`) and moving all business logic out of `praxis_engine/__init__.py` into a dedicated `cli.py` module. The `run.py` script was deprecated in favor of this standard mechanism.
+*   **Status:** Complete. **Resolution**: The CLI invocation was fixed by establishing a robust poetry script entry point (`poetry run praxis`) and moving all business logic out of `praxis_engine/__init__.py` into a dedicated `cli.py` module. The `run.py` script was deprecated in favor of this standard mechanism and has now been deleted from the repository.
 
 ---
 
@@ -42,7 +42,7 @@ This document provides a detailed, sequential list of tasks required to build th
     1.  Create a `requirements.txt` file that lists all necessary dependencies for running the application and the tests.
     2.  Update the `README.md` or a new `CONTRIBUTING.md` with clear instructions on how to set up the development environment using `pip install -r requirements.txt`.
     3.  Ensure all required packages are included so that a fresh checkout can be run with a single installation command.
-*   **Status:** To Do
+*   **Status:** Done. **Resolution**: A `requirements.txt` file has been created at the project root, establishing a single source of truth for all runtime and development dependencies. This resolves the dependency management issues noted in `docs/memory.md`. The project can now be set up with a single command (`pip install -r requirements.txt`).
 
 ---
 

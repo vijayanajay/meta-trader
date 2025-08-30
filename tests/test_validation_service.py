@@ -65,7 +65,7 @@ def test_validation_service_aggregation(
     scoring_config: ScoringConfig,
     strategy_params: StrategyParamsConfig,
     sample_signal: Signal,
-):
+) -> None:
     """
     Test that the ValidationService correctly calls each guard
     and aggregates their scores into a ValidationScores object.

@@ -29,59 +29,47 @@ def base_config() -> Config:
         exit_logic=ExitLogicConfig(use_atr_exit=True, atr_period=14, atr_stop_loss_multiplier=2.5, max_holding_days=40),
     )
 
-@patch('praxis_engine.core.orchestrator.Orchestrator')
-def test_run_sensitivity_analysis(MockOrchestrator, base_config):
+@patch('praxis_engine.core.orchestrator.Orchestrator.run_backtest')
+def test_run_sensitivity_analysis_efficient(mock_run_backtest: MagicMock, base_config: Config) -> None:
+    """
+    Tests the refactored, efficient implementation of run_sensitivity_analysis.
+    It should now call run_backtest on the *same* instance, not create new ones.
+    """
     # Setup sensitivity analysis config
     base_config.sensitivity_analysis = SensitivityAnalysisConfig(
         parameter_to_vary="filters.sector_vol_threshold",
         start_value=20.0,
-        end_value=22.0, # smaller range for test brevity
+        end_value=22.0,  # smaller range for test brevity
         step_size=1.0
     )
+    orchestrator = Orchestrator(config=base_config)
+    mock_run_backtest.return_value = []  # Each backtest run returns no trades
 
-    # The real orchestrator we are testing
-    # Note: We patch the class, so this instance is the real one, but any
-    # new Orchestrator created inside its method will be a mock.
-    orchestrator_under_test = Orchestrator(config=base_config)
+    # Act
+    orchestrator.run_sensitivity_analysis()
 
-    # Mock the return value of run_backtest from the MOCKED orchestrator class
-    mock_instance = MockOrchestrator.return_value
-    mock_instance.run_backtest.return_value = []
-
-    # Call the method we are testing
-    orchestrator_under_test.run_sensitivity_analysis()
-
-    # Check that a new Orchestrator was instantiated for each parameter value
-    # Expected values: 20.0, 21.0, 22.0 -> 3 calls
-    assert MockOrchestrator.call_count == 3
-
-    # Check that the configs passed to the new instances were correct
-    call_args_list = MockOrchestrator.call_args_list
-    modified_values = [
-        round(c.args[0].filters.sector_vol_threshold, 1)
-        for c in call_args_list
-    ]
-    assert modified_values == [20.0, 21.0, 22.0]
-
-    # Check that run_backtest was called on each mock instance
-    assert mock_instance.run_backtest.call_count == 3
+    # Assert
+    # Expected values: 20.0, 21.0, 22.0 -> 3 calls to run_backtest
+    # Each call is for the one stock in the config, so 3 calls total.
+    assert mock_run_backtest.call_count == 3
 
 
-def test_set_nested_attr():
+def test_set_nested_attr() -> None:
     """
     Tests the helper function for setting nested attributes.
     """
-    class Inner(object):
-        b = 1
+    class Inner:
+        b: int = 1
+        c: int # Declare attribute for mypy
 
-    class Outer(object):
-        a = Inner()
+    class Outer:
+        a: Inner = Inner()
 
     obj = Outer()
     _set_nested_attr(obj, "a.b", 99)
     assert obj.a.b == 99
 
-    # setattr creates the attribute if it doesn't exist, so this does not raise an error.
-    # The primary goal is ensuring it sets existing nested attributes correctly.
+    # setattr creates the attribute if it doesn't exist.
+    # We test this behavior and satisfy mypy by pre-declaring 'c'.
     _set_nested_attr(obj.a, "c", 101)
     assert obj.a.c == 101

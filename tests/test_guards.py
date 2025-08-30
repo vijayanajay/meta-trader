@@ -4,7 +4,7 @@ Unit tests for individual validation guards and their scoring logic.
 import pytest
 import pandas as pd
 import numpy as np
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from praxis_engine.core.models import ScoringConfig, StrategyParamsConfig, Signal
 from praxis_engine.core.guards.liquidity_guard import LiquidityGuard
@@ -53,7 +53,7 @@ def create_test_df(days: int, close_price: float, volume: float) -> pd.DataFrame
 
 # --- LiquidityGuard Tests ---
 
-def test_liquidity_guard_scoring(scoring_config: ScoringConfig, strategy_params: StrategyParamsConfig, sample_signal: Signal):
+def test_liquidity_guard_scoring(scoring_config: ScoringConfig, strategy_params: StrategyParamsConfig, sample_signal: Signal) -> None:
     """Test the linear scoring of the LiquidityGuard."""
     guard = LiquidityGuard(scoring=scoring_config, params=strategy_params)
 
@@ -82,7 +82,7 @@ def test_liquidity_guard_scoring(scoring_config: ScoringConfig, strategy_params:
 
 # --- RegimeGuard Tests ---
 
-def test_regime_guard_scoring(scoring_config: ScoringConfig, sample_signal: Signal):
+def test_regime_guard_scoring(scoring_config: ScoringConfig, sample_signal: Signal) -> None:
     """Test the inverse linear scoring of the RegimeGuard."""
     guard = RegimeGuard(scoring=scoring_config)
     df = create_test_df(days=200, close_price=100, volume=1_000_000) # df is not used by this guard
@@ -111,7 +111,7 @@ def test_regime_guard_scoring(scoring_config: ScoringConfig, sample_signal: Sign
 
 @patch('praxis_engine.core.guards.stat_guard.hurst_exponent')
 @patch('praxis_engine.core.guards.stat_guard.adf_test')
-def test_stat_guard_scoring(mock_adf: patch, mock_hurst: patch, scoring_config: ScoringConfig, strategy_params: StrategyParamsConfig, sample_signal: Signal):
+def test_stat_guard_scoring(mock_adf: MagicMock, mock_hurst: MagicMock, scoring_config: ScoringConfig, strategy_params: StrategyParamsConfig, sample_signal: Signal) -> None:
     """Test the geometric mean scoring of the StatGuard."""
     guard = StatGuard(scoring=scoring_config, params=strategy_params)
     df = create_test_df(days=200, close_price=100, volume=1_000_000)

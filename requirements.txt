@@ -1,0 +1,18 @@
+# Core Dependencies
+pandas
+numpy
+statsmodels
+yfinance
+pydantic
+ollama
+typer
+python-dotenv
+hurst
+jinja2
+pyarrow
+openai
+tqdm
+
+# Development & Testing
+pytest
+mypy
