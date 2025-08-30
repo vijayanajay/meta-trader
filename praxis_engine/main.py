@@ -1,9 +1,11 @@
 import typer
 from pathlib import Path
 import datetime
+import sys
 from dotenv import load_dotenv
+from tqdm import tqdm
 
-from praxis_engine.core.logger import get_logger
+from praxis_engine.core.logger import get_logger, setup_file_logger
 from praxis_engine.services.config_service import ConfigService
 from praxis_engine.core.orchestrator import Orchestrator
 from praxis_engine.core.models import Config, Opportunity, Trade
@@ -30,36 +32,51 @@ def backtest(
     """
     Runs a backtest for stocks defined in the config file.
     """
+    setup_file_logger()
+    logger.info("File logging configured. Starting backtest...")
+
     config_service = ConfigService(config_path)
     config: Config = config_service.load_config()
     orchestrator = Orchestrator(config)
     all_trades: List[Trade] = []
+    report_generator = ReportGenerator()
 
-    for stock in config.data.stocks_to_backtest:
-        trades = orchestrator.run_backtest(
-            stock=stock,
-            start_date=config.data.start_date,
-            end_date=config.data.end_date,
-        )
-        all_trades.extend(trades)
+    stock_list = config.data.stocks_to_backtest
+    with tqdm(total=len(stock_list), desc="Backtesting Stocks", file=sys.stderr) as pbar:
+        for stock in stock_list:
+            pbar.set_description(f"Processing {stock}")
+            trades = orchestrator.run_backtest(
+                stock=stock,
+                start_date=config.data.start_date,
+                end_date=config.data.end_date,
+            )
+
+            if trades:
+                stock_summary = report_generator.generate_backtest_report(
+                    trades, config.data.start_date, config.data.end_date
+                )
+                logger.info(f"\n----- Summary for {stock} -----\n{stock_summary}\n--------------------------------\n")
+                all_trades.extend(trades)
+
+            pbar.update(1)
 
     if not all_trades:
         logger.info("Backtest complete. No trades were executed.")
         return
 
-    logger.info(f"Backtest complete. Total trades executed: {len(all_trades)}")
-    report_generator = ReportGenerator()
-    report = report_generator.generate_backtest_report(
+    logger.info("\n========== Overall Backtest Summary ==========")
+    final_report = report_generator.generate_backtest_report(
         all_trades, config.data.start_date, config.data.end_date
     )
 
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
     report_path = results_dir / "backtest_summary.md"
-    report_path.write_text(report)
+    report_path.write_text(final_report)
 
-    logger.info(f"Backtest report saved to {report_path}")
-    logger.info("\n" + report)
+    logger.info(f"Overall backtest report saved to {report_path}")
+    logger.info(final_report)
+    logger.info("==============================================")
 
 
 @app.command()
@@ -74,6 +91,9 @@ def generate_report(
     """
     Generates a report of new opportunities based on the latest data.
     """
+    setup_file_logger()
+    logger.info("File logging configured. Generating opportunities report...")
+
     config_service = ConfigService(config_path)
     config: Config = config_service.load_config()
     orchestrator = Orchestrator(config)
@@ -107,6 +127,9 @@ def sensitivity_analysis(
     """
     Runs a sensitivity analysis for a parameter defined in the config file.
     """
+    setup_file_logger()
+    logger.info("File logging configured. Starting sensitivity analysis...")
+
     config_service = ConfigService(config_path)
     config: Config = config_service.load_config()
 

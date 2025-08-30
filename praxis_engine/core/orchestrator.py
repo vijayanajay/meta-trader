@@ -38,7 +38,7 @@ class Orchestrator:
         """
         Runs a walk-forward backtest for a single stock.
         """
-        log.info(f"Starting backtest for {stock} from {start_date} to {end_date}...")
+        log.debug(f"Starting backtest for {stock} from {start_date} to {end_date}...")
 
         sector_ticker = self.config.data.sector_map.get(stock)
         full_df = self.data_service.get_data(stock, start_date, end_date, sector_ticker)
@@ -75,7 +75,7 @@ class Orchestrator:
                 log.debug(f"Signal for {stock} rejected by pre-filter. Composite score: {composite_score:.2f}")
                 continue
 
-            log.info(f"Validated signal found for {stock} on {signal_date.date()} with composite score {composite_score:.2f}")
+            log.debug(f"Validated signal found for {stock} on {signal_date.date()} with composite score {composite_score:.2f}")
 
             historical_stats = self._calculate_stats_from_returns(historical_returns)
 
@@ -86,7 +86,7 @@ class Orchestrator:
             )
 
             if confidence_score < self.config.llm.confidence_threshold:
-                log.info(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
+                log.debug(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
                 continue
 
             entry_date_actual = full_df.index[i]
@@ -109,11 +109,11 @@ class Orchestrator:
             )
 
             if trade:
-                log.info(f"Trade simulated: {trade}")
+                log.debug(f"Trade simulated: {trade}")
                 trades.append(trade)
                 historical_returns.append(trade.net_return_pct)
 
-        log.info(f"Backtest for {stock} complete. Found {len(trades)} trades.")
+        log.debug(f"Backtest for {stock} complete. Found {len(trades)} trades.")
         return trades
 
     def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame):
@@ -231,17 +231,17 @@ class Orchestrator:
             log.info(f"No preliminary signal for {stock} on the latest data.")
             return None
 
-        log.info(f"Preliminary signal found for {stock} on {full_df.index[-1].date()}")
+        log.debug(f"Preliminary signal found for {stock} on {full_df.index[-1].date()}")
         scores = self.validation_service.validate(latest_data_window, signal)
         composite_score = scores.liquidity_score * scores.regime_score * scores.stat_score
 
         if composite_score < self.config.llm.min_composite_score_for_llm:
-            log.info(f"Signal for {stock} rejected by pre-filter. Composite score: {composite_score:.2f}")
+            log.debug(f"Signal for {stock} rejected by pre-filter. Composite score: {composite_score:.2f}")
             return None
 
         historical_df = full_df.iloc[:-1]
         historical_stats = self._calculate_historical_stats_for_llm(stock, historical_df)
-        log.info(f"Historical stats for {stock}: {historical_stats}")
+        log.debug(f"Historical stats for {stock}: {historical_stats}")
 
         confidence_score = self.llm_audit_service.get_confidence_score(
             historical_stats=historical_stats,
@@ -250,7 +250,7 @@ class Orchestrator:
         )
 
         if confidence_score < self.config.llm.confidence_threshold:
-            log.info(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
+            log.debug(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
             return None
 
         opportunity = Opportunity(

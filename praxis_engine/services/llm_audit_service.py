@@ -116,8 +116,12 @@ class LLMAuditService:
                 temperature=0.2,
             )
 
-            response = chat_completion.choices[0].message.content
-            log.debug(f"LLM Audit Raw Response: {response}")
+            if chat_completion and chat_completion.choices:
+                response = chat_completion.choices[0].message.content
+                log.debug(f"LLM Audit Raw Response: {response}")
+            else:
+                log.warning("LLM response is empty or invalid.")
+                response = None
 
             score = self._parse_llm_response(response)
             log.info(f"LLM Audit Parsed Score: {score}")

@@ -275,4 +275,16 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Definition of Done (DoD):**
     *   All code changes are implemented, the prompt is updated, and all relevant unit and integration tests are passing.
 *   **Time estimate:** 4 hours
-*   **Status:** To Do
+*   **Status:** Done
+
+---
+
+### Task 16 — Enhance Backtest User Experience
+
+*   **Rationale:** The backtest output is verbose and hard to follow. A progress bar and per-stock summaries will make the backtesting process more user-friendly and provide immediate feedback on the performance of the strategy for each stock. The detailed logs will be moved to a file for later analysis.
+*   **Items to implement:**
+    1.  **File Logging:** Configure the logger to write detailed `DEBUG` level logs to `results/backtest_results.log`. The console logger should only show `INFO` level messages.
+    2.  **Progress Bar:** Use `tqdm` to display a progress bar for the backtesting loop over the stocks.
+    3.  **Per-Stock Summary:** After each stock is backtested, generate and print a summary of the results to the console.
+    4.  **Less Verbose Orchestrator:** Change verbose `log.info` statements in the `Orchestrator` to `log.debug` to keep the console output clean.
+*   **Status:** Done
