@@ -8,6 +8,7 @@ import numpy as np
 from pathlib import Path
 from typing import Generator
 import httpx
+from _pytest.logging import LogCaptureFixture
 
 
 from openai import APIConnectionError, RateLimitError, AuthenticationError
@@ -39,6 +40,7 @@ def llm_config(prompt_path: Path) -> LLMConfig:
         model="test-model",
         prompt_template_path=str(prompt_path),
         confidence_threshold=0.7,
+        min_composite_score_for_llm=0.05,
     )
 
 @pytest.fixture
@@ -97,7 +99,9 @@ class TestLLMAuditServiceInitialization:
                 mock_openai.assert_called_once_with(base_url=None, api_key="oa-key", timeout=30.0)
 
     @pytest.mark.parametrize("provider", ["openrouter", "openai"])
-    def test_initialization_fails_with_missing_key(self, llm_config: LLMConfig, caplog, provider: str) -> None:
+    def test_initialization_fails_with_missing_key(
+        self, llm_config: LLMConfig, caplog: LogCaptureFixture, provider: str
+    ) -> None:
         """Test that initialization fails if the API key is missing."""
         with patch.dict("os.environ", {"LLM_PROVIDER": provider, f"{provider.upper()}_API_KEY": ""}, clear=True):
             service = LLMAuditService(config=llm_config)
@@ -107,7 +111,9 @@ class TestLLMAuditServiceInitialization:
             assert service.get_confidence_score(MagicMock(), MagicMock(), MagicMock()) == 0.0
             assert "LLM client not initialized" in caplog.text
 
-    def test_initialization_fails_with_unsupported_provider(self, llm_config: LLMConfig, caplog) -> None:
+    def test_initialization_fails_with_unsupported_provider(
+        self, llm_config: LLMConfig, caplog: LogCaptureFixture
+    ) -> None:
         """Test that initialization fails for an unsupported provider."""
         with patch.dict("os.environ", {"LLM_PROVIDER": "unsupported"}, clear=True):
             service = LLMAuditService(config=llm_config)
@@ -153,24 +159,43 @@ class TestGetConfidenceScore:
         (Exception("Generic Error"), "openrouter", "An unexpected error in get_confidence_score"),
     ])
     def test_specific_api_errors_return_zero(
-        self, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame, caplog,
-        error_class: Exception, provider: str, expected_log: str
+        self,
+        llm_audit_service: LLMAuditService,
+        sample_dataframe: pd.DataFrame,
+        caplog: LogCaptureFixture,
+        error_class: Exception,
+        provider: str,
+        expected_log: str,
     ) -> None:
         llm_audit_service.llm_provider = provider
-        llm_audit_service.mock_openai_client.chat.completions.create.side_effect = error_class
+        llm_audit_service.mock_openai_client.chat.completions.create.side_effect = error_class # type: ignore
 
-        score = llm_audit_service.get_confidence_score({}, MagicMock(spec=Signal, sector_vol=15.0), sample_dataframe)
+        score = llm_audit_service.get_confidence_score(
+            {}, MagicMock(spec=Signal, sector_vol=15.0), sample_dataframe
+        )
 
         assert score == 0.0
         assert expected_log in caplog.text
 
-    def test_hurst_calculation_fails(self, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame, caplog) -> None:
+    def test_hurst_calculation_fails(
+        self,
+        llm_audit_service: LLMAuditService,
+        sample_dataframe: pd.DataFrame,
+        caplog: LogCaptureFixture,
+    ) -> None:
         with patch("praxis_engine.services.llm_audit_service.hurst_exponent", return_value=None):
-            score = llm_audit_service.get_confidence_score({}, MagicMock(spec=Signal, sector_vol=15.0), sample_dataframe)
+            score = llm_audit_service.get_confidence_score(
+                {}, MagicMock(spec=Signal, sector_vol=15.0), sample_dataframe
+            )
             assert score == 0.0
             assert "Could not calculate Hurst exponent" in caplog.text
 
-    def test_template_not_found(self, llm_config: LLMConfig, sample_dataframe: pd.DataFrame, caplog) -> None:
+    def test_template_not_found(
+        self,
+        llm_config: LLMConfig,
+        sample_dataframe: pd.DataFrame,
+        caplog: LogCaptureFixture,
+    ) -> None:
         llm_config.prompt_template_path = "/non/existent/path/prompt.txt"
         with patch("praxis_engine.services.llm_audit_service.OpenAI"), \
              patch.dict("os.environ", {"LLM_PROVIDER": "openrouter", "OPENROUTER_API_KEY": "key"}, clear=True):

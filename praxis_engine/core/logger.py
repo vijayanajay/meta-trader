@@ -2,7 +2,7 @@ import logging
 import sys
 from pathlib import Path
 
-def setup_file_logger(log_dir: str = "results", file_name: str = "backtest_results.log"):
+def setup_file_logger(log_dir: str = "results", file_name: str = "backtest_results.log") -> None:
     """
     Configures the root logger with handlers for file and console output.
     This should be called once when the application starts.

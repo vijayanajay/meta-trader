@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 
 from praxis_engine.utils import get_git_commit_hash
 
-def test_get_git_commit_hash_success():
+def test_get_git_commit_hash_success() -> None:
     """
     Tests that get_git_commit_hash returns the correct hash on success.
     """
@@ -27,7 +27,7 @@ def test_get_git_commit_hash_success():
             encoding='utf-8'
         )
 
-def test_get_git_commit_hash_git_not_found():
+def test_get_git_commit_hash_git_not_found() -> None:
     """
     Tests that get_git_commit_hash returns 'N/A' when git is not installed.
     """
@@ -38,7 +38,7 @@ def test_get_git_commit_hash_git_not_found():
         # Assert that the function returns "N/A"
         assert commit_hash == "N/A"
 
-def test_get_git_commit_hash_not_a_git_repo():
+def test_get_git_commit_hash_not_a_git_repo() -> None:
     """
     Tests that get_git_commit_hash returns 'N/A' when not in a git repository.
     """

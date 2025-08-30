@@ -8,7 +8,7 @@ import numpy as np
 
 
 import datetime
-from typing import Optional, Any
+from typing import Optional, Any, Tuple
 
 from praxis_engine.core.indicators import atr
 from praxis_engine.core.models import BacktestSummary, Config, Trade, Opportunity
@@ -117,7 +117,7 @@ class Orchestrator:
         log.debug(f"Backtest for {stock} complete. Found {len(trades)} trades.")
         return trades
 
-    def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame):
+    def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame) -> Tuple[pd.Timestamp, float]:
         """ Determines the exit date and price for a trade. """
         atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
         use_atr = self.config.exit_logic.use_atr_exit and atr_col_name in window_df.columns and not pd.isna(window_df.iloc[-1][atr_col_name])
@@ -280,28 +280,34 @@ class Orchestrator:
         log.info(f"Starting sensitivity analysis for '{param_name}' from {start} to {end} with step {step}")
 
         results: List[BacktestSummary] = []
-        for value in np.arange(start, end + step, step):
+        for value_np in np.arange(start, end + step, step):
+            value = float(value_np)
             log.info(f"Running backtest with {param_name} = {value:.4f}")
 
-            temp_config = copy.deepcopy(self.config)
-
-            final_value = value
-            if param_name in ['strategy_params.bb_length', 'strategy_params.rsi_length', 
+            # Define the type of final_value to satisfy mypy for the conditional assignment
+            final_value: float | int = value
+            if param_name in ['strategy_params.bb_length', 'strategy_params.rsi_length',
                             'strategy_params.hurst_length', 'strategy_params.exit_days',
                             'strategy_params.min_history_days', 'strategy_params.liquidity_lookback_days',
                             'exit_logic.atr_period', 'exit_logic.max_holding_days']:
                 final_value = int(value)
 
-            _set_nested_attr(temp_config, param_name, final_value)
-
-            orchestrator = Orchestrator(temp_config)
+            # This is a critical change for efficiency. Instead of creating a new
+            # Orchestrator for each loop, we temporarily modify the config of the
+            # existing one. This avoids the overhead of re-initializing all services.
+            original_value = _get_nested_attr(self.config, param_name)
+            _set_nested_attr(self.config, param_name, final_value)
 
             all_trades: List[Trade] = []
-            for stock in temp_config.data.stocks_to_backtest:
-                trades = orchestrator.run_backtest(
-                    stock, temp_config.data.start_date, temp_config.data.end_date
+            for stock in self.config.data.stocks_to_backtest:
+                trades = self.run_backtest(
+                    stock, self.config.data.start_date, self.config.data.end_date
                 )
                 all_trades.extend(trades)
+
+            # Restore the original config value to ensure the orchestrator is in a
+            # clean state after the analysis.
+            _set_nested_attr(self.config, param_name, original_value)
 
             summary = self._aggregate_trades(all_trades, value)
             results.append(summary)
@@ -337,16 +343,24 @@ class Orchestrator:
             total_trades=len(trades),
             win_rate_pct=win_rate * 100,
             profit_factor=profit_factor,
-            net_return_pct_mean=np.mean(returns) * 100,
-            net_return_pct_std=np.std(returns) * 100
+            net_return_pct_mean=float(np.mean(returns)) * 100,
+            net_return_pct_std=float(np.std(returns)) * 100
         )
 
 
-def _set_nested_attr(obj: Any, attr_string: str, value: Any):
+import functools
+
+def _get_nested_attr(obj: Any, attr_string: str) -> Any:
+    """
+    Gets a nested attribute from an object based on a dot-separated string.
+    """
+    return functools.reduce(getattr, attr_string.split('.'), obj)
+
+
+def _set_nested_attr(obj: Any, attr_string: str, value: Any) -> None:
     """
     Sets a nested attribute on an object based on a dot-separated string.
     """
     attrs = attr_string.split('.')
-    for attr in attrs[:-1]:
-        obj = getattr(obj, attr)
-    setattr(obj, attrs[-1], value)
+    parent = functools.reduce(getattr, attrs[:-1], obj)
+    setattr(parent, attrs[-1], value)
