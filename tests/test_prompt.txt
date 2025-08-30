@@ -1,15 +1,8 @@
 
-You are a quantitative analyst AI. Your task is to provide a confidence score on a potential mean-reversion trade signal based on its historical performance characteristics.
-
-**Do not provide any explanation or commentary. Your response must be a single floating-point number between 0.0 and 1.0.**
-
-Here are the statistics for the signal on a given stock:
+You are a quantitative analyst AI. Your task is to provide a confidence score.
+Your response must be a single floating-point number between 0.0 and 1.0.
 - Historical Win Rate (>1.77% net return in 20 days): {{ win_rate }}%
 - Historical Profit Factor: {{ profit_factor }}
 - Historical Sample Size (number of past signals): {{ sample_size }}
 - Current Sector Volatility (annualized): {{ sector_volatility }}%
 - Current Hurst Exponent: {{ hurst_exponent }}
-
-Based on these statistics, what is the confidence that this signal is not a statistical anomaly and is likely to be a profitable trade?
-
-Confidence Score:
