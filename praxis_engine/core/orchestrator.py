@@ -11,7 +11,7 @@ import datetime
 from typing import Optional, Any, Tuple
 
 from praxis_engine.core.indicators import atr
-from praxis_engine.core.models import BacktestSummary, Config, Trade, Opportunity
+from praxis_engine.core.models import BacktestMetrics, BacktestSummary, Config, Trade, Opportunity
 from praxis_engine.services.data_service import DataService
 from praxis_engine.services.signal_engine import SignalEngine
 from praxis_engine.services.validation_service import ValidationService
@@ -34,18 +34,19 @@ class Orchestrator:
         self.execution_simulator = ExecutionSimulator(config.cost_model)
         self.llm_audit_service = LLMAuditService(config.llm)
 
-    def run_backtest(self, stock: str, start_date: str, end_date: str) -> List[Trade]:
+    def run_backtest(self, stock: str, start_date: str, end_date: str) -> Tuple[List[Trade], BacktestMetrics]:
         """
         Runs a walk-forward backtest for a single stock.
         """
         log.debug(f"Starting backtest for {stock} from {start_date} to {end_date}...")
+        metrics = BacktestMetrics()
 
         sector_ticker = self.config.data.sector_map.get(stock)
         full_df = self.data_service.get_data(stock, start_date, end_date, sector_ticker)
 
         if full_df is None or full_df.empty:
             log.warning(f"No data found for {stock}. Skipping backtest.")
-            return []
+            return [], metrics
 
         trades: List[Trade] = []
         min_history_days = self.config.strategy_params.min_history_days
@@ -65,6 +66,7 @@ class Orchestrator:
             if not signal:
                 continue
 
+            metrics.potential_signals += 1
             log.debug(f"Preliminary signal found for {stock} on {signal_date.date()}")
 
             scores = self.validation_service.validate(window, signal)
@@ -72,6 +74,11 @@ class Orchestrator:
 
             if composite_score < self.config.llm.min_composite_score_for_llm:
                 log.debug(f"Signal for {stock} rejected by pre-filter. Composite score: {composite_score:.2f}")
+                # Determine the primary reason for rejection
+                scores_dict = scores.model_dump()
+                rejection_reason = min(scores_dict, key=lambda k: scores_dict[k])
+                guard_name = f"{rejection_reason.split('_')[0].capitalize()}Guard"
+                metrics.rejections_by_guard[guard_name] = metrics.rejections_by_guard.get(guard_name, 0) + 1
                 continue
 
             log.debug(f"Validated signal found for {stock} on {signal_date.date()} with composite score {composite_score:.2f}")
@@ -89,6 +96,7 @@ class Orchestrator:
 
             if confidence_score < self.config.llm.confidence_threshold:
                 log.debug(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
+                metrics.rejections_by_llm += 1
                 continue
 
             entry_date_actual = full_df.index[i]
@@ -113,9 +121,10 @@ class Orchestrator:
             if trade:
                 log.debug(f"Trade simulated: {trade}")
                 trades.append(trade)
+                metrics.trades_executed += 1
 
         log.debug(f"Backtest for {stock} complete. Found {len(trades)} trades.")
-        return trades
+        return trades, metrics
 
     def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame) -> Tuple[pd.Timestamp, float]:
         """ Determines the exit date and price for a trade. """
@@ -299,8 +308,10 @@ class Orchestrator:
             _set_nested_attr(self.config, param_name, final_value)
 
             all_trades: List[Trade] = []
+            # Metrics are not yet used in sensitivity analysis report, but we handle them
+            # to align with the new run_backtest signature.
             for stock in self.config.data.stocks_to_backtest:
-                trades = self.run_backtest(
+                trades, _ = self.run_backtest(
                     stock, self.config.data.start_date, self.config.data.end_date
                 )
                 all_trades.extend(trades)

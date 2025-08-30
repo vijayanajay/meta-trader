@@ -1,9 +1,19 @@
 import pandas as pd
 import pytest
-from typing import List
+from typing import List, Dict
 
-from praxis_engine.core.models import BacktestSummary, Trade, Signal, RunMetadata
+from praxis_engine.core.models import BacktestMetrics, BacktestSummary, Trade, Signal, RunMetadata
 from praxis_engine.services.report_generator import ReportGenerator
+
+@pytest.fixture
+def sample_metrics() -> BacktestMetrics:
+    """Provides a sample BacktestMetrics object for testing."""
+    return BacktestMetrics(
+        potential_signals=100,
+        rejections_by_guard={"LiquidityGuard": 20, "StatGuard": 30},
+        rejections_by_llm=10,
+        trades_executed=40,
+    )
 
 @pytest.fixture
 def sample_trades() -> List[Trade]:
@@ -53,16 +63,16 @@ def sample_trades() -> List[Trade]:
     return trades
 
 
-def test_generate_backtest_report_no_trades() -> None:
+def test_generate_backtest_report_no_trades(sample_metrics: BacktestMetrics) -> None:
     """
     Tests that the report generator handles the case with no trades.
     """
     report_generator = ReportGenerator()
-    report = report_generator.generate_backtest_report([], "2023-01-01", "2023-12-31")
+    report = report_generator.generate_backtest_report([], sample_metrics, "2023-01-01", "2023-12-31")
     assert "No trades were executed" in report
 
 
-def test_generate_backtest_report_with_metadata(sample_trades: List[Trade]) -> None:
+def test_generate_backtest_report_with_metadata(sample_trades: List[Trade], sample_metrics: BacktestMetrics) -> None:
     """
     Tests that the report generator correctly renders the metadata section.
     """
@@ -73,13 +83,36 @@ def test_generate_backtest_report_with_metadata(sample_trades: List[Trade]) -> N
         git_commit_hash="abcdef1",
     )
     report = report_generator.generate_backtest_report(
-        sample_trades, "2023-01-01", "2023-12-31", metadata=metadata
+        sample_trades, sample_metrics, "2023-01-01", "2023-12-31", metadata=metadata
     )
 
     assert "Run Configuration & Metadata" in report
     assert "| Run Timestamp | 2025-08-30 12:00:00 UTC |" in report
     assert "| Config File | `config.ini` |" in report
     assert "| Git Commit Hash | `abcdef1` |" in report
+
+
+def test_generate_filtering_funnel_table(sample_metrics: BacktestMetrics) -> None:
+    """Tests the generation of the filtering funnel table."""
+    report_generator = ReportGenerator()
+    table = report_generator._generate_filtering_funnel_table(sample_metrics)
+
+    assert "Filtering Funnel" in table
+    assert "| Potential Signals | 100 | 100.00% |" in table
+    assert "| Survived Guardrails | 50 | 50.00% |" in table
+    assert "| Survived LLM Audit | 40 | 80.00% |" in table
+    assert "| Trades Executed | 40 | 100.00% |" in table
+
+
+def test_generate_rejection_analysis_table(sample_metrics: BacktestMetrics) -> None:
+    """Tests the generation of the rejection analysis table."""
+    report_generator = ReportGenerator()
+    table = report_generator._generate_rejection_analysis_table(sample_metrics.rejections_by_guard)
+
+    assert "Guardrail Rejection Analysis" in table
+    # Note: The output uses escaped newlines for the multiline string
+    assert "| StatGuard | 30 | 60.00% |" in table.replace("\\n", "\n")
+    assert "| LiquidityGuard | 20 | 40.00% |" in table.replace("\\n", "\n")
 
 
 def test_calculate_kpis_with_sample_data(sample_trades: List[Trade]) -> None:

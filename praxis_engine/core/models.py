@@ -112,6 +112,16 @@ class Opportunity(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class BacktestMetrics(BaseModel):
+    """
+    Holds the statistics for the signal attrition funnel.
+    """
+    potential_signals: int = 0
+    rejections_by_guard: Dict[str, int] = Field(default_factory=dict)
+    rejections_by_llm: int = 0
+    trades_executed: int = 0
+
+
 class RunMetadata(BaseModel):
     """
     Holds metadata about a specific backtest run for reproducibility.
