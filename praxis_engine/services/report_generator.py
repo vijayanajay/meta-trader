@@ -1,18 +1,27 @@
 """
 Service for generating reports from backtest results.
 """
-from typing import List
+from typing import List, Optional
 import pandas as pd
 import numpy as np
 
-from praxis_engine.core.models import BacktestSummary, Trade, Opportunity
+from praxis_engine.core.models import BacktestSummary, Trade, Opportunity, RunMetadata
+from praxis_engine.core.logger import get_logger
+
+log = get_logger(__name__)
 
 class ReportGenerator:
     """
     Generates reports from a list of trades.
     """
 
-    def generate_backtest_report(self, trades: List[Trade], start_date: str, end_date: str) -> str:
+    def generate_backtest_report(
+        self,
+        trades: List[Trade],
+        start_date: str,
+        end_date: str,
+        metadata: Optional[RunMetadata] = None,
+    ) -> str:
         """
         Generates a summary report from a list of trades.
         """
@@ -22,9 +31,20 @@ class ReportGenerator:
         # Placeholder for KPI calculations
         kpis = self._calculate_kpis(trades, start_date, end_date)
 
+        metadata_section = ""
+        if metadata:
+            metadata_section = f"""
+### Run Configuration & Metadata
+| Parameter | Value |
+| --- | --- |
+| Run Timestamp | {metadata.run_timestamp} |
+| Config File | `{metadata.config_path}` |
+| Git Commit Hash | `{metadata.git_commit_hash}` |
+"""
+
         report = f"""
 ## Backtest Report
-
+{metadata_section}
 **Period:** {start_date} to {end_date}
 **Total Trades:** {len(trades)}
 

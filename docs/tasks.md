@@ -36,6 +36,16 @@ This document provides a detailed, sequential list of tasks required to build th
 
 ---
 
+### Task 1.2 — Solidify Project Dependencies
+*   **Rationale:** The project is missing a formal dependency management file (e.g., `requirements.txt`). Several libraries (`typer`, `pyarrow`, `openai`, etc.) were required to run the backtest but were not installed as part of the initial setup, causing runtime errors. This makes the project difficult to set up and violates the principle of a reproducible environment.
+*   **Items to implement:**
+    1.  Create a `requirements.txt` file that lists all necessary dependencies for running the application and the tests.
+    2.  Update the `README.md` or a new `CONTRIBUTING.md` with clear instructions on how to set up the development environment using `pip install -r requirements.txt`.
+    3.  Ensure all required packages are included so that a fresh checkout can be run with a single installation command.
+*   **Status:** To Do
+
+---
+
 ### Task 2 — Data Service for Indian Markets
 
 *   **Rationale:** Data is the lifeblood. This service must be robust, efficient, and acutely aware of Indian market specifics. We will use the correct data sources and implement caching to make research fast and reproducible.
@@ -306,7 +316,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Tests to cover:**
     *   A unit test for the new Git hash utility function, mocking the `subprocess.run` call.
     *   Update `tests/test_report_generator.py` to check that the metadata section is correctly rendered in the output string.
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
