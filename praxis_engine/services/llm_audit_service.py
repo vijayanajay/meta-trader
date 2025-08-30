@@ -27,7 +27,7 @@ class LLMAuditService:
         self.config = config
         self.client = None
 
-        self.llm_provider = os.getenv("LLM_PROVIDER", self.config.provider)
+        self.llm_provider = os.getenv("LLM_PROVIDER", self.config.provider).strip()
         api_key: Optional[str] = None
         base_url: Optional[str] = None
 
