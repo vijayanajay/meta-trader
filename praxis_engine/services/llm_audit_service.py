@@ -27,34 +27,31 @@ class LLMAuditService:
         self.config = config
         self.client = None
 
-        self.llm_provider = self.config.provider
-        self.model = self.config.model
+        self.llm_provider = os.getenv("LLM_PROVIDER", self.config.provider)
         api_key: Optional[str] = None
         base_url: Optional[str] = None
 
         if self.llm_provider == "openrouter":
-            api_key = self.config.openrouter_api_key
-            base_url = self.config.openrouter_base_url
+            api_key = os.getenv("OPENROUTER_API_KEY")
+            base_url = os.getenv("OPENROUTER_BASE_URL")
+            self.model = os.getenv("OPENROUTER_MODEL", self.config.model)
+            log.debug(f"OpenRouter base URL: {base_url}")
         elif self.llm_provider == "openai":
-            # Assuming similar setup for openai in future
-            # api_key = self.config.openai_api_key
-            # base_url = self.config.openai_base_url
-            log.warning("OpenAI provider is not fully configured in this version.")
-            return
+            api_key = os.getenv("OPENAI_API_KEY")
+            self.model = self.config.model
         else:
-            log.warning(f"LLM provider '{self.llm_provider}' is not supported. LLM Audit will be skipped.")
+            log.warning(f"LLM_PROVIDER '{self.llm_provider}' is not supported. LLM Audit will be skipped.")
             return
 
         if not api_key:
-            log.warning(f"API key for {self.llm_provider} not found. LLM Audit will be skipped.")
+            log.warning(f"API key for {self.llm_provider} not found in environment variables. LLM Audit will be skipped.")
             return
 
-        if not base_url and self.llm_provider == "openrouter":
-            log.warning(f"Base URL for {self.llm_provider} not found. LLM Audit will be skipped.")
-            return
+        if self.llm_provider == "openrouter":
+            log.debug(f"OpenRouter API key loaded: {api_key[:10]}...{api_key[-4:]}")
 
         self.client = OpenAI(base_url=base_url, api_key=api_key, timeout=30.0)
-        log.info(f"Initialized LLM client for {self.llm_provider} with model {self.model}")
+        log.info(f"Initialized LLM client for {self.llm_provider} with base_url: {base_url}")
         self.prompt_template_path = config.prompt_template_path
 
     def _parse_llm_response(self, response: Optional[str]) -> float:
@@ -119,8 +116,12 @@ class LLMAuditService:
                 temperature=0.2,
             )
 
-            response = chat_completion.choices[0].message.content
-            log.debug(f"LLM Audit Raw Response: {response}")
+            if chat_completion and chat_completion.choices:
+                response = chat_completion.choices[0].message.content
+                log.debug(f"LLM Audit Raw Response: {response}")
+            else:
+                log.warning("LLM response is empty or invalid.")
+                response = None
 
             score = self._parse_llm_response(response)
             log.info(f"LLM Audit Parsed Score: {score}")

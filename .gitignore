@@ -213,4 +213,3 @@ run_state.json
 *.html
 *.csv
 *.parquet
-config.bak

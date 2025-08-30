@@ -275,21 +275,16 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Definition of Done (DoD):**
     *   All code changes are implemented, the prompt is updated, and all relevant unit and integration tests are passing.
 *   **Time estimate:** 4 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
-## Epic 7: User Experience and Reporting
+### Task 16 — Enhance Backtest User Experience
 
-*Goal: To improve the user experience of running backtests and to provide more detailed reporting.*
-
----
-
-### Task 16 - Improve Backtest UX and Logging
-*   **Rationale:** The backtest output is too verbose, and the detailed logs are not saved. This task will improve the user experience by providing a progress bar and a summary of results, while saving the detailed logs to a file for later analysis.
+*   **Rationale:** The backtest output is verbose and hard to follow. A progress bar and per-stock summaries will make the backtesting process more user-friendly and provide immediate feedback on the performance of the strategy for each stock. The detailed logs will be moved to a file for later analysis.
 *   **Items to implement:**
-    1.  Add a progress bar to the backtest command.
-    2.  After each stock is backtested, provide a summary of results including win rate, sharpe ratio, etc.
-    3.  Provide a complete summary at the end of the backtest.
-    4.  Redirect the detailed log output to a `backtest_results.log` file.
+    1.  **File Logging:** Configure the logger to write detailed `DEBUG` level logs to `results/backtest_results.log`. The console logger should only show `INFO` level messages.
+    2.  **Progress Bar:** Use `tqdm` to display a progress bar for the backtesting loop over the stocks.
+    3.  **Per-Stock Summary:** After each stock is backtested, generate and print a summary of the results to the console.
+    4.  **Less Verbose Orchestrator:** Change verbose `log.info` statements in the `Orchestrator` to `log.debug` to keep the console output clean.
 *   **Status:** Done

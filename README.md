@@ -59,9 +59,7 @@ To run a backtest on the stocks defined in your `config.ini`, use the `backtest`
 ```bash
 python run.py backtest
 ```
-This will fetch the necessary data, run the walk-forward backtest for each stock, and print a summary of the results to the console. A progress bar will show the progress of the backtest.
-
-A detailed log of the backtest, including every trade, is saved to `results/backtest_results.log`.
+This will fetch the necessary data, run the walk-forward backtest for each stock, and print the results to the console.
 
 ## Project Structure
 

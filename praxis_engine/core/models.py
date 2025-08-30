@@ -40,12 +40,9 @@ class ScoringConfig(BaseModel):
 class LLMConfig(BaseModel):
     provider: str
     confidence_threshold: float = Field(..., ge=0, le=1)
-    min_composite_score_for_llm: float = Field(..., ge=0, le=1)
+    min_composite_score_for_llm: float = Field(0.05, ge=0, le=1)
     model: str
     prompt_template_path: str
-    # OpenRouter specific, loaded from .env
-    openrouter_api_key: Optional[str] = Field(None, json_schema_extra={"env": "OPENROUTER_API_KEY"})
-    openrouter_base_url: Optional[str] = Field(None, json_schema_extra={"env": "OPENROUTER_BASE_URL"})
 
 class CostModelConfig(BaseModel):
     brokerage_rate: float = Field(..., ge=0)
