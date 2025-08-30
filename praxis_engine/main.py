@@ -8,8 +8,9 @@ from tqdm import tqdm
 from praxis_engine.core.logger import get_logger, setup_file_logger
 from praxis_engine.services.config_service import ConfigService
 from praxis_engine.core.orchestrator import Orchestrator
-from praxis_engine.core.models import Config, Opportunity, Trade
+from praxis_engine.core.models import Config, Opportunity, Trade, RunMetadata
 from praxis_engine.services.report_generator import ReportGenerator
+from praxis_engine.utils import get_git_commit_hash
 from typing import List
 
 # Load environment variables from .env file
@@ -41,6 +42,15 @@ def backtest(
     all_trades: List[Trade] = []
     report_generator = ReportGenerator()
 
+    # --- Metadata Collection ---
+    run_metadata = RunMetadata(
+        run_timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        config_path=config_path,
+        git_commit_hash=get_git_commit_hash(),
+    )
+    logger.info(f"Git commit hash: {run_metadata.git_commit_hash}")
+    # -------------------------
+
     stock_list = config.data.stocks_to_backtest
     with tqdm(total=len(stock_list), desc="Backtesting Stocks", file=sys.stderr) as pbar:
         for stock in stock_list:
@@ -52,10 +62,8 @@ def backtest(
             )
 
             if trades:
-                stock_summary = report_generator.generate_backtest_report(
-                    trades, config.data.start_date, config.data.end_date
-                )
-                logger.info(f"\n----- Summary for {stock} -----\n{stock_summary}\n--------------------------------\n")
+                # Per-stock logging is handled by the logger at DEBUG level now.
+                # The final report is the main artifact.
                 all_trades.extend(trades)
 
             pbar.update(1)
@@ -66,7 +74,10 @@ def backtest(
 
     logger.info("\n========== Overall Backtest Summary ==========")
     final_report = report_generator.generate_backtest_report(
-        all_trades, config.data.start_date, config.data.end_date
+        trades=all_trades,
+        start_date=config.data.start_date,
+        end_date=config.data.end_date,
+        metadata=run_metadata,
     )
 
     results_dir = Path("results")

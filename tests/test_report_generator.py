@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from typing import List
 
-from praxis_engine.core.models import BacktestSummary, Trade, Signal
+from praxis_engine.core.models import BacktestSummary, Trade, Signal, RunMetadata
 from praxis_engine.services.report_generator import ReportGenerator
 
 @pytest.fixture
@@ -60,6 +60,26 @@ def test_generate_backtest_report_no_trades() -> None:
     report_generator = ReportGenerator()
     report = report_generator.generate_backtest_report([], "2023-01-01", "2023-12-31")
     assert "No trades were executed" in report
+
+
+def test_generate_backtest_report_with_metadata(sample_trades: List[Trade]) -> None:
+    """
+    Tests that the report generator correctly renders the metadata section.
+    """
+    report_generator = ReportGenerator()
+    metadata = RunMetadata(
+        run_timestamp="2025-08-30 12:00:00 UTC",
+        config_path="config.ini",
+        git_commit_hash="abcdef1",
+    )
+    report = report_generator.generate_backtest_report(
+        sample_trades, "2023-01-01", "2023-12-31", metadata=metadata
+    )
+
+    assert "Run Configuration & Metadata" in report
+    assert "| Run Timestamp | 2025-08-30 12:00:00 UTC |" in report
+    assert "| Config File | `config.ini` |" in report
+    assert "| Git Commit Hash | `abcdef1` |" in report
 
 
 def test_calculate_kpis_with_sample_data(sample_trades: List[Trade]) -> None:

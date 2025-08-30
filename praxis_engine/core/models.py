@@ -112,6 +112,15 @@ class Opportunity(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class RunMetadata(BaseModel):
+    """
+    Holds metadata about a specific backtest run for reproducibility.
+    """
+    run_timestamp: str
+    config_path: str
+    git_commit_hash: str
+
+
 class SensitivityAnalysisConfig(BaseModel):
     """
     Configuration for the sensitivity analysis module.
