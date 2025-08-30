@@ -137,7 +137,7 @@ This document provides a detailed, sequential list of tasks required to build th
     *   Implement `services/llm_audit_service.py` with an `LLMAuditService` class.
     *   The `get_confidence_score` method must query the LLM with a statistics-only prompt.
     *   It must robustly parse the LLM's response.
-*   **Status:** Complete. **Resolution**: A critical performance issue was resolved by removing the "mini-backtest" logic from this service. The service is now a lean, stateless utility that relies on the Orchestrator to provide historical context, as per the architecture.
+*   **Status:** Complete. **Resolution**: A critical performance issue was resolved by removing the "mini-backtest" logic from this service. The service is now a lean, stateless utility that relies on the Orchestrator to provide historical context, as per the architecture. The service was further hardened to handle multiple LLM providers (`OpenAI`, `OpenRouter`) controlled via environment variables. Test coverage was increased to >90% to cover initialization failures, API errors, and other edge cases. The default behavior for unconfigured providers was changed to be fail-safe (return 0.0 score).
 
 ---
 
@@ -377,4 +377,13 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Tests to cover:**
     *   This requires a significant update to `tests/test_orchestrator.py`. Create a new integration test that simulates a scenario where some signals pass the guards but are then rejected by the LLM. Assert that `run_backtest` returns two lists of trades with the correct contents.
     *   Add a new test to `tests/test_report_generator.py` for `generate_llm_uplift_report`, providing it with two mock lists of trades and asserting the final table and uplift calculations are correct.
+*   **Status:** To Do
+
+---
+
+### Task 22 — Align Task Numbers with Descriptions
+*   **Rationale:** There is a discrepancy between user requests for specific task numbers (e.g., "Task 17") and the content of those tasks in this document. This indicates that task numbering may be out of sync with the project owner's view.
+*   **Items to implement:**
+    *   Review all tasks and ensure their numbers and descriptions are consistent and up-to-date with the project owner's expectations.
+    *   This is a documentation and project management task.
 *   **Status:** To Do

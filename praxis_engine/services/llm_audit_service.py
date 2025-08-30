@@ -88,7 +88,8 @@ class LLMAuditService:
         Adheres to H-7 (Side Effects Must Be Labeled).
         """
         if not self.client:
-            return self.config.confidence_threshold # Default score if LLM is not configured
+            log.warning("LLM client not initialized, returning score 0.0.")
+            return 0.0
         try:
             H = hurst_exponent(df_window["Close"])
             if H is None:
