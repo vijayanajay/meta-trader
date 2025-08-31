@@ -58,14 +58,15 @@ def backtest(
     with tqdm(total=len(stock_list), desc="Backtesting Stocks", file=sys.stderr) as pbar:
         for stock in stock_list:
             pbar.set_description(f"Processing {stock}")
-            trades, metrics = orchestrator.run_backtest(
+            result = orchestrator.run_backtest(
                 stock=stock,
                 start_date=config.data.start_date,
                 end_date=config.data.end_date,
             )
-            per_stock_trades[stock] = trades
-            per_stock_metrics[stock] = metrics
-            all_trades.extend(trades)
+            per_stock_trades[stock] = result["trades"]
+            per_stock_metrics[stock] = result["metrics"]
+            all_trades.extend(result["trades"])
+            metrics = result["metrics"]
             # Aggregate metrics
             aggregated_metrics.potential_signals += metrics.potential_signals
             aggregated_metrics.rejections_by_llm += metrics.rejections_by_llm

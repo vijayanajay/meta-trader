@@ -4,6 +4,35 @@ from praxis_engine.core.logger import get_logger
 logger = get_logger(__name__)
 
 # impure
+import numpy as np
+from typing import List
+
+def generate_ascii_histogram(data: List[float], bins: int = 10) -> str:
+    """
+    Generates a simple ASCII histogram for a list of numbers.
+    """
+    if not data:
+        return " (No data for histogram)"
+
+    try:
+        hist, bin_edges = np.histogram(data, bins=bins)
+        max_freq = np.max(hist)
+        bar_char = '█'
+        max_bar_width = 30
+
+        lines = []
+        for i in range(len(hist)):
+            freq = hist[i]
+            bar_width = int((freq / max_freq) * max_bar_width) if max_freq > 0 else 0
+            bar = bar_char * bar_width
+            lines.append(f"{bin_edges[i]:>7.2f} - {bin_edges[i+1]:<7.2f} | {bar} ({freq})")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error(f"Could not generate ASCII histogram: {e}")
+        return " (Error generating histogram)"
+
+
+# impure
 def get_git_commit_hash() -> str:
     """
     Retrieves the short git commit hash of the current HEAD.

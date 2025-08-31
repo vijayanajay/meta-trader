@@ -38,6 +38,33 @@ def test_get_git_commit_hash_git_not_found() -> None:
         # Assert that the function returns "N/A"
         assert commit_hash == "N/A"
 
+
+from praxis_engine.utils import generate_ascii_histogram
+
+def test_generate_ascii_histogram_basic() -> None:
+    """
+    Tests the basic functionality of the ASCII histogram generation.
+    """
+    data = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5]
+    histogram = generate_ascii_histogram(data, bins=4)
+
+    # Expected output structure
+    assert "1.00 - 2.00" in histogram
+    assert "2.00 - 3.00" in histogram
+    assert "3.00 - 4.00" in histogram
+    assert "4.00 - 5.00" in histogram
+    assert "(1)" in histogram
+    assert "(2)" in histogram
+    assert "(3)" in histogram
+    assert "(9)" in histogram
+
+def test_generate_ascii_histogram_empty_data() -> None:
+    """
+    Tests that the histogram function handles empty data gracefully.
+    """
+    histogram = generate_ascii_histogram([])
+    assert "No data for histogram" in histogram
+
 def test_get_git_commit_hash_not_a_git_repo() -> None:
     """
     Tests that get_git_commit_hash returns 'N/A' when not in a git repository.

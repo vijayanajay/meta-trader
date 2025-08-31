@@ -181,7 +181,8 @@ def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[MagicMock, ...],
     ]
     mock_llm_audit_service.get_confidence_score.return_value = 0.9
 
-    _, metrics = orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
+    result = orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
+    metrics = result["metrics"]
 
     assert metrics.potential_signals == 3
     assert metrics.rejections_by_guard.get("LiquidityGuard") == 1
