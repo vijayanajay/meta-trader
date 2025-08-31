@@ -11,7 +11,7 @@ from praxis_engine.core.orchestrator import Orchestrator
 from praxis_engine.core.models import BacktestMetrics, Config, Opportunity, Trade, RunMetadata
 from praxis_engine.services.report_generator import ReportGenerator
 from praxis_engine.utils import get_git_commit_hash
-from typing import List
+from typing import List, Dict
 
 # Load environment variables from .env file
 load_dotenv()
@@ -102,7 +102,7 @@ def backtest(
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
     report_path = results_dir / "backtest_summary.md"
-    report_path.write_text(final_report)
+    report_path.write_text(final_report, encoding='utf-8')
 
     logger.info(f"Overall backtest report saved to {report_path}")
     logger.info(final_report)
@@ -139,7 +139,7 @@ def generate_report(
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
     report_path = results_dir / f"opportunities_{datetime.date.today()}.md"
-    report_path.write_text(report)
+    report_path.write_text(report, encoding='utf-8')
 
     logger.info(f"Opportunities report saved to {report_path}")
     logger.info("\n" + report)
@@ -183,7 +183,7 @@ def sensitivity_analysis(
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
     report_path = results_dir / "sensitivity_analysis_report.md"
-    report_path.write_text(report)
+    report_path.write_text(report, encoding='utf-8')
 
     logger.info(f"Sensitivity analysis report saved to {report_path}")
     logger.info("\n" + report)
