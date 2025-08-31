@@ -61,6 +61,7 @@ def test_generate_signal_logic_success(
         'BBL_20_2.0': [80.0],
         'BBM_20_2.0': [90.0],
         'RSI_14': [25.0],
+        'ATR_14': [10.0],
         'sector_vol': [0.15]
     }, [last_date])
 
@@ -86,6 +87,8 @@ def test_generate_signal_logic_success(
     assert isinstance(signal, Signal)
     assert signal.entry_price > 75.0
     assert signal.stop_loss == 90.0
+    # Strength score = (BB_Lower - Close) / ATR = (80 - 75) / 10 = 0.5
+    assert signal.strength_score == pytest.approx(0.5)
     mock_prepare_dataframes.assert_called_once()
 
 def test_prepare_dataframes(signal_engine: SignalEngine) -> None:
@@ -97,6 +100,8 @@ def test_prepare_dataframes(signal_engine: SignalEngine) -> None:
     # Create a realistic-looking dataframe
     dates = pd.to_datetime(pd.date_range(end='2023-01-15', periods=200, freq='D'))
     df = pd.DataFrame({
+        "High": 102 + pd.Series(range(200), index=dates) * 0.1,
+        "Low": 98 + pd.Series(range(200), index=dates) * 0.1,
         "Close": 100 + pd.Series(range(200), index=dates) * 0.1,
         "Volume": 1_000_000,
         "sector_vol": 0.15,

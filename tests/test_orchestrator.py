@@ -116,7 +116,7 @@ def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[MagicMock, ...
     mock_data_service.get_data.return_value = df
 
     mock_signal_engine.generate_signal.side_effect = [
-        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
+        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1, strength_score=0.5)
     ] + ([None] * 15)
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
     mock_llm_audit_service.get_confidence_score.return_value = 0.9
@@ -141,7 +141,7 @@ def test_run_backtest_low_score_skips_llm(mock_orchestrator: Tuple[MagicMock, ..
     df = pd.DataFrame({"Close": [100.0]*30, "Volume": [1000.0]*30, "High": [105.0]*30, "Low": [95.0]*30, "Open": [100.0]*30, "sector_vol": [15.0]*30}, index=dates)
     mock_data_service.get_data.return_value = df
 
-    mock_signal_engine.generate_signal.return_value = Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
+    mock_signal_engine.generate_signal.return_value = Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1, strength_score=0.5)
     # This composite score (0.5*0.5*0.5=0.125) is below the 0.5 threshold in config
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.5, regime_score=0.5, stat_score=0.5)
 
@@ -165,9 +165,9 @@ def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[MagicMock, ...],
 
     # Simulate a sequence of events
     mock_signal_engine.generate_signal.side_effect = [
-        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1), # 1. Rejected by guard
-        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1), # 2. Rejected by LLM
-        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1), # 3. Executed
+        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1, strength_score=0.5), # 1. Rejected by guard
+        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1, strength_score=0.5), # 2. Rejected by LLM
+        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1, strength_score=0.5), # 3. Executed
         *([None] * 27) # No more signals
     ]
     mock_validation_service.validate.side_effect = [
