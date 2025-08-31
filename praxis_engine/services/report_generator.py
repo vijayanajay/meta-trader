@@ -182,6 +182,34 @@ class ReportGenerator:
             + "\n".join(rows)
         )
 
+    def generate_per_stock_report(
+        self,
+        per_stock_metrics: Dict[str, BacktestMetrics],
+        per_stock_trades: Dict[str, List[Trade]],
+    ) -> str:
+        """
+        Generates a markdown report for the per-stock performance breakdown.
+        """
+        if not per_stock_metrics:
+            return "### Per-Stock Performance Breakdown\n\nNo per-stock data available."
+
+        header = "| Stock | P/L | Total Trades | Potential Signals | Rejections by Guard | Rejections by LLM |\n"
+        separator = "|---|---|---|---|---|---|\n"
+        rows = []
+        for stock, metrics in per_stock_metrics.items():
+            trades = per_stock_trades.get(stock, [])
+            pnl = sum(trade.net_return_pct for trade in trades)
+            rejections_by_guard = sum(metrics.rejections_by_guard.values())
+            row = f"| {stock} | {pnl:.2f}% | {metrics.trades_executed} | {metrics.potential_signals} | {rejections_by_guard} | {metrics.rejections_by_llm} |"
+            rows.append(row)
+
+        return (
+            "### Per-Stock Performance Breakdown\n\n"
+            + header
+            + separator
+            + "\n".join(rows)
+        )
+
     def generate_sensitivity_report(
         self, results: List[BacktestSummary], parameter_name: str
     ) -> str:
