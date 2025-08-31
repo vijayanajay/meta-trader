@@ -1,18 +1,26 @@
 # Core Dependencies
 pandas
-numpy
-statsmodels
+pandas-ta
+Backtesting
 yfinance
-pydantic
-ollama
-typer
 python-dotenv
+ollama
+pydantic
 hurst
-jinja2
-pyarrow
 openai
+pyarrow
 tqdm
+jinja2
+tenacity
+statsmodels
+typer
+rich
+shellingham
+markdown-it-py
+mdurl
+click
 
 # Development & Testing
 pytest
 mypy
+asteval

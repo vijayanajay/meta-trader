@@ -151,14 +151,60 @@ class TestGetConfidenceScore:
         prompt = mock_client.chat.completions.create.call_args[1]["messages"][0]["content"]
         assert "60.0" in prompt and "2.50" in prompt and "15.5" in prompt
 
+    @patch("praxis_engine.services.llm_audit_service.log.info")
+    def test_retry_logic_on_api_connection_error(
+        self, mock_log_info: MagicMock, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame, caplog: LogCaptureFixture
+    ) -> None:
+        """Test that the retry logic is triggered on APIConnectionError and eventually succeeds."""
+        mock_client = llm_audit_service.mock_openai_client  # type: ignore
+        mock_completion = MagicMock()
+        mock_completion.choices[0].message.content = "0.77"
+
+        # Fail the first time, succeed the second time
+        mock_client.chat.completions.create.side_effect = [
+            APIConnectionError(request=MagicMock()),
+            mock_completion,
+        ]
+
+        stats = {"win_rate": 50.0, "profit_factor": 2.0, "sample_size": 5}
+        signal = Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=12.0)
+
+        score = llm_audit_service.get_confidence_score(stats, signal, sample_dataframe)
+
+        assert score == 0.77
+        assert mock_client.chat.completions.create.call_count == 2
+
+        # Check that the retry message was logged
+        retry_log_found = any("Retrying LLM call" in call.args[0] for call in mock_log_info.call_args_list)
+        assert retry_log_found
+
+    @patch("praxis_engine.services.llm_audit_service.log.info")
+    def test_all_retries_fail(
+        self, mock_log_info: MagicMock, llm_audit_service: LLMAuditService, sample_dataframe: pd.DataFrame, caplog: LogCaptureFixture
+    ) -> None:
+        """Test that if all retries fail, the method raises the final exception."""
+        mock_client = llm_audit_service.mock_openai_client # type: ignore
+        from tenacity import RetryError
+        mock_client.chat.completions.create.side_effect = APIConnectionError(request=MagicMock())
+
+        with pytest.raises(RetryError):
+             llm_audit_service.get_confidence_score(
+                {}, MagicMock(spec=Signal, sector_vol=15.0), sample_dataframe
+             )
+
+        assert mock_client.chat.completions.create.call_count == 3
+
+        retry_log_found = any("Retrying LLM call" in call.args[0] for call in mock_log_info.call_args_list)
+        assert retry_log_found
+        assert "LLM API Error after retries: APIConnectionError" in caplog.text
+
+
     @pytest.mark.parametrize("error_class, provider, expected_log", [
-        (APIConnectionError(request=MagicMock()), "openrouter", "LLM API Error: APIConnectionError"),
-        (RateLimitError("limit reached", response=httpx.Response(429, request=MagicMock()), body=None), "openrouter", "LLM API Error: RateLimitError"),
         (AuthenticationError("auth error", response=httpx.Response(401, request=MagicMock()), body=None), "openrouter", "OpenRouter API key error"),
         (AuthenticationError("auth error", response=httpx.Response(401, request=MagicMock()), body=None), "openai", "LLM API Authentication Error"),
         (Exception("Generic Error"), "openrouter", "An unexpected error in get_confidence_score"),
     ])
-    def test_specific_api_errors_return_zero(
+    def test_non_retriable_errors_return_zero(
         self,
         llm_audit_service: LLMAuditService,
         sample_dataframe: pd.DataFrame,
