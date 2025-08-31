@@ -431,16 +431,13 @@ This document provides a detailed, sequential list of tasks required to build th
         b. Calculate the profit target: `profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)`.
         c. Inside the day-by-day forward loop that checks for the stop-loss, add a condition to check if the day's `High` price has crossed the `profit_target_price`.
         d. If the profit target is hit, the exit is triggered. The `exit_price` must be the `profit_target_price` itself (not the day's high) to ensure a conservative and deterministic exit simulation. This exit takes precedence over the max holding period.
-*   **Tests to cover:**
-    *   In `tests/test_orchestrator.py`, create a new test with a synthetic DataFrame where the price clearly hits the pre-calculated profit target before hitting the stop-loss or timeout. Assert that the trade exits on the correct day and at the exact profit target price.
-    *   Modify an existing test to ensure that if the profit target is never reached, the trade still correctly exits on either the ATR stop-loss or the `max_holding_days` timeout.
-*   **Acceptance Criteria (AC):**
-    *   The backtester can be configured via `config.ini` to use a reward:risk ratio for profit taking.
-    *   Trades correctly exit when the profit target is hit, and the P/L reflects this.
-*   **Definition of Done (DoD):**
-    *   All new code is implemented, unit-tested, and integrated into the orchestrator. The `config.ini` is updated with the new, documented parameter.
 *   **Time estimate:** 5 hours
-*   **Status:** To Do
+*   **Status:** Done & Reverted
+
+*   **Resolution & Learnings:**
+    *   **Outcome:** The implementation was functionally correct, but the backtest revealed a catastrophic drop in all performance metrics (Sharpe Ratio, Annualized Returns, Profit Factor). The hypothesis that a symmetrical risk:reward target would improve performance was **conclusively falsified**.
+    *   **Root Cause:** A fundamental mismatch between the strategy's nature and the exit logic was identified. Our system is a **mean-reversion** strategy that profits from short-term reversions to a statistical mean. The fixed reward:risk ratio is a **trend-following** exit concept. It forced the system to hold winning trades for too long, waiting for large, trend-like profit targets that rarely materialized, causing profitable trades to decay into smaller wins or even losses.
+    *   **Final Action:** The changes from this task have been **reverted** from the codebase. The previous, simpler exit logic (ATR stop-loss or max holding period) proved more effective because it did not contradict the core statistical edge of the entry signal. A detailed post-mortem has been added to `docs/memory.md` to ensure this flawed approach is not attempted again.
 
 ---
 
