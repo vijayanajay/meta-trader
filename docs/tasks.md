@@ -416,7 +416,7 @@ This document provides a detailed, sequential list of tasks required to build th
     *   Review `docs/prd.md` and update it to reflect the use of OpenRouter and the Kimi 2 model.
     *   Review `docs/memory.md` and add any new learnings.
     *   Review `README.md` and update if necessary.
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
@@ -440,7 +440,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   All new code is implemented, unit-tested, and integrated into the orchestrator. The `config.ini` is updated with the new, documented parameter.
 *   **Time estimate:** 5 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 

@@ -46,14 +46,23 @@ Praxis is built for the discerning quantitative analyst who understands that in 
     -   **Sector Volatility Filter:** Calculate the 20-day annualized volatility of the stock's corresponding Nifty sector index and reject signals if it exceeds a defined threshold (e.g., 22%).
     -   **Liquidity Filter:** Calculate the 5-day average daily turnover (Volume * Close) and reject signals for stocks with less than ₹5 Crore turnover to avoid slippage.
 -   **FR5: LLM-Powered Statistical Audit:** For signals that pass all prior filters, the system must query the Kimi 2 model (`moonshotai/kimi-k2`) via the OpenRouter API. The API key must be loaded from a `.env` file. The query will contain only aggregated statistical data from the strategy's historical performance on that stock, not price data. The LLM's role is to provide a final confidence score (0-1) based on this statistical summary.
--   **FR6: Cost-Aware Execution & Sizing Logic:** The system must calculate trade parameters (entry, stop-loss, position size) based on the signal and a strict risk management model (e.g., risk 0.5% of capital per trade). All calculations must bake in estimated costs.
+-   **FR6: Cost-Aware Execution & Sizing Logic:** The system must calculate trade parameters (entry, stop-loss, position size) based on the signal and a strict risk management model. This includes:
+    -   Risk management (e.g., risk 0.5% of capital per trade).
+    -   A dynamic, ATR-based stop-loss to adapt to changing volatility post-entry.
+    -   Symmetrical risk management by calculating a dynamic profit target based on a configurable reward:risk ratio relative to the initial stop-loss.
+    -   All calculations must bake in estimated costs.
 -   **FR7: Rigorous Backtesting Framework:** A walk-forward backtesting engine must be built. This engine must simulate trade execution using the full logic chain (FR1-FR6) and apply a realistic cost model including brokerage (e.g., Zerodha's ₹20/trade model), Securities Transaction Tax (STT), and volume-based slippage.
--   **FR8: Weekly Opportunity Report Generation:** The system must produce a clear, tabular report of all valid, high-confidence trading opportunities for the upcoming week, including all relevant parameters and statistical justifications.
+-   **FR8: Advanced Reporting:** The system must produce two key reports:
+    -   A clear, tabular report of all valid, high-confidence trading opportunities for the upcoming week, including all relevant parameters and statistical justifications.
+    -   A backtest summary report that includes an "LLM Uplift Analysis" section, quantifying the performance difference between trades audited by the LLM and those that would have been taken without the audit.
 
 ### Non-Functional Requirements (NFRs)
 
 -   **Performance:** A full backtest on a single Nifty 500 stock over a 13-year period must complete in under 15 seconds. The entire Nifty 500 backtest should be parallelizable and complete within 8 hours on a standard quad-core machine.
--   **Reliability/Availability:** The data pipeline must be resilient to intermittent API failures from `nsepy`, implementing retry logic. Error logging must be comprehensive for failed data fetches or calculations.
+-   **Reliability/Availability:**
+    -   The data pipeline must be resilient to intermittent API failures from `nsepy`, implementing retry logic.
+    -   The LLM audit service must implement a retry mechanism with exponential backoff to handle transient network errors when communicating with the OpenRouter API.
+    -   Error logging must be comprehensive for failed data fetches or calculations.
 -   **Security:** The OpenRouter API key must be loaded from a `.env` file and must not be committed to the repository. This is the primary security concern.
 -   **Maintainability:** The Python codebase must be modular, with distinct modules for data fetching, indicator calculation, statistical tests, LLM interaction, and backtesting. All key parameters (lookback periods, thresholds, etc.) must be stored in a central configuration file.
 -   **Usability/Accessibility:** The primary interface is the weekly generated report. It must be human-readable, clear, and concise, enabling a user to understand the rationale behind each signal at a glance.
@@ -131,7 +140,6 @@ A signal is only considered to be in a valid "mean-reverting regime" if **Sector
 -   **Regime-Adaptive Parameters:** Automatically adjust indicator lookback periods (e.g., shorter BB periods in higher volatility regimes) based on the measured market regime.
 -   **Expanded Factor Model:** Incorporate additional statistical factors like volatility skew or correlation with broader market indices as additional filters.
 -   **Short-Side Signals:** Develop a parallel logic for identifying overbought, mean-reversion shorting opportunities with its own set of statistical guards.
--   **Dynamic Stop-Loss:** Implement an Average True Range (ATR)-based trailing stop-loss instead of a static mid-band stop to adapt to changing volatility post-entry.
 
 ## Change Log
 

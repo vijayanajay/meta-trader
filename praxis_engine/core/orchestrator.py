@@ -143,12 +143,26 @@ class Orchestrator:
         if use_atr:
             atr_at_signal = window_df.iloc[-1][atr_col_name]
             stop_loss_price = entry_price - (atr_at_signal * self.config.exit_logic.atr_stop_loss_multiplier)
+
+            # Calculate the dynamic profit target
+            risk_per_share = entry_price - stop_loss_price
+            profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)
+
             max_hold = self.config.exit_logic.max_holding_days
 
             for j in range(entry_index + 1, min(entry_index + 1 + max_hold, len(full_df))):
+                # Check for profit target hit
+                if full_df.iloc[j]["High"] >= profit_target_price:
+                    exit_date_actual = full_df.index[j]
+                    exit_price = profit_target_price
+                    log.debug(f"Profit target hit on {exit_date_actual.date()} at {exit_price}")
+                    return exit_date_actual, exit_price
+
+                # Check for stop-loss hit
                 if full_df.iloc[j]["Low"] <= stop_loss_price:
                     exit_date_actual = full_df.index[j]
                     exit_price = stop_loss_price
+                    log.debug(f"Stop-loss hit on {exit_date_actual.date()} at {exit_price}")
                     return exit_date_actual, exit_price
 
             timeout_index = min(entry_index + max_hold, len(full_df) - 1)

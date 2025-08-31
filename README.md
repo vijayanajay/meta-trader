@@ -38,6 +38,7 @@ This project adheres to a strict set of [30 hard rules](./docs/HARD_RULES.md) th
     - The list of stocks to backtest (`stocks_to_backtest`).
     - The backtest date range (`start_date`, `end_date`).
     - The signal generation logic (`[signal_logic]` section).
+-   The exit logic, including ATR stop-loss, max holding period, and the reward:risk ratio for profit taking (`[exit_logic]` section).
     - Statistical filter thresholds (`[filters]` section).
     - Probabilistic scoring boundaries (`[scoring]` section).
 

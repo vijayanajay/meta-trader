@@ -26,7 +26,7 @@ def base_config() -> Config:
         signal_logic=SignalLogicConfig(require_daily_oversold=True, require_weekly_oversold=False, require_monthly_not_oversold=True, rsi_threshold=35),
         llm=LLMConfig(provider="test", confidence_threshold=0.7, min_composite_score_for_llm=0.1, model="test", prompt_template_path="test"),
         cost_model=CostModelConfig(brokerage_rate=0.0003, brokerage_max=20, stt_rate=0.00025, assumed_trade_value_inr=100000, slippage_volume_threshold=100000, slippage_rate_high_liquidity=0.0005, slippage_rate_low_liquidity=0.001),
-        exit_logic=ExitLogicConfig(use_atr_exit=True, atr_period=14, atr_stop_loss_multiplier=2.5, max_holding_days=40),
+        exit_logic=ExitLogicConfig(use_atr_exit=True, atr_period=14, atr_stop_loss_multiplier=2.5, max_holding_days=40, reward_risk_ratio=2.0),
     )
 
 @patch('praxis_engine.core.orchestrator.Orchestrator.run_backtest')

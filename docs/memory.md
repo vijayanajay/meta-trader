@@ -204,3 +204,10 @@ A full code review identified several critical, interacting flaws in the `Orches
 1.  **Missing Dependencies:** The test suite and the `run.py` script failed with `ModuleNotFoundError` for `statsmodels` and `typer`. This indicates that the initial dependency installation is incomplete.
     *   **Fix:** The missing packages were installed manually using `pip`.
     *   **Lesson:** The project needs a single, reliable method for installing all necessary dependencies. A `requirements.txt` file should be created and maintained to ensure a reproducible environment.
+
+## Task 24 Learnings
+
+1.  **Pydantic Model Validation in Tests:** After adding a new required field (`reward_risk_ratio`) to the `ExitLogicConfig` Pydantic model, several tests failed with `ValidationError`.
+    *   **Issue:** Test fixtures and helper functions that created `Config` objects or loaded `.ini` files were now missing the required `reward_risk_ratio` field in the `[exit_logic]` section.
+    *   **Fix:** All test fixtures and mock `.ini` file strings were updated to include the new `reward_risk_ratio` parameter, satisfying the validation and bringing the tests in line with the new data model.
+    *   **Lesson:** This is a feature of using Pydantic, not a bug. It enforces consistency across the codebase. When a data model is updated, the strict validation immediately flags all parts of the test suite that have become outdated, preventing bugs caused by mismatched data structures. It reinforces the importance of keeping test fixtures synchronized with application models.

@@ -65,6 +65,7 @@ use_atr_exit = true
 atr_period = 14
 atr_stop_loss_multiplier = 2.0
 max_holding_days = 10
+reward_risk_ratio = 2.0
 
 [cost_model]
 brokerage_rate = 0.0
@@ -129,6 +130,47 @@ def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[MagicMock, ...
     assert call_args['entry_date'] == dates[15]
     assert call_args['exit_date'] == dates[17]
     assert call_args['exit_price'] == 80.0
+
+
+def test_run_backtest_profit_target_triggered(mock_orchestrator: Tuple[MagicMock, ...], test_config: Config) -> None:
+    """
+    Tests that a trade is exited correctly when the profit target is hit.
+    """
+    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
+
+    dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=30))
+    data = {
+        "High":  [105.0] * 30, "Low":   [95.0] * 30, "Open":  [100.0] * 30,
+        "Close": [100.0] * 30, "Volume": [1000.0] * 30, "sector_vol": [15.0] * 30,
+        # ATR is manually set to 10 for deterministic calculation
+        f"ATR_{test_config.exit_logic.atr_period}": [10.0] * 30
+    }
+    df = pd.DataFrame(data, index=dates)
+    # Set a high price to trigger the profit target
+    # entry=100, atr=10, sl_mult=2 -> sl_price=80. risk=20. r:r=2 -> profit_target=140
+    df.loc[dates[18], "High"] = 140.1
+    mock_data_service.get_data.return_value = df
+
+    # We need to mock the ATR calculation within the orchestrator loop to not run
+    orchestrator.config.exit_logic.use_atr_exit = True
+    with patch('praxis_engine.core.orchestrator.atr') as mock_atr:
+        mock_atr.return_value = pd.Series([10.0] * 30, index=df.index)
+
+        mock_signal_engine.generate_signal.side_effect = [
+            Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
+        ] + ([None] * 15)
+        mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
+        mock_llm_audit_service.get_confidence_score.return_value = 0.9
+
+        orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
+
+        mock_execution_simulator.simulate_trade.assert_called_once()
+        call_args = mock_execution_simulator.simulate_trade.call_args[1]
+
+        assert call_args['entry_date'] == dates[15]
+        assert call_args['exit_date'] == dates[18]
+        # Exit price should be the calculated profit target, not the high
+        assert call_args['exit_price'] == 140.0
 
 
 def test_run_backtest_low_score_skips_llm(mock_orchestrator: Tuple[MagicMock, ...], test_config: Config) -> None:
