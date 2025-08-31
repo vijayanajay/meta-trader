@@ -32,6 +32,7 @@ def sample_trades() -> List[Trade]:
         exit_target_days=20,
         frames_aligned=["daily"],
         sector_vol=0.15,
+        strength_score=0.5,
     )
     trades = [
         Trade(

@@ -31,7 +31,8 @@ def sample_signal() -> Signal:
         stop_loss=95.0,
         exit_target_days=10,
         frames_aligned=["daily"],
-        sector_vol=0.15
+        sector_vol=0.15,
+        strength_score=0.5,
     )
 
 def test_simulate_trade_profit(execution_simulator: ExecutionSimulator, sample_signal: Signal) -> None:
@@ -203,7 +204,7 @@ class TestCalculateNetReturn:
             exit_price=exit_price,
             entry_date=pd.Timestamp("2023-01-01"),
             exit_date=pd.Timestamp("2023-01-11"),
-            signal=Signal(entry_price=100, stop_loss=95, exit_target_days=10, frames_aligned=["d"], sector_vol=0.15),
+            signal=Signal(entry_price=100, stop_loss=95, exit_target_days=10, frames_aligned=["d"], sector_vol=0.15, strength_score=0.5),
             confidence_score=0.9,
             entry_volume=daily_volume
         )

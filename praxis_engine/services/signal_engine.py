@@ -6,7 +6,7 @@ import pandas as pd
 
 from praxis_engine.core.models import Signal, StrategyParamsConfig, SignalLogicConfig
 from praxis_engine.core.logger import get_logger
-from praxis_engine.core.indicators import bbands, rsi
+from praxis_engine.core.indicators import bbands, rsi, atr
 
 log = get_logger(__name__)
 
@@ -80,6 +80,7 @@ class SignalEngine:
         bb_daily_lower_col = f"BBL_{self.params.bb_length}_{self.params.bb_std}"
         bb_daily_mid_col = f"BBM_{self.params.bb_length}_{self.params.bb_std}"
         rsi_daily_col = f"RSI_{self.params.rsi_length}"
+        atr_col_name = "ATR_14"
         bb_weekly_lower_col = "BBL_10_2.5"
         bb_monthly_lower_col = "BBL_6_3.0"
 
@@ -101,12 +102,16 @@ class SignalEngine:
             entry_price = latest_daily["Close"] * 1.001  # Slippage
             stop_loss = latest_daily[bb_daily_mid_col]
 
+            # Calculate strength score
+            strength = (latest_daily[bb_daily_lower_col] - latest_daily["Close"]) / latest_daily[atr_col_name]
+
             signal = Signal(
                 entry_price=entry_price,
                 stop_loss=stop_loss,
                 exit_target_days=self.params.exit_days,
                 frames_aligned=["daily", "weekly"],
                 sector_vol=latest_daily["sector_vol"],
+                strength_score=strength,
             )
             return signal
 

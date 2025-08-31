@@ -4,12 +4,12 @@
 ### Run Configuration & Metadata
 | Parameter | Value |
 | --- | --- |
-| Run Timestamp | 2025-08-31 13:45:50 UTC |
+| Run Timestamp | 2025-08-31 19:12:31 UTC |
 | Config File | `config.ini` |
-| Git Commit Hash | `8b382f1` |
+| Git Commit Hash | `bc5423c` |
 
 **Period:** 2018-01-01 to 2025-08-25
-**Total Trades:** 6
+**Total Trades:** 3
 
 
 ### Filtering Funnel
@@ -17,8 +17,8 @@
 | --- | --- | --- |
 | Potential Signals | 192 | 100.00% |
 | Survived Guardrails | 14 | 7.29% |
-| Survived LLM Audit | 6 | 42.86% |
-| Trades Executed | 6 | 100.00% |
+| Survived LLM Audit | 3 | 21.43% |
+| Trades Executed | 3 | 100.00% |
 
 
 ### Guardrail Rejection Analysis
@@ -30,35 +30,35 @@
 ### Key Performance Indicators
 | Metric | Value |
 | --- | --- |
-| Net Annualized Return | 8.12% |
-| Sharpe Ratio | 0.48 |
-| Profit Factor | 6.24 |
-| Maximum Drawdown | -12.89% |
-| Win Rate | 83.33% |
+| Net Annualized Return | 8.09% |
+| Sharpe Ratio | 0.51 |
+| Profit Factor | inf |
+| Maximum Drawdown | 0.00% |
+| Win Rate | 100.00% |
 
 ### Trade Distribution Analysis
 | Metric | Value |
 | --- | --- |
-| Avg. Holding Period | 50.00 days |
-| Avg. Win | 16.10% |
-| Avg. Loss | -12.89% |
+| Avg. Holding Period | 58.00 days |
+| Avg. Win | 21.99% |
+| Avg. Loss | 0.00% |
 | Best Trade | 27.26% |
-| Worst Trade | -12.89% |
-| Skewness | -0.94 |
-| Kurtosis | 0.87 |
+| Worst Trade | 18.00% |
+| Skewness | 1.12 |
+| Kurtosis | nan |
 
 ### Net Return (%) Distribution
 ```
- -12.89 - -8.87   | ██████████████████████████████ (1)
-  -8.87 - -4.86   |  (0)
-  -4.86 - -0.84   |  (0)
-  -0.84 - 3.17    |  (0)
-   3.17 - 7.19    | ██████████████████████████████ (1)
-   7.19 - 11.20   | ██████████████████████████████ (1)
-  11.20 - 15.22   |  (0)
-  15.22 - 19.23   | ██████████████████████████████ (1)
-  19.23 - 23.25   | ██████████████████████████████ (1)
-  23.25 - 27.26   | ██████████████████████████████ (1)
+  18.00 - 18.92   | ██████████████████████████████ (1)
+  18.92 - 19.85   |  (0)
+  19.85 - 20.77   | ██████████████████████████████ (1)
+  20.77 - 21.70   |  (0)
+  21.70 - 22.63   |  (0)
+  22.63 - 23.55   |  (0)
+  23.55 - 24.48   |  (0)
+  24.48 - 25.41   |  (0)
+  25.41 - 26.33   |  (0)
+  26.33 - 27.26   | ██████████████████████████████ (1)
 ```
 
 
@@ -67,7 +67,7 @@
 | Stock | P/L | Total Trades | Potential Signals | Rejections by Guard | Rejections by LLM |
 |---|---|---|---|---|---|
 | RELIANCE.NS | 0.00% | 0 | 28 | 28 | 0 |
-| POWERGRID.NS | 0.68% | 6 | 26 | 16 | 4 |
+| POWERGRID.NS | 0.66% | 3 | 26 | 16 | 7 |
 | HINDUNILVR.NS | 0.00% | 0 | 25 | 25 | 0 |
 | ITC.NS | 0.00% | 0 | 21 | 20 | 1 |
 | INFY.NS | 0.00% | 0 | 34 | 34 | 0 |
