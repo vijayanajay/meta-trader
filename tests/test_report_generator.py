@@ -83,6 +83,8 @@ def test_generate_backtest_report_with_metadata(report_generator: ReportGenerato
     assert "| Run Timestamp | 2025-08-30 12:00:00 UTC |" in report
     assert "| Config File | `config.ini` |" in report
     assert "| Git Commit Hash | `abcdef1` |" in report
+    assert "### Trade Distribution Analysis" in report
+    assert "### Net Return (%) Distribution" in report
 
 
 def test_generate_filtering_funnel_table(report_generator: ReportGenerator, sample_metrics: BacktestMetrics) -> None:
@@ -116,6 +118,10 @@ def test_calculate_kpis_with_sample_data(report_generator: ReportGenerator, samp
 
     assert kpis["win_rate"] == pytest.approx(1.0)
     assert kpis["profit_factor"] == pytest.approx(float('inf'))
+    assert kpis["avg_holding_period_days"] == pytest.approx(20.0)
+    assert kpis["avg_win_pct"] == pytest.approx(0.075)
+    assert kpis["best_trade_pct"] == pytest.approx(0.10)
+    assert kpis["worst_trade_pct"] == pytest.approx(0.05)
 
 
 def test_generate_sensitivity_report(report_generator: ReportGenerator) -> None:

@@ -345,7 +345,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Tests to cover:**
     *   Update tests in `tests/test_orchestrator.py` to reflect the new return signature of `run_backtest`.
     *   Add a new test in `tests/test_report_generator.py` to verify the correct formatting of the per-stock table.
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
@@ -364,7 +364,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Tests to cover:**
     *   A unit test for the `generate_ascii_histogram` utility with a known data set to verify the output format.
     *   Update `tests/test_report_generator.py` to assert that the new distribution table and histogram are present and correctly formatted in the final report string.
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
@@ -387,6 +387,20 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Tests to cover:**
     *   This requires a significant update to `tests/test_orchestrator.py`. Create a new integration test that simulates a scenario where some signals pass the guards but are then rejected by the LLM. Assert that `run_backtest` returns two lists of trades with the correct contents.
     *   Add a new test to `tests/test_report_generator.py` for `generate_llm_uplift_report`, providing it with two mock lists of trades and asserting the final table and uplift calculations are correct.
+*   **Status:** Done
+
+---
+
+### Task 23 — Investigate and Harden LLM API Connectivity
+
+*   **Rationale:** The backtest runs are consistently failing with `APIConnectionError` when trying to reach the OpenRouter service. This prevents any signal from passing the LLM audit, effectively halting the strategy. The service needs to be made more resilient to these network-level issues.
+*   **Items to implement:**
+    1.  **Investigate Root Cause:** Determine if the `APIConnectionError` is due to an invalid API key, a problem with the OpenRouter service itself, or a local network configuration issue.
+    2.  **Implement Exponential Backoff:** Wrap the `llm_audit_service`'s API call in a retry loop with exponential backoff (e.g., using the `tenacity` library or a manual implementation) to handle transient network errors more gracefully.
+    3.  **Add Timeout:** Configure a reasonable timeout for the API request to prevent the system from hanging indefinitely.
+    4.  **Improve Error Logging:** Enhance the logging in `LLMAuditService` to provide more context when an API error occurs, including the number of retries attempted.
+*   **Tests to cover:**
+    *   Add a test to `tests/test_llm_audit_service.py` that mocks the API client to throw an `APIConnectionError` and asserts that the retry logic is triggered the correct number of times.
 *   **Status:** To Do
 
 ---

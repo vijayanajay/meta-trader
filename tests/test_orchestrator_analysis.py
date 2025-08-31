@@ -43,7 +43,7 @@ def test_run_sensitivity_analysis_efficient(mock_run_backtest: MagicMock, base_c
         step_size=1.0
     )
     orchestrator = Orchestrator(config=base_config)
-    mock_run_backtest.return_value = ([], BacktestMetrics())  # Each backtest run returns no trades and empty metrics
+    mock_run_backtest.return_value = {"trades": [], "metrics": BacktestMetrics()}  # Each backtest run returns no trades and empty metrics
 
     # Act
     orchestrator.run_sensitivity_analysis()

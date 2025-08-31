@@ -192,3 +192,9 @@ A full code review identified several critical, interacting flaws in the `Orches
     *   **Issue:** This indicates that `typer` was not installed in the Python environment used to run the script. This points to an incomplete or inconsistent environment setup process.
     *   **Fix:** The dependency was installed manually (`pip install typer`).
     *   **Lesson:** The project's dependency management needs to be solidified. While `HARD_RULES.md` lists the dependencies, there is no single, enforceable `requirements.txt` or similar file being used consistently, leading to environment drift. This was noted in Task 1.2 but appears to be a recurring issue.
+
+## Task 19 & 20 Learnings
+
+1.  **LLM API Connection Errors:** The backtest runs are consistently failing with `APIConnectionError` when trying to reach the OpenRouter service. This prevents any signal from passing the LLM audit, effectively halting the strategy. This has been documented as **Task 23** to be investigated further.
+
+2.  **`yfinance` Data Failures:** The `DataService` failed to fetch data for `HDFC.NS` and `ICICI.NS`, reporting a `YFTzMissingError`. The error message `possibly delisted; no timezone found` suggests these tickers may have changed or been delisted. This highlights the need for a more robust process for maintaining the stock list in `config.ini`.

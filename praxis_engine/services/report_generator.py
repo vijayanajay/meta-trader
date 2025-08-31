@@ -7,6 +7,7 @@ import numpy as np
 
 from praxis_engine.core.models import BacktestMetrics, BacktestSummary, Trade, Opportunity, RunMetadata
 from praxis_engine.core.logger import get_logger
+from praxis_engine.utils import generate_ascii_histogram
 
 log = get_logger(__name__)
 
@@ -45,6 +46,10 @@ class ReportGenerator:
 | Git Commit Hash | `{metadata.git_commit_hash}` |
 """
 
+        trade_returns_pct = [t.net_return_pct for t in trades]
+        histogram = generate_ascii_histogram([r * 100 for r in trade_returns_pct])
+
+
         report = f"""
 ## Backtest Report
 {metadata_section}
@@ -62,6 +67,22 @@ class ReportGenerator:
 | Profit Factor | {kpis['profit_factor']:.2f} |
 | Maximum Drawdown | {kpis['max_drawdown']:.2%} |
 | Win Rate | {kpis['win_rate']:.2%} |
+
+### Trade Distribution Analysis
+| Metric | Value |
+| --- | --- |
+| Avg. Holding Period | {kpis['avg_holding_period_days']:.2f} days |
+| Avg. Win | {kpis['avg_win_pct']:.2%} |
+| Avg. Loss | {kpis['avg_loss_pct']:.2%} |
+| Best Trade | {kpis['best_trade_pct']:.2%} |
+| Worst Trade | {kpis['worst_trade_pct']:.2%} |
+| Skewness | {kpis['skewness']:.2f} |
+| Kurtosis | {kpis['kurtosis']:.2f} |
+
+### Net Return (%) Distribution
+```
+{histogram}
+```
 
 """
         return report
@@ -108,12 +129,30 @@ class ReportGenerator:
         drawdown = (equity_curve - running_max) / running_max
         max_drawdown = drawdown.min()
 
+        # Trade distribution stats
+        holding_periods = [(trade.exit_date - trade.entry_date).days for trade in trades]
+        avg_holding_period = np.mean(holding_periods) if holding_periods else 0
+        avg_win_pct = np.mean(wins) if wins else 0
+        avg_loss_pct = np.mean(losses) if losses else 0
+        best_trade_pct = max(returns_pct) if returns_pct else 0
+        worst_trade_pct = min(returns_pct) if returns_pct else 0
+        skewness = pd.Series(returns_pct).skew() if returns_pct else 0
+        kurtosis = pd.Series(returns_pct).kurt() if returns_pct else 0
+
+
         return {
             "net_annualized_return": annualized_return,
             "sharpe_ratio": sharpe_ratio,
             "profit_factor": profit_factor,
             "max_drawdown": max_drawdown,
             "win_rate": win_rate,
+            "avg_holding_period_days": avg_holding_period,
+            "avg_win_pct": avg_win_pct,
+            "avg_loss_pct": avg_loss_pct,
+            "best_trade_pct": best_trade_pct,
+            "worst_trade_pct": worst_trade_pct,
+            "skewness": skewness,
+            "kurtosis": kurtosis,
         }
 
     def _generate_filtering_funnel_table(self, metrics: BacktestMetrics) -> str:

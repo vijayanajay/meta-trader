@@ -34,9 +34,12 @@ class Orchestrator:
         self.execution_simulator = ExecutionSimulator(config.cost_model)
         self.llm_audit_service = LLMAuditService(config.llm)
 
-    def run_backtest(self, stock: str, start_date: str, end_date: str) -> Tuple[List[Trade], BacktestMetrics]:
+    def run_backtest(self, stock: str, start_date: str, end_date: str) -> Dict[str, Any]:
         """
         Runs a walk-forward backtest for a single stock.
+
+        Returns:
+            A dictionary containing the list of trades and the backtest metrics.
         """
         log.debug(f"Starting backtest for {stock} from {start_date} to {end_date}...")
         metrics = BacktestMetrics()
@@ -46,7 +49,7 @@ class Orchestrator:
 
         if full_df is None or full_df.empty:
             log.warning(f"No data found for {stock}. Skipping backtest.")
-            return [], metrics
+            return {"trades": [], "metrics": metrics}
 
         trades: List[Trade] = []
         min_history_days = self.config.strategy_params.min_history_days
@@ -124,7 +127,7 @@ class Orchestrator:
                 metrics.trades_executed += 1
 
         log.debug(f"Backtest for {stock} complete. Found {len(trades)} trades.")
-        return trades, metrics
+        return {"trades": trades, "metrics": metrics}
 
     def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame) -> Tuple[pd.Timestamp, float]:
         """ Determines the exit date and price for a trade. """
@@ -311,10 +314,10 @@ class Orchestrator:
             # Metrics are not yet used in sensitivity analysis report, but we handle them
             # to align with the new run_backtest signature.
             for stock in self.config.data.stocks_to_backtest:
-                trades, _ = self.run_backtest(
+                result = self.run_backtest(
                     stock, self.config.data.start_date, self.config.data.end_date
                 )
-                all_trades.extend(trades)
+                all_trades.extend(result["trades"])
 
             # Restore the original config value to ensure the orchestrator is in a
             # clean state after the analysis.
