@@ -390,6 +390,15 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Status:** Done
 
 ---
+### Task 22 — Align Task Numbers with Descriptions
+*   **Rationale:** There is a discrepancy between user requests for specific task numbers (e.g., "Task 17") and the content of those tasks in this document. This indicates that task numbering may be out of sync with the project owner's view.
+*   **Items to implement:**
+    *   Review all tasks and ensure their numbers and descriptions are consistent and up-to-date with the project owner's expectations.
+    *   This is a documentation and project management task.
+*   **Status:** To Do
+
+
+---
 
 ### Task 23 — Investigate and Harden LLM API Connectivity
 
@@ -405,9 +414,3 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 22 — Align Task Numbers with Descriptions
-*   **Rationale:** There is a discrepancy between user requests for specific task numbers (e.g., "Task 17") and the content of those tasks in this document. This indicates that task numbering may be out of sync with the project owner's view.
-*   **Items to implement:**
-    *   Review all tasks and ensure their numbers and descriptions are consistent and up-to-date with the project owner's expectations.
-    *   This is a documentation and project management task.
-*   **Status:** To Do
