@@ -198,3 +198,9 @@ A full code review identified several critical, interacting flaws in the `Orches
 1.  **LLM API Connection Errors:** The backtest runs are consistently failing with `APIConnectionError` when trying to reach the OpenRouter service. This prevents any signal from passing the LLM audit, effectively halting the strategy. This has been documented as **Task 23** to be investigated further.
 
 2.  **`yfinance` Data Failures:** The `DataService` failed to fetch data for `HDFC.NS` and `ICICI.NS`, reporting a `YFTzMissingError`. The error message `possibly delisted; no timezone found` suggests these tickers may have changed or been delisted. This highlights the need for a more robust process for maintaining the stock list in `config.ini`.
+
+## Task 22 & 23 Learnings
+
+1.  **Missing Dependencies:** The test suite and the `run.py` script failed with `ModuleNotFoundError` for `statsmodels` and `typer`. This indicates that the initial dependency installation is incomplete.
+    *   **Fix:** The missing packages were installed manually using `pip`.
+    *   **Lesson:** The project needs a single, reliable method for installing all necessary dependencies. A `requirements.txt` file should be created and maintained to ensure a reproducible environment.

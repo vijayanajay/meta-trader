@@ -15,6 +15,7 @@ from praxis_engine.core.models import BacktestMetrics, BacktestSummary, Config, 
 from praxis_engine.services.data_service import DataService
 from praxis_engine.services.signal_engine import SignalEngine
 from praxis_engine.services.validation_service import ValidationService
+from tenacity import RetryError
 from praxis_engine.services.llm_audit_service import LLMAuditService
 from praxis_engine.services.execution_simulator import ExecutionSimulator
 from praxis_engine.core.logger import get_logger
@@ -91,11 +92,16 @@ class Orchestrator:
             historical_df = full_df.iloc[0:i-1]
             historical_stats = self._calculate_historical_stats_for_llm(stock, historical_df)
 
-            confidence_score = self.llm_audit_service.get_confidence_score(
-                historical_stats=historical_stats,
-                signal=signal,
-                df_window=window,
-            )
+            try:
+                confidence_score = self.llm_audit_service.get_confidence_score(
+                    historical_stats=historical_stats,
+                    signal=signal,
+                    df_window=window,
+                )
+            except RetryError:
+                log.error(f"LLM audit failed for {stock} on {signal_date.date()} after multiple retries. Skipping signal.")
+                confidence_score = 0.0
+
 
             if confidence_score < self.config.llm.confidence_threshold:
                 log.debug(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
@@ -256,11 +262,15 @@ class Orchestrator:
         historical_stats = self._calculate_historical_stats_for_llm(stock, historical_df)
         log.debug(f"Historical stats for {stock}: {historical_stats}")
 
-        confidence_score = self.llm_audit_service.get_confidence_score(
-            historical_stats=historical_stats,
-            signal=signal,
-            df_window=latest_data_window,
-        )
+        try:
+            confidence_score = self.llm_audit_service.get_confidence_score(
+                historical_stats=historical_stats,
+                signal=signal,
+                df_window=latest_data_window,
+            )
+        except RetryError:
+            log.error(f"LLM audit failed for {stock} on {full_df.index[-1].date()} after multiple retries. Skipping signal.")
+            return None
 
         if confidence_score < self.config.llm.confidence_threshold:
             log.debug(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")

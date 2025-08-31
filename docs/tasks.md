@@ -150,7 +150,7 @@ This document provides a detailed, sequential list of tasks required to build th
 
 ---
 
-### Task 9 & 11 — Final Report Generation & CLI
+### Task 9 — Final Report Generation & CLI
 
 *   **Rationale:** To synthesize the results and expose the system's functionality through a clean command-line interface.
 *   **Items to implement:**
@@ -159,8 +159,7 @@ This document provides a detailed, sequential list of tasks required to build th
     *   Expand the Typer CLI in `main.py` with `backtest` and `generate-report` commands.
 *   **Status:** Complete. **Resolution**: The `generate-report` command was previously incorrect and inefficient. It has been refactored to be correct and consistent with the backtesting logic. The CLI is now robustly accessible via a poetry script entry point.
 
-
-### Task 11 — Implement Dynamic, Volatility-Based Exits
+### Task 10 — Implement Dynamic, Volatility-Based Exits
 
 *   **Rationale:** The current fixed 20-day exit is a blunt, arbitrary instrument. It's a magic number that ignores the single most important variable after a trade is entered: volatility. A strategy cannot be considered robust if its exit logic is static while the market is dynamic. This task replaces the fixed exit with a data-driven one based on the stock's own recent volatility (ATR), making our risk management adaptive and provably linked to market conditions. This directly addresses a key future enhancement noted in the PRD.
 *   **Items to implement:**
@@ -189,7 +188,7 @@ This document provides a detailed, sequential list of tasks required to build th
 
 *Goal: To correct severe architectural flaws, data leakage, and inefficiencies discovered during a full-code review. These fixes are non-negotiable for the system to produce scientifically valid results.*
 
-### Task 12 — Fix Lookahead Bias and Orchestrator Logic
+### Task 11 — Fix Lookahead Bias and Orchestrator Logic
 
 *   **Rationale:** A full code review uncovered critical flaws that invalidated backtest results. The `Orchestrator` contained lookahead bias in its ATR calculation and had a catastrophically inefficient `generate_opportunities` method. This task corrects these core architectural problems to restore experimental integrity.
 *   **Items to implement:**
@@ -201,7 +200,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Status:** Done
 
 
-### Task 13 — Implement Systematic Parameter Sensitivity Analysis
+### Task 12 — Implement Systematic Parameter Sensitivity Analysis
 
 *   **Rationale:** Blindly changing parameters in `config.ini` to find a better result is unscientific, inefficient, and prone to overfitting. This task introduces a systematic, reproducible framework to explore the parameter space. It transforms parameter tuning from guesswork into a controlled experiment, providing the data needed to make informed decisions about the system's risk/reward profile. This is fundamental to understanding the model's behavior and the true drivers of its performance (or lack thereof).
 *   **Items to implement:**
@@ -229,8 +228,6 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Time estimate:** 8 hours
 *   **Status:** Done
 
-Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the remaining work in Option 1, renumbered accordingly.
-
 ---
 
 ## Epic 6: Transition to Probabilistic Filtering
@@ -239,7 +236,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 14 — Refactor Guards from Binary to Probabilistic Scoring
+### Task 13 — Refactor Guards from Binary to Probabilistic Scoring
 
 *   **Rationale:** The current `True/False` validation from the guards is a primary cause of the low trade count. A signal where the Hurst exponent is `0.451` is discarded as readily as one where it is `0.80`. This throws away valuable information. Refactoring the guards to return a continuous score (0.0 to 1.0) will allow the system to understand nuance—that a signal can be "weak but acceptable" in one dimension if it is "excellent" in others.
 *   **Items to implement:**
@@ -267,7 +264,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 15 — Empower LLM with Guard Scores for Nuanced Auditing
+### Task 14 — Empower LLM with Guard Scores for Nuanced Auditing
 
 *   **Rationale:** With the guards now producing rich, probabilistic data, the final step is to feed this information to the LLM. This completes the architectural vision of the LLM as a sophisticated, non-linear function that weighs multiple, continuous inputs to make a final judgment, moving it beyond the limitations of the original, statistics-only prompt.
 *   **Items to implement:**
@@ -288,7 +285,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 16 — Enhance Backtest User Experience
+### Task 15 — Enhance Backtest User Experience
 
 *   **Rationale:** The backtest output is verbose and hard to follow. A progress bar and per-stock summaries will make the backtesting process more user-friendly and provide immediate feedback on the performance of the strategy for each stock. The detailed logs will be moved to a file for later analysis.
 *   **Items to implement:**
@@ -304,7 +301,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 17 — Instrument Backtest Runs with Reproducibility Metadata
+### Task 16 — Instrument Backtest Runs with Reproducibility Metadata
 
 *   **Rationale:** A backtest is a scientific experiment. An experiment without documented initial conditions is unreproducible and therefore invalid. This task ensures that every report is stamped with the exact context in which it was generated, adhering to `[H-23]`.
 *   **Items to implement:**
@@ -319,7 +316,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 18 — Implement Signal Attrition Funnel and Guardrail Rejection Tracking
+### Task 17 — Implement Signal Attrition Funnel and Guardrail Rejection Tracking
 
 *   **Rationale:** The system's primary function is to filter. We are blind to its effectiveness if we don't measure what it filters. This task instruments the entire decision-making pipeline to produce a "funnel," showing exactly how many signals are discarded at each stage and, crucially, *why*. This is the most direct way to identify which guardrail is doing the most work, per `[The Nadh Principle]` of pragmatic simplicity.
 *   **Items to implement:**
@@ -335,7 +332,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 19 — Add Per-Stock Performance Breakdown
+### Task 18 — Add Per-Stock Performance Breakdown
 
 *   **Rationale:** System-wide averages are deceptive; they hide excellence and mediocrity. A strategy might be brilliant on 5 stocks and terrible on 20. This task provides the granular, per-stock data needed to understand where the strategy actually works, enabling intelligent pruning of the stock universe.
 *   **Items to implement:**
@@ -349,7 +346,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 20 — Implement Trade Distribution and Statistical Analysis
+### Task 19 — Implement Trade Distribution and Statistical Analysis
 
 *   **Rationale:** To move beyond simple averages and understand the *character* of the strategy's returns, per the Hinton mindset. A strategy with a positive average return driven by one massive outlier is fundamentally different and riskier than one with consistent small gains. This task adds the statistical measures (skew, kurtosis) and visualizations needed to see the true shape of the P/L distribution.
 *   **Items to implement:**
@@ -368,7 +365,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 21 — Implement LLM Performance Uplift Analysis
+### Task 20 — Implement LLM Performance Uplift Analysis
 
 *   **Rationale:** The LLM is the most expensive and opaque component of the system. Its value cannot be assumed; it must be rigorously quantified. This task implements a baseline comparison to measure the LLM's direct contribution (or harm) to the strategy's performance, adhering to Hinton's principle of isolating and measuring the impact of intelligent components (`[H-26]`).
 *   **Items to implement:**
@@ -390,17 +387,17 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Status:** Done
 
 ---
-### Task 22 — Align Task Numbers with Descriptions
+### Task 21 — Align Task Numbers with Descriptions
 *   **Rationale:** There is a discrepancy between user requests for specific task numbers (e.g., "Task 17") and the content of those tasks in this document. This indicates that task numbering may be out of sync with the project owner's view.
 *   **Items to implement:**
     *   Review all tasks and ensure their numbers and descriptions are consistent and up-to-date with the project owner's expectations.
     *   This is a documentation and project management task.
-*   **Status:** To Do
+*   **Status:** Done
 
 
 ---
 
-### Task 23 — Investigate and Harden LLM API Connectivity
+### Task 22 — Harden LLM API Connectivity
 
 *   **Rationale:** The backtest runs are consistently failing with `APIConnectionError` when trying to reach the OpenRouter service. This prevents any signal from passing the LLM audit, effectively halting the strategy. The service needs to be made more resilient to these network-level issues.
 *   **Items to implement:**
@@ -410,6 +407,15 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
     4.  **Improve Error Logging:** Enhance the logging in `LLMAuditService` to provide more context when an API error occurs, including the number of retries attempted.
 *   **Tests to cover:**
     *   Add a test to `tests/test_llm_audit_service.py` that mocks the API client to throw an `APIConnectionError` and asserts that the retry logic is triggered the correct number of times.
+*   **Status:** Done
+
+---
+### Task 23 — Update PRD and other documentation
+*   **Rationale:** The PRD and other documentation may be out of date with the current implementation. This task is to review and update the documentation to reflect the current state of the project.
+*   **Items to implement:**
+    *   Review `docs/prd.md` and update it to reflect the use of OpenRouter and the Kimi 2 model.
+    *   Review `docs/memory.md` and add any new learnings.
+    *   Review `README.md` and update if necessary.
 *   **Status:** To Do
 
 ---

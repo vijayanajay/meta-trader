@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 import jinja2
 import pandas as pd
 from openai import OpenAI, APIConnectionError, RateLimitError, AuthenticationError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from praxis_engine.core.models import Signal, ValidationScores, LLMConfig
 from praxis_engine.core.logger import get_logger
@@ -77,6 +78,12 @@ class LLMAuditService:
         return 0.0
 
     # impure
+    @retry(
+        retry=retry_if_exception_type((APIConnectionError, RateLimitError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        before_sleep=lambda retry_state: log.info(f"Retrying LLM call: {retry_state.attempt_number}/3, waiting {retry_state.next_action.sleep}s...")
+    )
     def get_confidence_score(
         self,
         historical_stats: Dict[str, Any],
@@ -129,8 +136,8 @@ class LLMAuditService:
             return score
 
         except (APIConnectionError, RateLimitError) as e:
-            log.error(f"LLM API Error: {e.__class__.__name__}. Returning score 0.")
-            return 0.0
+            log.error(f"LLM API Error after retries: {e.__class__.__name__}. Returning score 0.")
+            raise e # Reraise to allow tenacity to handle retries
         except AuthenticationError as e:
             if self.llm_provider == "openrouter":
                 log.error(f"OpenRouter API key error. Please check your OPENROUTER_API_KEY at https://openrouter.ai/keys. Returning score 0.")

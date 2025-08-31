@@ -21,9 +21,9 @@ This project adheres to a strict set of [30 hard rules](./docs/HARD_RULES.md) th
     ```
 
 2.  **Install dependencies:**
-    The project has a number of dependencies that need to be installed. You can install them using pip:
+    The project uses a `requirements.txt` file to manage its dependencies. Install them using pip:
     ```bash
-    pip install pandas yfinance statsmodels numpy pydantic python-dotenv openai typer pyarrow hurst pytest jinja2
+    pip install -r requirements.txt
     ```
 
 3.  **Configure Environment:**
