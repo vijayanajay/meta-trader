@@ -32,8 +32,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Items to implement:**
     *   Investigate the `Typer` invocation issue mentioned in `docs/memory.md`.
     *   Fix the issue and ensure that `python -m praxis_engine.main verify-config` works as expected.
-*   **Status:** Complete. **Resolution**: The CLI invocation was fixed by establishing a robust poetry script entry point (`poetry run praxis`) and moving all business logic out of `praxis_engine/__init__.py` into a dedicated `cli.py` module. The `run.py` script was deprecated in favor of this standard mechanism and has now been deleted from the repository.
-
+*   **Status:** Complete. 
 ---
 
 ### Task 1.2 — Solidify Project Dependencies
