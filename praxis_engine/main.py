@@ -40,7 +40,9 @@ def backtest(
     config: Config = config_service.load_config()
     orchestrator = Orchestrator(config)
     all_trades: List[Trade] = []
+    per_stock_trades: Dict[str, List[Trade]] = {}
     aggregated_metrics = BacktestMetrics()
+    per_stock_metrics: Dict[str, BacktestMetrics] = {}
     report_generator = ReportGenerator()
 
     # --- Metadata Collection ---
@@ -61,7 +63,8 @@ def backtest(
                 start_date=config.data.start_date,
                 end_date=config.data.end_date,
             )
-
+            per_stock_trades[stock] = trades
+            per_stock_metrics[stock] = metrics
             all_trades.extend(trades)
             # Aggregate metrics
             aggregated_metrics.potential_signals += metrics.potential_signals
@@ -86,6 +89,13 @@ def backtest(
         end_date=config.data.end_date,
         metadata=run_metadata,
     )
+
+    per_stock_report = report_generator.generate_per_stock_report(
+        per_stock_metrics=per_stock_metrics,
+        per_stock_trades=per_stock_trades,
+    )
+
+    final_report += "\n" + per_stock_report
     logger.debug(f"Final report string to be written:\n{final_report}")
 
     results_dir = Path("results")
