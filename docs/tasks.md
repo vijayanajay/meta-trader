@@ -510,27 +510,7 @@ This document provides a detailed, sequential list of tasks required to build th
     *   **Root Cause:** A fundamental mismatch between the strategy's nature and the exit logic was identified. Our system is a **mean-reversion** strategy that profits from short-term reversions to a statistical mean. The fixed reward:risk ratio is a **trend-following** exit concept. It forced the system to hold winning trades for too long, waiting for large, trend-like profit targets that rarely materialized, causing profitable trades to decay into smaller wins or even losses.
     *   **Final Action:** The changes from this task have been **reverted** from the codebase. The previous, simpler exit logic (ATR stop-loss or max holding period) proved more effective because it did not contradict the core statistical edge of the entry signal. A detailed post-mortem has been added to `docs/memory.md` to ensure this flawed approach is not attempted again.
 
-
-### Task 25 — Implement Dynamic Profit Target for Symmetrical Risk Management
-
-*   **Rationale:** (Hinton) The backtest report shows a negative skew of -0.94. This is a statistical warning that our profit distribution has a longer tail on the left; our losses, when they occur, are more severe than our wins are beneficial. This creates a poor risk-adjusted return profile. (Nadh) Architecturally, our exit logic is asymmetrical and incomplete. We have a well-defined rule for when we are wrong (the ATR stop-loss) but no rule for when we are right. We are letting profitable trades run indefinitely until a timeout, which is arbitrary. This task introduces a symmetrical, data-driven profit target to test the hypothesis that systematically capturing gains will improve the Sharpe Ratio by shaping a more favorable return distribution.
-*   **Items to implement:**
-    1.  **Configuration:** In `config.ini`, within the `[exit_logic]` section, add a new parameter: `reward_risk_ratio = 2.0`.
-    2.  **Models:** In `core/models.py`, add the corresponding `reward_risk_ratio: float` field to the `ExitLogicConfig` Pydantic model.
-    3.  **Orchestrator Logic:** Refactor the `Orchestrator._determine_exit` method in `core/orchestrator.py`.
-        a. At the point of trade entry (at index `i`), calculate the risk distance: `risk_per_share = entry_price - stop_loss_price`.
-        b. Calculate the profit target: `profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)`.
-        c. Inside the day-by-day forward loop that checks for the stop-loss, add a condition to check if the day's `High` price has crossed the `profit_target_price`.
-        d. If the profit target is hit, the exit is triggered. The `exit_price` must be the `profit_target_price` itself (not the day's high) to ensure a conservative and deterministic exit simulation. This exit takes precedence over the max holding period.
-*   **Time estimate:** 5 hours
-*   **Status:** Done & Reverted
-
-*   **Resolution & Learnings (Post-Mortem):**
-    *   **Outcome:** The implementation was functionally correct, but the backtest revealed a **catastrophic drop in all performance metrics** (Sharpe Ratio, Annualized Returns, Profit Factor). The hypothesis that a symmetrical risk:reward target would improve performance was **conclusively falsified**.
-    *   **Root Cause Analysis:** A fundamental mismatch between the strategy's nature and the exit logic was identified. Our system is a **mean-reversion** strategy that profits from short-term reversions to a statistical mean. The fixed reward:risk ratio is a **trend-following** exit concept. It forced the system to hold winning trades for too long, waiting for large, trend-like profit targets that rarely materialized. This caused profitable trades to decay into smaller wins or even losses, destroying the strategy's edge.
-    *   **Final Action:** The changes from this task have been **reverted** from the codebase. The previous, simpler exit logic (ATR stop-loss or max holding period) proved more effective because it did not contradict the core statistical edge of the entry signal. This experiment, while a failure in terms of performance, was a success in deepening our understanding of the system. A detailed note has been added to `docs/memory.md` to ensure this flawed approach is not attempted again.
-
-### Task 25 — Create Universe Pre-Filtering Script for Strategy Specialization
+### Task 24 — Create Universe Pre-Filtering Script for Strategy Specialization
 
 *   **Rationale:** (Nadh) The backtest proved the strategy is a specialist. It works on `POWERGRID.NS` and fails everywhere else. Wasting CPU cycles backtesting a mean-reversion strategy on trending stocks like `RELIANCE.NS` is inefficient and violates the "fail fast" principle. The most pragmatic solution is not to change the algorithm, but to curate the universe it operates on. (Hinton) This is a form of dataset curation, a crucial step in any applied ML project. We are simplifying the problem for our model by pre-selecting a dataset where the signal-to-noise ratio for mean-reversion is inherently higher. This is valid, provided the selection is done on out-of-sample data to prevent selection bias from contaminating our final backtest results.
 *   **Items to implement:**
