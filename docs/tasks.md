@@ -463,4 +463,23 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The script is created and functional. The `README.md` is updated with instructions for its use.
 *   **Time estimate:** 3 hours
+*   **Status:** Done
+
+---
+### Task 26 — Update Stock Universe with Curated List
+
+*   **Rationale:** (Nadh) The `universe_analyzer.py` script (Task 25) was created to provide a data-driven list of mean-reverting stocks. The final step to operationalize this finding is to update the system's configuration to use this curated list. This ensures that the backtester's resources are focused only on the stocks where the strategy has the highest probability of being applicable, directly applying the key learning from previous, broader backtests.
+*   **Items to implement:**
+    1.  Run the `scripts/universe_analyzer.py` script to generate the list of mean-reverting tickers.
+    2.  Copy the output list of tickers.
+    3.  Open `config.ini` and replace the value of the `stocks_to_backtest` parameter in the `[data]` section with the new, curated list.
+    4.  Run a full backtest using the `run.py backtest` command to confirm the system runs correctly with the new, specialized stock universe.
+*   **Tests to cover:**
+    *   The primary test is to run the backtester and ensure it completes without errors using the new stock list.
+*   **Acceptance Criteria (AC):**
+    *   The `config.ini` file is updated with a list of stocks identified as mean-reverting by the universe analyzer.
+    *   A backtest run completes successfully using this new configuration.
+*   **Definition of Done (DoD):**
+    *   The `config.ini` file is updated and a successful backtest has been run.
+*   **Time estimate:** 1 hour
 *   **Status:** To Do

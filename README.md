@@ -61,6 +61,16 @@ python run.py backtest
 ```
 This will fetch the necessary data, run the walk-forward backtest for each stock, and print the results to the console.
 
+### Universe Curation
+
+The strategy implemented in this engine is a specialist, designed for mean-reverting stocks. Running it on a broad universe of stocks (like the full Nifty 500) can be inefficient. A helper script is provided to pre-filter the universe and identify the most suitable candidates.
+
+To generate a curated list of mean-reverting stocks:
+```bash
+python scripts/universe_analyzer.py
+```
+This script will analyze a list of stocks using an out-of-sample data period, calculate their Hurst exponents, and print a copy-paste-ready list of tickers with `Hurst < 0.5`. You can then use this list to update the `stocks_to_backtest` parameter in your `config.ini`.
+
 ## Project Structure
 
 -   `praxis_engine/`: The main source code for the engine.
