@@ -198,3 +198,9 @@ A full code review identified several critical, interacting flaws in the `Orches
 1.  **LLM API Connection Errors:** The backtest runs are consistently failing with `APIConnectionError` when trying to reach the OpenRouter service. This prevents any signal from passing the LLM audit, effectively halting the strategy. This has been documented as **Task 23** to be investigated further.
 
 2.  **`yfinance` Data Failures:** The `DataService` failed to fetch data for `HDFC.NS` and `ICICI.NS`, reporting a `YFTzMissingError`. The error message `possibly delisted; no timezone found` suggests these tickers may have changed or been delisted. This highlights the need for a more robust process for maintaining the stock list in `config.ini`.
+
+## Task 25 Learnings
+
+1.  **Strategy Specialization:** Backtesting results showed that the mean-reversion strategy is a specialist. It performs well on certain types of stocks (those exhibiting mean-reverting characteristics) and poorly on others (strong trending stocks). Running the backtester on a broad, uncurated universe is inefficient and leads to poor overall results.
+    *   **Fix:** A dedicated analysis script, `scripts/universe_analyzer.py`, was created. This script performs an out-of-sample analysis on a stock universe, calculates the Hurst exponent for each, and identifies the most promising mean-reverting candidates.
+    *   **Lesson:** Instead of trying to create a universal strategy that works on all assets, it is often more pragmatic and effective to create a specialized strategy and then build tools to curate the dataset to match the strategy's strengths. This simplifies the problem and focuses computational resources where they are most likely to yield results.
