@@ -150,7 +150,7 @@ This document provides a detailed, sequential list of tasks required to build th
 
 ---
 
-### Task 9 & 11 — Final Report Generation & CLI
+### Task 9 — Final Report Generation & CLI
 
 *   **Rationale:** To synthesize the results and expose the system's functionality through a clean command-line interface.
 *   **Items to implement:**
@@ -159,8 +159,7 @@ This document provides a detailed, sequential list of tasks required to build th
     *   Expand the Typer CLI in `main.py` with `backtest` and `generate-report` commands.
 *   **Status:** Complete. **Resolution**: The `generate-report` command was previously incorrect and inefficient. It has been refactored to be correct and consistent with the backtesting logic. The CLI is now robustly accessible via a poetry script entry point.
 
-
-### Task 11 — Implement Dynamic, Volatility-Based Exits
+### Task 10 — Implement Dynamic, Volatility-Based Exits
 
 *   **Rationale:** The current fixed 20-day exit is a blunt, arbitrary instrument. It's a magic number that ignores the single most important variable after a trade is entered: volatility. A strategy cannot be considered robust if its exit logic is static while the market is dynamic. This task replaces the fixed exit with a data-driven one based on the stock's own recent volatility (ATR), making our risk management adaptive and provably linked to market conditions. This directly addresses a key future enhancement noted in the PRD.
 *   **Items to implement:**
@@ -189,7 +188,7 @@ This document provides a detailed, sequential list of tasks required to build th
 
 *Goal: To correct severe architectural flaws, data leakage, and inefficiencies discovered during a full-code review. These fixes are non-negotiable for the system to produce scientifically valid results.*
 
-### Task 12 — Fix Lookahead Bias and Orchestrator Logic
+### Task 11 — Fix Lookahead Bias and Orchestrator Logic
 
 *   **Rationale:** A full code review uncovered critical flaws that invalidated backtest results. The `Orchestrator` contained lookahead bias in its ATR calculation and had a catastrophically inefficient `generate_opportunities` method. This task corrects these core architectural problems to restore experimental integrity.
 *   **Items to implement:**
@@ -201,7 +200,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Status:** Done
 
 
-### Task 13 — Implement Systematic Parameter Sensitivity Analysis
+### Task 12 — Implement Systematic Parameter Sensitivity Analysis
 
 *   **Rationale:** Blindly changing parameters in `config.ini` to find a better result is unscientific, inefficient, and prone to overfitting. This task introduces a systematic, reproducible framework to explore the parameter space. It transforms parameter tuning from guesswork into a controlled experiment, providing the data needed to make informed decisions about the system's risk/reward profile. This is fundamental to understanding the model's behavior and the true drivers of its performance (or lack thereof).
 *   **Items to implement:**
@@ -229,8 +228,6 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Time estimate:** 8 hours
 *   **Status:** Done
 
-Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the remaining work in Option 1, renumbered accordingly.
-
 ---
 
 ## Epic 6: Transition to Probabilistic Filtering
@@ -239,7 +236,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 14 — Refactor Guards from Binary to Probabilistic Scoring
+### Task 13 — Refactor Guards from Binary to Probabilistic Scoring
 
 *   **Rationale:** The current `True/False` validation from the guards is a primary cause of the low trade count. A signal where the Hurst exponent is `0.451` is discarded as readily as one where it is `0.80`. This throws away valuable information. Refactoring the guards to return a continuous score (0.0 to 1.0) will allow the system to understand nuance—that a signal can be "weak but acceptable" in one dimension if it is "excellent" in others.
 *   **Items to implement:**
@@ -267,7 +264,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 15 — Empower LLM with Guard Scores for Nuanced Auditing
+### Task 14 — Empower LLM with Guard Scores for Nuanced Auditing
 
 *   **Rationale:** With the guards now producing rich, probabilistic data, the final step is to feed this information to the LLM. This completes the architectural vision of the LLM as a sophisticated, non-linear function that weighs multiple, continuous inputs to make a final judgment, moving it beyond the limitations of the original, statistics-only prompt.
 *   **Items to implement:**
@@ -288,7 +285,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 16 — Enhance Backtest User Experience
+### Task 15 — Enhance Backtest User Experience
 
 *   **Rationale:** The backtest output is verbose and hard to follow. A progress bar and per-stock summaries will make the backtesting process more user-friendly and provide immediate feedback on the performance of the strategy for each stock. The detailed logs will be moved to a file for later analysis.
 *   **Items to implement:**
@@ -304,7 +301,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 17 — Instrument Backtest Runs with Reproducibility Metadata
+### Task 16 — Instrument Backtest Runs with Reproducibility Metadata
 
 *   **Rationale:** A backtest is a scientific experiment. An experiment without documented initial conditions is unreproducible and therefore invalid. This task ensures that every report is stamped with the exact context in which it was generated, adhering to `[H-23]`.
 *   **Items to implement:**
@@ -319,7 +316,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 18 — Implement Signal Attrition Funnel and Guardrail Rejection Tracking
+### Task 17 — Implement Signal Attrition Funnel and Guardrail Rejection Tracking
 
 *   **Rationale:** The system's primary function is to filter. We are blind to its effectiveness if we don't measure what it filters. This task instruments the entire decision-making pipeline to produce a "funnel," showing exactly how many signals are discarded at each stage and, crucially, *why*. This is the most direct way to identify which guardrail is doing the most work, per `[The Nadh Principle]` of pragmatic simplicity.
 *   **Items to implement:**
@@ -335,7 +332,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 19 — Add Per-Stock Performance Breakdown
+### Task 18 — Add Per-Stock Performance Breakdown
 
 *   **Rationale:** System-wide averages are deceptive; they hide excellence and mediocrity. A strategy might be brilliant on 5 stocks and terrible on 20. This task provides the granular, per-stock data needed to understand where the strategy actually works, enabling intelligent pruning of the stock universe.
 *   **Items to implement:**
@@ -349,7 +346,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 20 — Implement Trade Distribution and Statistical Analysis
+### Task 19 — Implement Trade Distribution and Statistical Analysis
 
 *   **Rationale:** To move beyond simple averages and understand the *character* of the strategy's returns, per the Hinton mindset. A strategy with a positive average return driven by one massive outlier is fundamentally different and riskier than one with consistent small gains. This task adds the statistical measures (skew, kurtosis) and visualizations needed to see the true shape of the P/L distribution.
 *   **Items to implement:**
@@ -368,7 +365,7 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 
 ---
 
-### Task 21 — Implement LLM Performance Uplift Analysis
+### Task 20 — Implement LLM Performance Uplift Analysis
 
 *   **Rationale:** The LLM is the most expensive and opaque component of the system. Its value cannot be assumed; it must be rigorously quantified. This task implements a baseline comparison to measure the LLM's direct contribution (or harm) to the strategy's performance, adhering to Hinton's principle of isolating and measuring the impact of intelligent components (`[H-26]`).
 *   **Items to implement:**
@@ -390,8 +387,17 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
 *   **Status:** Done
 
 ---
+### Task 21 — Align Task Numbers with Descriptions
+*   **Rationale:** There is a discrepancy between user requests for specific task numbers (e.g., "Task 17") and the content of those tasks in this document. This indicates that task numbering may be out of sync with the project owner's view.
+*   **Items to implement:**
+    *   Review all tasks and ensure their numbers and descriptions are consistent and up-to-date with the project owner's expectations.
+    *   This is a documentation and project management task.
+*   **Status:** Done
 
-### Task 23 — Investigate and Harden LLM API Connectivity
+
+---
+
+### Task 22 — Harden LLM API Connectivity
 
 *   **Rationale:** The backtest runs are consistently failing with `APIConnectionError` when trying to reach the OpenRouter service. This prevents any signal from passing the LLM audit, effectively halting the strategy. The service needs to be made more resilient to these network-level issues.
 *   **Items to implement:**
@@ -401,13 +407,150 @@ Understood. Task 14 is complete. Here are the updated `tasks.md` entries for the
     4.  **Improve Error Logging:** Enhance the logging in `LLMAuditService` to provide more context when an API error occurs, including the number of retries attempted.
 *   **Tests to cover:**
     *   Add a test to `tests/test_llm_audit_service.py` that mocks the API client to throw an `APIConnectionError` and asserts that the retry logic is triggered the correct number of times.
+*   **Status:** Done
+
+---
+### Task 23 — Update PRD and other documentation
+*   **Rationale:** The PRD and other documentation may be out of date with the current implementation. This task is to review and update the documentation to reflect the current state of the project.
+*   **Items to implement:**
+    *   Review `docs/prd.md` and update it to reflect the use of OpenRouter and the Kimi 2 model.
+    *   Review `docs/memory.md` and add any new learnings.
+    *   Review `README.md` and update if necessary.
 *   **Status:** To Do
 
 ---
 
-### Task 22 — Align Task Numbers with Descriptions
-*   **Rationale:** There is a discrepancy between user requests for specific task numbers (e.g., "Task 17") and the content of those tasks in this document. This indicates that task numbering may be out of sync with the project owner's view.
+### Task 24 — Implement Dynamic Profit Target for Symmetrical Risk Management
+
+*   **Rationale:** (Hinton) The backtest report shows a negative skew of -0.94. This is a statistical warning that our profit distribution has a longer tail on the left; our losses, when they occur, are more severe than our wins are beneficial. This creates a poor risk-adjusted return profile. (Nadh) Architecturally, our exit logic is asymmetrical and incomplete. We have a well-defined rule for when we are wrong (the ATR stop-loss) but no rule for when we are right. We are letting profitable trades run indefinitely until a timeout, which is arbitrary. This task introduces a symmetrical, data-driven profit target to test the hypothesis that systematically capturing gains will improve the Sharpe Ratio by shaping a more favorable return distribution.
 *   **Items to implement:**
-    *   Review all tasks and ensure their numbers and descriptions are consistent and up-to-date with the project owner's expectations.
-    *   This is a documentation and project management task.
+    1.  **Configuration:** In `config.ini`, within the `[exit_logic]` section, add a new parameter: `reward_risk_ratio = 2.0`.
+    2.  **Models:** In `core/models.py`, add the corresponding `reward_risk_ratio: float` field to the `ExitLogicConfig` Pydantic model.
+    3.  **Orchestrator Logic:** Refactor the `Orchestrator._determine_exit` method in `core/orchestrator.py`.
+        a. At the point of trade entry (at index `i`), calculate the risk distance: `risk_per_share = entry_price - stop_loss_price`.
+        b. Calculate the profit target: `profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)`.
+        c. Inside the day-by-day forward loop that checks for the stop-loss, add a condition to check if the day's `High` price has crossed the `profit_target_price`.
+        d. If the profit target is hit, the exit is triggered. The `exit_price` must be the `profit_target_price` itself (not the day's high) to ensure a conservative and deterministic exit simulation. This exit takes precedence over the max holding period.
+*   **Time estimate:** 5 hours
+*   **Status:** Done & Reverted
+
+*   **Resolution & Learnings:**
+    *   **Outcome:** The implementation was functionally correct, but the backtest revealed a catastrophic drop in all performance metrics (Sharpe Ratio, Annualized Returns, Profit Factor). The hypothesis that a symmetrical risk:reward target would improve performance was **conclusively falsified**.
+    *   **Root Cause:** A fundamental mismatch between the strategy's nature and the exit logic was identified. Our system is a **mean-reversion** strategy that profits from short-term reversions to a statistical mean. The fixed reward:risk ratio is a **trend-following** exit concept. It forced the system to hold winning trades for too long, waiting for large, trend-like profit targets that rarely materialized, causing profitable trades to decay into smaller wins or even losses.
+    *   **Final Action:** The changes from this task have been **reverted** from the codebase. The previous, simpler exit logic (ATR stop-loss or max holding period) proved more effective because it did not contradict the core statistical edge of the entry signal. A detailed post-mortem has been added to `docs/memory.md` to ensure this flawed approach is not attempted again.
+
+---
+
+### Task 25 — Introduce Signal Strength Score for Richer Feature Representation
+
+*   **Rationale:** (Hinton) The current signal generation is a massive information bottleneck. It discretizes a continuous variable—the degree of "oversold-ness"—into a single bit of information (`Signal` or `None`). This is fundamentally lossy. We must improve the input representation to provide a richer feature for downstream learning. (Nadh) A boolean is a crude instrument. We are treating a price that is ₹0.01 below the Bollinger Band the same as one that is ₹10 below. This is inefficient. By creating a continuous, volatility-normalized score, we create a more expressive piece of data that can be passed cleanly through the system, allowing for more nuanced filtering without adding complex new services.
+*   **Items to implement:**
+    1.  **Models:** In `core/models.py`, add a new field to the `Signal` model: `strength_score: float`.
+    2.  **Signal Engine:** In `services/signal_engine.py`, modify the `generate_signal` method.
+        a. When the alignment conditions are met, calculate the ATR for the daily dataframe.
+        b. Calculate the signal strength: `strength = (latest_daily[bb_daily_lower_col] - latest_daily["Close"]) / latest_daily[atr_col_name]`. This normalizes the magnitude of the band breach by the current volatility.
+        c. Populate the new `strength_score` field in the `Signal` object.
+    3.  **LLM Integration:** This new feature is only useful if it's used for decision-making.
+        a. In `praxis_engine/prompts/statistical_auditor.txt`, add a new line to the prompt: `- Current Signal Strength (ATR-normalized): {{ signal_strength }}`.
+        b. In `services/llm_audit_service.py`, update the `get_confidence_score` method. The context dictionary passed to the Jinja2 template must be updated to include `signal_strength: f"{signal.strength_score:.2f}"`.
+*   **Tests to cover:**
+    *   In `tests/test_signal_engine.py`, update the signal generation test to assert that the returned `Signal` object contains a mathematically correct `strength_score`.
+    *   In `tests/test_llm_audit_service.py`, update the `get_confidence_score` test. The core assertion will be to check that the rendered prompt string correctly includes the formatted strength score.
+*   **Acceptance Criteria (AC):**
+    *   Signals generated by the engine now contain a `strength_score`.
+    *   The LLM prompt includes this new score, allowing it to factor the signal's magnitude into its audit.
+*   **Definition of Done (DoD):**
+    *   All code changes are implemented, the prompt is updated, and all relevant unit and integration tests are passing.
+*   **Time estimate:** 4 hours
+*   **Status:** To Do
+
+---
+
+### Task 26 — Create Universe Pre-Filtering Script for Strategy Specialization
+
+*   **Rationale:** (Nadh) The backtest proved the strategy is a specialist. It works on `POWERGRID.NS` and fails everywhere else. Wasting CPU cycles backtesting a mean-reversion strategy on trending stocks like `RELIANCE.NS` is inefficient and violates the "fail fast" principle. The most pragmatic solution is not to change the algorithm, but to curate the universe it operates on. (Hinton) This is a form of dataset curation, a crucial step in any applied ML project. We are simplifying the problem for our model by pre-selecting a dataset where the signal-to-noise ratio for mean-reversion is inherently higher. This is valid, provided the selection is done on out-of-sample data to prevent selection bias from contaminating our final backtest results.
+*   **Items to implement:**
+    1.  **Create New Script:** Create a new, standalone script: `scripts/universe_analyzer.py`. This script will not be part of the main `praxis_engine` package.
+    2.  **Script Logic:** The script should:
+        a. Define a list of Nifty 500 tickers (this can be hardcoded or read from a simple text file).
+        b. Define an out-of-sample date range for analysis (e.g., `2010-01-01` to `2017-12-31`), which does not overlap with the main backtest period.
+        c. Loop through each stock ticker.
+        d. Use the `DataService` to fetch historical data.
+        e. Use the `hurst_exponent` function from `core/statistics.py` to calculate the Hurst exponent for the entire period.
+        f. Store the results (ticker and Hurst value) in a list.
+        g. After processing all stocks, sort the list by the Hurst exponent in ascending order.
+        h. Print a clean, copy-paste-ready list of the top 50 tickers where `Hurst < 0.5`.
+    3.  **Documentation:** Add a section to `README.md` explaining how to run this script to generate a curated stock list for `config.ini`.
+*   **Tests to cover:**
+    *   Given this is a one-off analysis script, a full test suite is over-engineering. The primary test is to run the script and manually verify that it produces a sensible, sorted list of tickers and their Hurst values.
+*   **Acceptance Criteria (AC):**
+    *   A new script exists that can analyze a list of stocks and identify the most mean-reverting candidates based on historical data.
+    *   The output is a simple list of stock tickers that can be directly used to update the `stocks_to_backtest` parameter in `config.ini`.
+*   **Definition of Done (DoD):**
+    *   The script is created and functional. The `README.md` is updated with instructions for its use.
+*   **Time estimate:** 3 hours
+*   **Status:** To Do
+
+### Task 23 — Implement Dynamic Profit Target for Symmetrical Risk Management
+
+*   **Rationale:** (Hinton) The backtest report shows a negative skew of -0.94. This is a statistical warning that our profit distribution has a longer tail on the left; our losses, when they occur, are more severe than our wins are beneficial. This creates a poor risk-adjusted return profile. (Nadh) Architecturally, our exit logic is asymmetrical and incomplete. We have a well-defined rule for when we are wrong (the ATR stop-loss) but no rule for when we are right. We are letting profitable trades run indefinitely until a timeout, which is arbitrary. This task introduces a symmetrical, data-driven profit target to test the hypothesis that systematically capturing gains will improve the Sharpe Ratio by shaping a more favorable return distribution.
+*   **Items to implement:**
+    1.  **Configuration:** In `config.ini`, within the `[exit_logic]` section, add a new parameter: `reward_risk_ratio = 2.0`.
+    2.  **Models:** In `core/models.py`, add the corresponding `reward_risk_ratio: float` field to the `ExitLogicConfig` Pydantic model.
+    3.  **Orchestrator Logic:** Refactor the `Orchestrator._determine_exit` method in `core/orchestrator.py`.
+        a. At the point of trade entry (at index `i`), calculate the risk distance: `risk_per_share = entry_price - stop_loss_price`.
+        b. Calculate the profit target: `profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)`.
+        c. Inside the day-by-day forward loop that checks for the stop-loss, add a condition to check if the day's `High` price has crossed the `profit_target_price`.
+        d. If the profit target is hit, the exit is triggered. The `exit_price` must be the `profit_target_price` itself (not the day's high) to ensure a conservative and deterministic exit simulation. This exit takes precedence over the max holding period.
+*   **Time estimate:** 5 hours
+*   **Status:** Done & Reverted
+
+*   **Resolution & Learnings:**
+    *   **Outcome:** The implementation was functionally correct, but the backtest revealed a catastrophic drop in all performance metrics (Sharpe Ratio, Annualized Returns, Profit Factor). The hypothesis that a symmetrical risk:reward target would improve performance was **conclusively falsified**.
+    *   **Root Cause:** A fundamental mismatch between the strategy's nature and the exit logic was identified. Our system is a **mean-reversion** strategy that profits from short-term reversions to a statistical mean. The fixed reward:risk ratio is a **trend-following** exit concept. It forced the system to hold winning trades for too long, waiting for large, trend-like profit targets that rarely materialized, causing profitable trades to decay into smaller wins or even losses.
+    *   **Final Action:** The changes from this task have been **reverted** from the codebase. The previous, simpler exit logic (ATR stop-loss or max holding period) proved more effective because it did not contradict the core statistical edge of the entry signal. A detailed post-mortem has been added to `docs/memory.md` to ensure this flawed approach is not attempted again.
+
+
+### Task 25 — Implement Dynamic Profit Target for Symmetrical Risk Management
+
+*   **Rationale:** (Hinton) The backtest report shows a negative skew of -0.94. This is a statistical warning that our profit distribution has a longer tail on the left; our losses, when they occur, are more severe than our wins are beneficial. This creates a poor risk-adjusted return profile. (Nadh) Architecturally, our exit logic is asymmetrical and incomplete. We have a well-defined rule for when we are wrong (the ATR stop-loss) but no rule for when we are right. We are letting profitable trades run indefinitely until a timeout, which is arbitrary. This task introduces a symmetrical, data-driven profit target to test the hypothesis that systematically capturing gains will improve the Sharpe Ratio by shaping a more favorable return distribution.
+*   **Items to implement:**
+    1.  **Configuration:** In `config.ini`, within the `[exit_logic]` section, add a new parameter: `reward_risk_ratio = 2.0`.
+    2.  **Models:** In `core/models.py`, add the corresponding `reward_risk_ratio: float` field to the `ExitLogicConfig` Pydantic model.
+    3.  **Orchestrator Logic:** Refactor the `Orchestrator._determine_exit` method in `core/orchestrator.py`.
+        a. At the point of trade entry (at index `i`), calculate the risk distance: `risk_per_share = entry_price - stop_loss_price`.
+        b. Calculate the profit target: `profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)`.
+        c. Inside the day-by-day forward loop that checks for the stop-loss, add a condition to check if the day's `High` price has crossed the `profit_target_price`.
+        d. If the profit target is hit, the exit is triggered. The `exit_price` must be the `profit_target_price` itself (not the day's high) to ensure a conservative and deterministic exit simulation. This exit takes precedence over the max holding period.
+*   **Time estimate:** 5 hours
+*   **Status:** Done & Reverted
+
+*   **Resolution & Learnings (Post-Mortem):**
+    *   **Outcome:** The implementation was functionally correct, but the backtest revealed a **catastrophic drop in all performance metrics** (Sharpe Ratio, Annualized Returns, Profit Factor). The hypothesis that a symmetrical risk:reward target would improve performance was **conclusively falsified**.
+    *   **Root Cause Analysis:** A fundamental mismatch between the strategy's nature and the exit logic was identified. Our system is a **mean-reversion** strategy that profits from short-term reversions to a statistical mean. The fixed reward:risk ratio is a **trend-following** exit concept. It forced the system to hold winning trades for too long, waiting for large, trend-like profit targets that rarely materialized. This caused profitable trades to decay into smaller wins or even losses, destroying the strategy's edge.
+    *   **Final Action:** The changes from this task have been **reverted** from the codebase. The previous, simpler exit logic (ATR stop-loss or max holding period) proved more effective because it did not contradict the core statistical edge of the entry signal. This experiment, while a failure in terms of performance, was a success in deepening our understanding of the system. A detailed note has been added to `docs/memory.md` to ensure this flawed approach is not attempted again.
+
+### Task 25 — Create Universe Pre-Filtering Script for Strategy Specialization
+
+*   **Rationale:** (Nadh) The backtest proved the strategy is a specialist. It works on `POWERGRID.NS` and fails everywhere else. Wasting CPU cycles backtesting a mean-reversion strategy on trending stocks like `RELIANCE.NS` is inefficient and violates the "fail fast" principle. The most pragmatic solution is not to change the algorithm, but to curate the universe it operates on. (Hinton) This is a form of dataset curation, a crucial step in any applied ML project. We are simplifying the problem for our model by pre-selecting a dataset where the signal-to-noise ratio for mean-reversion is inherently higher. This is valid, provided the selection is done on out-of-sample data to prevent selection bias from contaminating our final backtest results.
+*   **Items to implement:**
+    1.  **Create New Script:** Create a new, standalone script: `scripts/universe_analyzer.py`. This script will not be part of the main `praxis_engine` package.
+    2.  **Script Logic:** The script should:
+        a. Define a list of Nifty 500 tickers (this can be hardcoded or read from a simple text file).
+        b. Define an out-of-sample date range for analysis (e.g., `2010-01-01` to `2017-12-31`), which does not overlap with the main backtest period.
+        c. Loop through each stock ticker.
+        d. Use the `DataService` to fetch historical data.
+        e. Use the `hurst_exponent` function from `core/statistics.py` to calculate the Hurst exponent for the entire period.
+        f. Store the results (ticker and Hurst value) in a list.
+        g. After processing all stocks, sort the list by the Hurst exponent in ascending order.
+        h. Print a clean, copy-paste-ready list of the top 50 tickers where `Hurst < 0.5`.
+    3.  **Documentation:** Add a section to `README.md` explaining how to run this script to generate a curated stock list for `config.ini`.
+*   **Tests to cover:**
+    *   Given this is a one-off analysis script, a full test suite is over-engineering. The primary test is to run the script and manually verify that it produces a sensible, sorted list of tickers and their Hurst values.
+*   **Acceptance Criteria (AC):**
+    *   A new script exists that can analyze a list of stocks and identify the most mean-reverting candidates based on historical data.
+    *   The output is a simple list of stock tickers that can be directly used to update the `stocks_to_backtest` parameter in `config.ini`.
+*   **Definition of Done (DoD):**
+    *   The script is created and functional. The `README.md` is updated with instructions for its use.
+*   **Time estimate:** 3 hours
 *   **Status:** To Do
