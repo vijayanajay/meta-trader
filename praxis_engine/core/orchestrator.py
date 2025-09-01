@@ -60,10 +60,11 @@ class Orchestrator:
             window = full_df.iloc[0:i].copy()
             signal_date = window.index[-1]
 
-            atr_series = atr(window["High"], window["Low"], window["Close"], length=self.config.exit_logic.atr_period)
-            if atr_series is not None:
-                window[atr_col_name] = atr_series
-                window[atr_col_name] = window[atr_col_name].bfill()
+            if self.config.exit_logic.use_atr_exit:
+                atr_series = atr(window["High"], window["Low"], window["Close"], length=self.config.exit_logic.atr_period)
+                if atr_series is not None:
+                    window[atr_col_name] = atr_series
+                    window[atr_col_name] = window[atr_col_name].bfill()
 
             signal = self.signal_engine.generate_signal(window)
             if not signal:
@@ -195,14 +196,6 @@ class Orchestrator:
 
         for i in range(min_history_days, len(df) -1):
             window = df.iloc[0:i].copy()
-
-            # Add ATR column for strength score calculation
-            atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
-            atr_series = atr(window["High"], window["Low"], window["Close"], length=self.config.exit_logic.atr_period)
-            if atr_series is not None:
-                window[atr_col_name] = atr_series
-                window[atr_col_name] = window[atr_col_name].bfill()
-
             signal = self.signal_engine.generate_signal(window)
             if not signal:
                 continue
@@ -252,14 +245,6 @@ class Orchestrator:
             return None
 
         latest_data_window = full_df.copy()
-
-        # Add ATR column for strength score calculation
-        atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
-        atr_series = atr(latest_data_window["High"], latest_data_window["Low"], latest_data_window["Close"], length=self.config.exit_logic.atr_period)
-        if atr_series is not None:
-            latest_data_window[atr_col_name] = atr_series
-            latest_data_window[atr_col_name] = latest_data_window[atr_col_name].bfill()
-
         signal = self.signal_engine.generate_signal(latest_data_window)
         if not signal:
             log.info(f"No preliminary signal for {stock} on the latest data.")

@@ -52,7 +52,6 @@ def sample_signal() -> Signal:
         exit_target_days=10,
         frames_aligned=["daily"],
         sector_vol=15.0,
-        strength_score=0.5,
     )
 
 

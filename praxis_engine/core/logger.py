@@ -28,7 +28,7 @@ def setup_file_logger(log_dir: str = "results", file_name: str = "backtest_resul
 
     # Console Handler for progress and summaries
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.DEBUG)
+    console_handler.setLevel(logging.INFO)
     console_formatter = logging.Formatter('%(message)s')
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)

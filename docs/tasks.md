@@ -462,7 +462,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   All code changes are implemented, the prompt is updated, and all relevant unit and integration tests are passing.
 *   **Time estimate:** 4 hours
-*   **Status:** Done
+*   **Status:** To Do
 
 ---
 
@@ -489,23 +489,4 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The script is created and functional. The `README.md` is updated with instructions for its use.
 *   **Time estimate:** 3 hours
-*   **Status:** To Do
-
----
-
-### Task 27 — Harden Data Service Against Delisted Stocks
-
-*   **Rationale:** The backtest fails when it encounters a ticker in `config.ini` that has been delisted (e.g., `HDFC.NS`, `ICICI.NS`). The `yfinance` library raises a `YFTzMissingError` which is not gracefully handled, causing the backtest for that stock to fail and print a verbose error. The system should be resilient to such data source issues.
-*   **Items to implement:**
-    1.  **Error Handling:** In `services/data_service.py`, wrap the `yfinance.download` call in a `try...except` block that specifically catches the `YFTzMissingError`.
-    2.  **Graceful Failure:** When this error is caught, the `get_data` method should log a clear, one-line warning message (e.g., `WARN: Could not fetch data for HDFC.NS, it may be delisted. Skipping.`) and return `None`.
-    3.  **Orchestrator Resilience:** Ensure the `Orchestrator` correctly handles a `None` return from `data_service.get_data` by logging that it is skipping the stock and continuing to the next one without crashing.
-*   **Tests to cover:**
-    *   In `tests/test_data_service.py`, create a new test that mocks `yfinance.download` to raise a `YFTzMissingError`. Assert that the `get_data` method returns `None` and that an appropriate warning is logged.
-*   **Acceptance Criteria (AC):**
-    *   A backtest run completes without crashing even if the `stocks_to_backtest` list contains delisted tickers.
-    *   A clear warning message is logged for each delisted ticker that is skipped.
-*   **Definition of Done (DoD):**
-    *   The `DataService` is updated with the new error handling, and a unit test confirms the behavior.
-*   **Time estimate:** 2 hours
 *   **Status:** To Do

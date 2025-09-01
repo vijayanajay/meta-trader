@@ -204,10 +204,3 @@ A full code review identified several critical, interacting flaws in the `Orches
 1.  **Missing Dependencies:** The test suite and the `run.py` script failed with `ModuleNotFoundError` for `statsmodels` and `typer`. This indicates that the initial dependency installation is incomplete.
     *   **Fix:** The missing packages were installed manually using `pip`.
     *   **Lesson:** The project needs a single, reliable method for installing all necessary dependencies. A `requirements.txt` file should be created and maintained to ensure a reproducible environment.
-
-## Task 25 Learnings
-
-1.  **Inconsistent Indicator Calculation:** The backtest failed with a `KeyError` because the `ATR` column, required for the new `strength_score`, was not present in the dataframe during the historical stats calculation.
-    *   **Issue:** The `Orchestrator`'s main `run_backtest` loop was calculating and adding the `ATR` column to the dataframe, but the `_calculate_historical_stats_for_llm` helper method was not. This created an inconsistency where the `SignalEngine` would receive a dataframe without the required column, causing it to fail.
-    *   **Fix:** The `ATR` calculation logic was duplicated from the main loop into the `_calculate_historical_stats_for_llm` and `generate_opportunities` methods.
-    *   **Lesson:** This highlights a subtle architectural issue. When a component (like `SignalEngine`) has a data dependency, it is the responsibility of the *caller* to provide that data. The inconsistency arose because different callers (`run_backtest`, `_calculate_historical_stats_for_llm`) were preparing the data differently. A more robust long-term solution might involve a dedicated `DataPreparationService` that is used by all callers to ensure the dataframe is always correctly and consistently prepared with all necessary indicators before being passed to the `SignalEngine`.

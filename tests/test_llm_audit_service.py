@@ -21,7 +21,6 @@ Your response must be a single floating-point number between 0.0 and 1.0.
 - Historical Win Rate (>1.77% net return in 20 days): {{ win_rate }}%
 - Historical Profit Factor: {{ profit_factor }}
 - Historical Sample Size (number of past signals): {{ sample_size }}
-- Current Signal Strength (ATR-normalized): {{ signal_strength }}
 - Current Sector Volatility (annualized): {{ sector_volatility }}%
 - Current Hurst Exponent: {{ hurst_exponent }}
 """
@@ -109,9 +108,7 @@ class TestLLMAuditServiceInitialization:
             assert service.client is None
             assert f"API key for {provider} not found" in caplog.text
             # Verify it returns the safe default score (0.0)
-            mock_signal = MagicMock(spec=Signal)
-            mock_signal.strength_score = 0.5
-            assert service.get_confidence_score(MagicMock(), mock_signal, MagicMock()) == 0.0
+            assert service.get_confidence_score(MagicMock(), MagicMock(), MagicMock()) == 0.0
             assert "LLM client not initialized" in caplog.text
 
     def test_initialization_fails_with_unsupported_provider(
@@ -146,23 +143,13 @@ class TestGetConfidenceScore:
         mock_completion.choices[0].message.content = "0.85"
         mock_client.chat.completions.create.return_value = mock_completion
         stats = {"win_rate": 60.0, "profit_factor": 2.5, "sample_size": 10}
-        signal = Signal(
-            entry_price=100,
-            stop_loss=98,
-            exit_target_days=10,
-            frames_aligned=["d"],
-            sector_vol=15.5,
-            strength_score=0.75,
-        )
+        signal = Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=15.5)
 
         score = llm_audit_service.get_confidence_score(stats, signal, sample_dataframe)
 
         assert score == 0.85
         prompt = mock_client.chat.completions.create.call_args[1]["messages"][0]["content"]
-        assert "60.0" in prompt
-        assert "2.50" in prompt
-        assert "15.5" in prompt
-        assert "0.75" in prompt # Check for strength score
+        assert "60.0" in prompt and "2.50" in prompt and "15.5" in prompt
 
     @patch("praxis_engine.services.llm_audit_service.log.info")
     def test_retry_logic_on_api_connection_error(
@@ -180,14 +167,7 @@ class TestGetConfidenceScore:
         ]
 
         stats = {"win_rate": 50.0, "profit_factor": 2.0, "sample_size": 5}
-        signal = Signal(
-            entry_price=100,
-            stop_loss=98,
-            exit_target_days=10,
-            frames_aligned=["d"],
-            sector_vol=12.0,
-            strength_score=0.5,
-        )
+        signal = Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["d"], sector_vol=12.0)
 
         score = llm_audit_service.get_confidence_score(stats, signal, sample_dataframe)
 
@@ -207,13 +187,9 @@ class TestGetConfidenceScore:
         from tenacity import RetryError
         mock_client.chat.completions.create.side_effect = APIConnectionError(request=MagicMock())
 
-        mock_signal = MagicMock(spec=Signal)
-        mock_signal.strength_score = 0.5
-        mock_signal.sector_vol = 15.0
-        from tenacity import RetryError
         with pytest.raises(RetryError):
              llm_audit_service.get_confidence_score(
-                {}, mock_signal, sample_dataframe
+                {}, MagicMock(spec=Signal, sector_vol=15.0), sample_dataframe
              )
 
         assert mock_client.chat.completions.create.call_count == 3
@@ -240,11 +216,8 @@ class TestGetConfidenceScore:
         llm_audit_service.llm_provider = provider
         llm_audit_service.mock_openai_client.chat.completions.create.side_effect = error_class # type: ignore
 
-        mock_signal = MagicMock(spec=Signal)
-        mock_signal.strength_score = 0.5
-        mock_signal.sector_vol = 15.0
         score = llm_audit_service.get_confidence_score(
-            {}, mock_signal, sample_dataframe
+            {}, MagicMock(spec=Signal, sector_vol=15.0), sample_dataframe
         )
 
         assert score == 0.0
@@ -257,11 +230,8 @@ class TestGetConfidenceScore:
         caplog: LogCaptureFixture,
     ) -> None:
         with patch("praxis_engine.services.llm_audit_service.hurst_exponent", return_value=None):
-            mock_signal = MagicMock(spec=Signal)
-            mock_signal.strength_score = 0.5
-            mock_signal.sector_vol = 15.0
             score = llm_audit_service.get_confidence_score(
-                {}, mock_signal, sample_dataframe
+                {}, MagicMock(spec=Signal, sector_vol=15.0), sample_dataframe
             )
             assert score == 0.0
             assert "Could not calculate Hurst exponent" in caplog.text
@@ -276,9 +246,6 @@ class TestGetConfidenceScore:
         with patch("praxis_engine.services.llm_audit_service.OpenAI"), \
              patch.dict("os.environ", {"LLM_PROVIDER": "openrouter", "OPENROUTER_API_KEY": "key"}, clear=True):
             service = LLMAuditService(config=llm_config)
-            mock_signal = MagicMock(spec=Signal)
-            mock_signal.strength_score = 0.5
-            mock_signal.sector_vol = 15.0
-            score = service.get_confidence_score({}, mock_signal, sample_dataframe)
+            score = service.get_confidence_score({}, MagicMock(spec=Signal, sector_vol=15.0), sample_dataframe)
             assert score == 0.0
             assert "Prompt template not found" in caplog.text

@@ -41,7 +41,7 @@ def strategy_params() -> StrategyParamsConfig:
 @pytest.fixture
 def sample_signal() -> Signal:
     """A sample signal for testing."""
-    return Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["daily"], sector_vol=15.0, strength_score=0.5)
+    return Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["daily"], sector_vol=15.0)
 
 def create_test_df(days: int, close_price: float, volume: float) -> pd.DataFrame:
     """Creates a sample dataframe for testing."""

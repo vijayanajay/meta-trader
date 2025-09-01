@@ -75,7 +75,6 @@ class Signal(BaseModel):
     exit_target_days: int
     frames_aligned: List[str]
     sector_vol: float
-    strength_score: float
 
 class ValidationScores(BaseModel):
     """

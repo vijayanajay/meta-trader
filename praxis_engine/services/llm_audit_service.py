@@ -107,7 +107,6 @@ class LLMAuditService:
                 "win_rate": f"{historical_stats.get('win_rate', 0.0):.1f}",
                 "profit_factor": f"{historical_stats.get('profit_factor', 0.0):.2f}",
                 "sample_size": historical_stats.get("sample_size", 0),
-                "signal_strength": f"{signal.strength_score:.2f}",
                 "sector_volatility": f"{signal.sector_vol:.1f}",
                 "hurst_exponent": f"{H:.2f}",
             }
