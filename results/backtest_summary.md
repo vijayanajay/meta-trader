@@ -1,3 +1,4 @@
+```markdown
 
 ## Backtest Report
 
@@ -10,7 +11,6 @@
 
 **Period:** 2018-01-01 to 2025-08-25
 **Total Trades:** 6
-
 
 ### Filtering Funnel
 | Stage | Count | % of Previous Stage |
@@ -75,3 +75,4 @@
 | HDFC.NS | 0.00% | 0 | 0 | 0 | 0 |
 | ICICI.NS | 0.00% | 0 | 0 | 0 | 0 |
 | SBIN.NS | 0.00% | 0 | 21 | 18 | 3 |
+```
