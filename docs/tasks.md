@@ -483,3 +483,59 @@ This document provides a detailed, sequential list of tasks required to build th
     *   The `config.ini` file is updated and a successful backtest has been run.
 *   **Time estimate:** 1 hour
 *   **Status:** Done
+
+---
+
+## Epic 8: Performance & Scalability
+
+*Goal: To transform the backtesting engine from a slow, single-threaded research tool into a high-performance system capable of rapidly analyzing hundreds of stocks. This epic addresses the critical performance bottlenecks identified in the initial implementation, making large-scale analysis and sensitivity testing feasible.*
+
+---
+
+### Task 27 — Parallelize Per-Stock Backtests with Multiprocessing
+
+*   **Rationale:** (Nadh) The current single-threaded backtest is the most significant bottleneck for analyzing a large universe. The problem is "embarrassingly parallel," as each stock's backtest is independent. Leveraging all available CPU cores is the most pragmatic, highest return-on-investment change to achieve a near-linear speedup for the entire run without altering the core strategy logic.
+*   **Items to implement:**
+    1.  Modify the `backtest` command in `praxis_engine/main.py`.
+    2.  Import Python's `multiprocessing.Pool`.
+    3.  Create a top-level helper function that can be pickled by `multiprocessing`. This function will accept a stock ticker, create a new `Orchestrator` instance, and run the backtest for that single stock.
+    4.  Replace the main `for` loop over the stock list with a call to `pool.imap_unordered` to distribute the work across all available CPU cores.
+    5.  Integrate `tqdm` with the multiprocessing pool to ensure the progress bar continues to function correctly.
+    6.  Collect the results from all parallel processes and run the existing aggregation and report generation logic.
+*   **Tests to cover:**
+    *   This is primarily a functional test. The key validation is to run a backtest on a small, fixed set of stocks (e.g., 4-8) both before and after the change on a multi-core machine.
+    *   **Assertion 1:** The parallel version must complete significantly faster.
+    *   **Assertion 2:** The final generated `backtest_summary.md` must be numerically identical to the one from the single-threaded run.
+*   **Acceptance Criteria (AC):**
+    *   The `backtest` command utilizes multiple CPU cores during execution.
+    *   A full backtest on the configured universe completes in a fraction of the original time.
+    *   The final aggregated report is identical to the one produced by a single-threaded run, ensuring correctness.
+*   **Definition of Done (DoD):**
+    *   The `main.py` backtest command is refactored to use `multiprocessing.Pool`. The system correctly utilizes parallel processing, and the results are verified to be correct.
+*   **Time estimate:** 4 hours
+*   **Status:** To Do
+
+---
+
+### Task 28 — Accelerate Numerical Hotspots with Numba JIT
+
+*   **Rationale:** (Hinton/Nadh) Profiling reveals that specific, pure-Python numerical functions, like the Hurst exponent calculation, are computational hotspots within each backtest. While vectorization is preferred, some algorithms are inherently loopy. Instead of a costly rewrite in C, we can use Numba to Just-In-Time (JIT) compile these critical Python functions into highly optimized machine code. This is a targeted, surgical optimization that provides C-like speed for the parts of the code that need it most.
+*   **Items to implement:**
+    1.  Add `numba` to the project's `requirements.txt`.
+    2.  **Profile:** Use a profiler (e.g., `cProfile`) to confirm the primary numerical bottlenecks during a single-stock run. The `hurst_exponent` function in `core/statistics.py` is the primary suspect.
+    3.  **Refactor for Numba:**
+        a. In `core/statistics.py`, import `numba`.
+        b. Decorate the `hurst_exponent` function (or another identified bottleneck) with `@numba.jit(nopython=True)`.
+        c. Modify the function to work with NumPy arrays instead of Pandas Series. The calling code must be updated to pass `series.to_numpy()`.
+        d. Ensure all code inside the decorated function is compatible with Numba's `nopython` mode, refactoring to basic loops or supported NumPy functions if necessary.
+*   **Tests to cover:**
+    *   The existing unit tests for `hurst_exponent` in `tests/test_statistics.py` must continue to pass, verifying the numerical correctness of the JIT-compiled version.
+    *   (Optional but recommended) Add a benchmark test using `pytest-benchmark` to formally measure and assert the performance gain of the Numba-fied function against the original.
+*   **Acceptance Criteria (AC):**
+    *   At least one identified computational bottleneck is successfully accelerated with the `@numba.jit` decorator.
+    *   The backtest produces identical numerical results (within a small tolerance for floating-point differences).
+    *   The overall runtime for a single stock backtest is measurably reduced due to the optimization.
+*   **Definition of Done (DoD):**
+    *   The `numba` dependency is added. The target function is refactored, decorated, and fully tested for both correctness and performance improvement.
+*   **Time estimate:** 6 hours
+*   **Status:** To Do
