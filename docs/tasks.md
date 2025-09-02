@@ -482,4 +482,4 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The `config.ini` file is updated and a successful backtest has been run.
 *   **Time estimate:** 1 hour
-*   **Status:** To Do
+*   **Status:** Done
