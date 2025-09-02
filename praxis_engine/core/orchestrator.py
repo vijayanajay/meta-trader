@@ -91,11 +91,15 @@ class Orchestrator:
             historical_df = full_df.iloc[0:i-1]
             historical_stats = self._calculate_historical_stats_for_llm(stock, historical_df)
 
-            confidence_score = self.llm_audit_service.get_confidence_score(
-                historical_stats=historical_stats,
-                signal=signal,
-                df_window=window,
-            )
+            if self.config.llm.use_llm_audit:
+                confidence_score = self.llm_audit_service.get_confidence_score(
+                    historical_stats=historical_stats,
+                    signal=signal,
+                    df_window=window,
+                )
+            else:
+                confidence_score = 1.0  # Bypass LLM audit with max confidence
+                log.debug("LLM audit is disabled. Assigning default confidence score of 1.0.")
 
             if confidence_score < self.config.llm.confidence_threshold:
                 log.debug(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
@@ -256,11 +260,15 @@ class Orchestrator:
         historical_stats = self._calculate_historical_stats_for_llm(stock, historical_df)
         log.debug(f"Historical stats for {stock}: {historical_stats}")
 
-        confidence_score = self.llm_audit_service.get_confidence_score(
-            historical_stats=historical_stats,
-            signal=signal,
-            df_window=latest_data_window,
-        )
+        if self.config.llm.use_llm_audit:
+            confidence_score = self.llm_audit_service.get_confidence_score(
+                historical_stats=historical_stats,
+                signal=signal,
+                df_window=latest_data_window,
+            )
+        else:
+            confidence_score = 1.0 # Bypass LLM audit with max confidence
+            log.debug("LLM audit is disabled. Assigning default confidence score of 1.0.")
 
         if confidence_score < self.config.llm.confidence_threshold:
             log.debug(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")

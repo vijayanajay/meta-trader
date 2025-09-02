@@ -38,6 +38,7 @@ class ScoringConfig(BaseModel):
     adf_score_max_pvalue: float = Field(..., ge=0, le=1)
 
 class LLMConfig(BaseModel):
+    use_llm_audit: bool = False
     provider: str
     confidence_threshold: float = Field(..., ge=0, le=1)
     min_composite_score_for_llm: float = Field(0.05, ge=0, le=1)
