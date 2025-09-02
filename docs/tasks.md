@@ -539,3 +539,65 @@ This document provides a detailed, sequential list of tasks required to build th
     *   The `numba` dependency is added. The target function is refactored, decorated, and fully tested for both correctness and performance improvement.
 *   **Time estimate:** 6 hours
 *   **Status:** Done
+
+---
+
+### Task 29 — Pre-calculate All Indicators to Eliminate O(N^2) Loop Inefficiency
+
+*   **Rationale:** (Nadh) A performance profile of the backtester reveals a classic and entirely avoidable `O(N^2)` inefficiency. The main walk-forward loop recalculates all technical indicators (BBands, RSI, ATR) over an expanding data window on *every single iteration*. This is computationally wasteful. On day 1000, we are re-doing the work of day 999 plus one extra day. The pragmatic solution is to perform one, single, vectorized `O(N)` calculation for all indicators before the loop begins. This is the lowest-hanging fruit for performance optimization.
+*   **Items to implement:**
+    1.  **Orchestrator Refactoring:** In `praxis_engine/core/orchestrator.py`, within the `run_backtest` method, before the main `for` loop:
+        a. Call all necessary indicator functions (`bbands`, `rsi`, `atr` from `core/indicators.py`) on the `full_df`.
+        b. This will generate several `pd.Series` or `pd.DataFrame` objects containing the indicator values for the entire backtest period.
+        c. Use `pd.concat` to merge these new indicator columns into the `full_df`.
+    2.  **Signal Engine Signature Change:** Modify the `generate_signal` method in `praxis_engine/services/signal_engine.py`.
+        a. Its signature must change from `generate_signal(self, df_daily: pd.DataFrame)` to `generate_signal(self, full_df_with_indicators: pd.DataFrame, current_index: int)`.
+        b. All internal logic that calculates indicators must be removed.
+        c. The logic must be rewritten to perform simple lookups on the provided dataframe at the `current_index` (e.g., `latest_daily = full_df_with_indicators.iloc[current_index]`).
+    3.  **Validation Service Signature Change:** The same refactoring pattern must be applied to the guards that perform calculations (specifically `StatGuard`).
+        a. The `validate` methods in the guards should now accept the `full_df_with_indicators` and `current_index`.
+        b. The `StatGuard` must be updated to look up pre-calculated Hurst and ADF values. This will require pre-calculating these statistics using a `rolling().apply()` method in the `Orchestrator` to ensure point-in-time correctness.
+    4.  **Orchestrator Loop Update:** The main loop in `run_backtest` must be updated to call the refactored services with the new signatures, passing the complete dataframe and the current loop index `i`.
+*   **Tests to cover:**
+    *   **Correctness Test (Critical):** Run a full backtest on a single, deterministic stock (e.g., `POWERGRID.NS` from 2018-2020) *before* the changes. Save the resulting list of `Trade` objects. After implementing the changes, run the exact same backtest. The new list of `Trade` objects must be numerically identical to the saved list. This proves the refactoring did not alter the strategy's logic.
+    *   **Performance Benchmark:** Add a simple timer (`time.time()`) around the `run_backtest` call for a single stock. Assert that the execution time after the refactoring is at least 5x faster than before.
+    *   Update unit tests for `SignalEngine` and `ValidationService` to reflect their new method signatures.
+*   **Acceptance Criteria (AC):**
+    *   The backtester produces numerically identical trade results to the pre-refactoring version.
+    *   The runtime for a single-stock backtest over a 10-year period is significantly reduced.
+*   **Definition of Done (DoD):**
+    *   All indicator calculations are moved out of the main loop. All relevant services are refactored to use lookups instead of calculations. All existing tests pass, and new correctness and performance tests are added.
+*   **Time estimate:** 8 hours
+*   **Status:** To Do
+
+---
+
+### Task 30 — Implement Single-Pass Historical Simulation to Fix Catastrophic LLM Stats Recalculation
+
+*   **Rationale:** (Hinton/Nadh) The current implementation for gathering historical statistics for the LLM audit is catastrophically inefficient. It triggers a *full, separate backtest* on all data prior to the current signal. This "loop-within-a-loop" is the single greatest performance bottleneck when signals are frequent. The correct, scientific approach is to calculate these accumulating statistics in a single, point-in-time correct pass. This task replaces the repetitive, brute-force recalculation with an efficient, single-pass pre-computation.
+*   **Items to implement:**
+    1.  **Create New Orchestrator Method:** In `praxis_engine/core/orchestrator.py`, create a new private helper method: `_pre_calculate_historical_performance(self, df_with_indicators: pd.DataFrame) -> pd.DataFrame`.
+    2.  **Implement Single-Pass Simulation:** This new method will:
+        a. Initialize empty lists for historical returns and empty columns in the dataframe (e.g., `hist_win_rate`, `hist_profit_factor`, `hist_sample_size`).
+        b. Run its own walk-forward loop over the `df_with_indicators`.
+        c. Inside the loop, it will simulate the *entire* strategy logic for each day (signal generation, validation, and trade exit determination) using the pre-calculated indicators.
+        d. If a trade is completed at day `i`, its net return is calculated and appended to the list of historical returns.
+        e. For each day `i`, it will calculate the win rate, profit factor, and sample size based on the contents of the `historical_returns` list *as of that day*.
+        f. It will populate the new columns at index `i` with these calculated statistics.
+        g. The method will return the dataframe, now enriched with the historical performance time series.
+    3.  **Refactor `run_backtest`:**
+        a. At the beginning of `run_backtest`, after pre-calculating indicators (from Task 29), call this new `_pre_calculate_historical_performance` method.
+        b. Completely **delete** the existing call to `_calculate_historical_stats_for_llm` from inside the main loop.
+        c. Modify the call to `llm_audit_service.get_confidence_score`. The `historical_stats` dictionary will now be populated by a simple `O(1)` lookup from the new columns in the dataframe at the current index `i`.
+*   **Tests to cover:**
+    *   **Unit Test for Pre-calculation (Critical):** Create a dedicated test for `_pre_calculate_historical_performance`. Use a small, synthetic dataframe with 2-3 known trade signals and outcomes. Assert that the values in the generated `hist_win_rate` and `hist_profit_factor` columns are correct at each time step, proving the accumulating logic is point-in-time correct and free of lookahead bias.
+    *   **Correctness Test:** Similar to Task 29, run a full backtest before and after the change. The final results must be numerically identical.
+    *   **Performance Benchmark:** Run a backtest on a stock that is known to generate many signals. The performance improvement should be dramatic.
+*   **Acceptance Criteria (AC):**
+    *   The backtester produces numerically identical trade results to the pre-refactoring version.
+    *   The `_calculate_historical_stats_for_llm` method is removed and its functionality is replaced by the more efficient pre-computation pass.
+    *   The backtest log no longer shows repeated "Calculating historical stats for..." messages for the same stock.
+*   **Definition of Done (DoD):**
+    *   The new pre-calculation method is implemented and fully unit-tested for correctness. The main backtest loop is refactored to use the pre-calculated results. The old, inefficient method is deleted.
+*   **Time estimate:** 10 hours
+*   **Status:** To Do
