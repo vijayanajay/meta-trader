@@ -513,7 +513,7 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The `main.py` backtest command is refactored to use `multiprocessing.Pool`. The system correctly utilizes parallel processing, and the results are verified to be correct.
 *   **Time estimate:** 4 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 

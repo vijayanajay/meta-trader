@@ -4,6 +4,8 @@ import datetime
 import sys
 from dotenv import load_dotenv
 from tqdm import tqdm
+import multiprocessing
+from itertools import repeat
 
 from praxis_engine.core.logger import get_logger, setup_file_logger
 from praxis_engine.services.config_service import ConfigService
@@ -11,7 +13,7 @@ from praxis_engine.core.orchestrator import Orchestrator
 from praxis_engine.core.models import BacktestMetrics, Config, Opportunity, Trade, RunMetadata
 from praxis_engine.services.report_generator import ReportGenerator
 from praxis_engine.utils import get_git_commit_hash
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,6 +21,27 @@ load_dotenv()
 # Initialize Typer app
 app = typer.Typer()
 logger = get_logger(__name__)
+
+
+def run_backtest_for_stock(payload: Tuple[str, str]) -> Dict:
+    """
+    Top-level helper function to run a backtest for a single stock.
+    Designed to be picklable for multiprocessing.
+    """
+    stock, config_path = payload
+    # Each process needs its own instances of services.
+    # Logging is inherited from the parent process.
+    config_service = ConfigService(config_path)
+    config: Config = config_service.load_config()
+    orchestrator = Orchestrator(config)
+
+    result = orchestrator.run_backtest(
+        stock=stock,
+        start_date=config.data.start_date,
+        end_date=config.data.end_date,
+    )
+    result["stock"] = stock  # Add stock name for result identification
+    return result
 
 
 @app.command()
@@ -38,7 +61,6 @@ def backtest(
 
     config_service = ConfigService(config_path)
     config: Config = config_service.load_config()
-    orchestrator = Orchestrator(config)
     all_trades: List[Trade] = []
     per_stock_trades: Dict[str, List[Trade]] = {}
     aggregated_metrics = BacktestMetrics()
@@ -55,27 +77,30 @@ def backtest(
     # -------------------------
 
     stock_list = config.data.stocks_to_backtest
-    with tqdm(total=len(stock_list), desc="Backtesting Stocks", file=sys.stderr) as pbar:
-        for stock in stock_list:
-            pbar.set_description(f"Processing {stock}")
-            result = orchestrator.run_backtest(
-                stock=stock,
-                start_date=config.data.start_date,
-                end_date=config.data.end_date,
-            )
-            per_stock_trades[stock] = result["trades"]
-            per_stock_metrics[stock] = result["metrics"]
-            all_trades.extend(result["trades"])
-            metrics = result["metrics"]
-            # Aggregate metrics
-            aggregated_metrics.potential_signals += metrics.potential_signals
-            aggregated_metrics.rejections_by_llm += metrics.rejections_by_llm
-            aggregated_metrics.trades_executed += metrics.trades_executed
-            for guard, count in metrics.rejections_by_guard.items():
-                aggregated_metrics.rejections_by_guard[guard] = aggregated_metrics.rejections_by_guard.get(guard, 0) + count
+    payloads = zip(stock_list, repeat(config_path))
 
+    with multiprocessing.Pool() as pool:
+        with tqdm(
+            total=len(stock_list), desc="Backtesting Stocks", file=sys.stderr
+        ) as pbar:
+            for result in pool.imap_unordered(run_backtest_for_stock, payloads):
+                stock = result.pop("stock")
+                pbar.set_description(f"Processing {stock}")
 
-            pbar.update(1)
+                per_stock_trades[stock] = result["trades"]
+                per_stock_metrics[stock] = result["metrics"]
+                all_trades.extend(result["trades"])
+                metrics = result["metrics"]
+                # Aggregate metrics
+                aggregated_metrics.potential_signals += metrics.potential_signals
+                aggregated_metrics.rejections_by_llm += metrics.rejections_by_llm
+                aggregated_metrics.trades_executed += metrics.trades_executed
+                for guard, count in metrics.rejections_by_guard.items():
+                    aggregated_metrics.rejections_by_guard[guard] = (
+                        aggregated_metrics.rejections_by_guard.get(guard, 0) + count
+                    )
+
+                pbar.update(1)
 
     if not all_trades:
         logger.info("Backtest complete. No trades were executed.")
