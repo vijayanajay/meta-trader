@@ -49,6 +49,7 @@ adf_score_max_pvalue = 0.01
 
 [llm]
 provider = "test"
+use_llm_audit = true
 confidence_threshold = 0.6
 min_composite_score_for_llm = 0.5
 model = "test/model"

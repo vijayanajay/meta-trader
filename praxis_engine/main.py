@@ -13,7 +13,8 @@ from praxis_engine.core.orchestrator import Orchestrator
 from praxis_engine.core.models import BacktestMetrics, Config, Opportunity, Trade, RunMetadata
 from praxis_engine.services.report_generator import ReportGenerator
 from praxis_engine.utils import get_git_commit_hash
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
+import os
 
 # Load environment variables from .env file
 load_dotenv()
@@ -42,6 +43,19 @@ def run_backtest_for_stock(payload: Tuple[str, str]) -> Dict:
     )
     result["stock"] = stock  # Add stock name for result identification
     return result
+
+
+def determine_process_count(stock_list: List[str], cfg_workers: Optional[int]) -> int:
+    """
+    Determine number of worker processes to use given the stock list and
+    optional workers specified in config.
+
+    Returns an int >= 1.
+    """
+    cpu_cores = multiprocessing.cpu_count()
+    if cfg_workers is None:
+        return min(len(stock_list) or 1, cpu_cores)
+    return max(1, int(cfg_workers))
 
 
 @app.command()
@@ -79,7 +93,14 @@ def backtest(
     stock_list = config.data.stocks_to_backtest
     payloads = zip(stock_list, repeat(config_path))
 
-    with multiprocessing.Pool() as pool:
+    # Determine number of worker processes from config
+    cfg_workers = getattr(config.data, "workers", None)
+    processes = determine_process_count(stock_list, cfg_workers)
+    logger.info(
+        f"Using {processes} worker process(es) (config.workers: {cfg_workers}, cpu_cores: {multiprocessing.cpu_count()})"
+    )
+
+    with multiprocessing.Pool(processes=processes) as pool:
         with tqdm(
             total=len(stock_list), desc="Backtesting Stocks", file=sys.stderr
         ) as pbar:

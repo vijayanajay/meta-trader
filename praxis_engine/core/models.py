@@ -11,6 +11,9 @@ class DataConfig(BaseModel):
     start_date: str
     end_date: str
     sector_map: Dict[str, str]
+    # Optional number of worker processes for backtesting. If None, code will
+    # choose min(number of stocks, CPU cores).
+    workers: Optional[int] = None
 
 class StrategyParamsConfig(BaseModel):
     bb_length: int = Field(..., gt=0)
