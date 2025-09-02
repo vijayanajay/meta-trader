@@ -538,4 +538,4 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The `numba` dependency is added. The target function is refactored, decorated, and fully tested for both correctness and performance improvement.
 *   **Time estimate:** 6 hours
-*   **Status:** To Do
+*   **Status:** Done

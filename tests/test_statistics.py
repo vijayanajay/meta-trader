@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from praxis_engine.core.statistics import adf_test, hurst_exponent
+from praxis_engine.core.statistics import adf_test, hurst_exponent, _calculate_hurst
 
 
 @pytest.fixture
@@ -55,3 +55,20 @@ def test_hurst_exponent_short_series() -> None:
     """Test hurst_exponent with a series that is too short."""
     short_series = pd.Series(np.random.randn(50))
     assert hurst_exponent(short_series) is None
+
+
+def test_calculate_hurst_implementation(mean_reverting_series: pd.Series, trending_series: pd.Series) -> None:
+    """
+    Test the internal _calculate_hurst implementation to ensure it returns
+    expected values for known series types. This provides coverage for the
+    JIT-compiled code.
+    """
+    # Mean-reverting series should have H < 0.5
+    h_mr = _calculate_hurst(mean_reverting_series.to_numpy())
+    assert h_mr is not None
+    assert h_mr < 0.5
+
+    # Trending series should have H > 0.5
+    h_trend = _calculate_hurst(trending_series.to_numpy())
+    assert h_trend is not None
+    assert h_trend > 0.6

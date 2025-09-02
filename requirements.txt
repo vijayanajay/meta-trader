@@ -7,11 +7,11 @@ pydantic
 ollama
 typer
 python-dotenv
-hurst
 jinja2
 pyarrow
 openai
 tqdm
+numba
 
 # Development & Testing
 pytest
