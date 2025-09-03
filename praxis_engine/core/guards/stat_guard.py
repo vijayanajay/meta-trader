@@ -25,49 +25,24 @@ class StatGuard:
     # impure
     @normalize_guard_args
     def validate(self, full_df: pd.DataFrame, current_index: int, signal: Signal) -> float:
-        """Calculates a statistical score based on precomputed ADF/Hurst with safe fallbacks."""
+        """
+        Calculates a statistical score based on pre-computed ADF and Hurst values.
+        This method relies on the Orchestrator having run precompute_indicators.
+        """
         hurst_col = f"HURST_{self.params.hurst_length}"
         adf_col = f"ADF_{self.params.hurst_length}"
 
         adf_p_value = None
         hurst = None
 
-        # Try using precomputed ADF
         if adf_col in full_df.columns:
-            try:
-                adf_p_value = full_df.iloc[current_index][adf_col]
-            except (IndexError, KeyError):
-                adf_p_value = None
+            adf_p_value = full_df.iloc[current_index].get(adf_col)
 
-        # Fallback: compute ADF on returns
-        if adf_p_value is None or pd.isna(adf_p_value):
-            try:
-                returns = full_df["Close"].iloc[: current_index + 1].pct_change().dropna()
-                if len(returns) >= max(1, self.params.hurst_length - 1):
-                    adf_p_value = adf_test(returns)
-            except (IndexError, KeyError, ValueError) as e:
-                log.debug(f"ADF fallback computation failed: {e}")
-                adf_p_value = None
-
-        # Try using precomputed Hurst
         if hurst_col in full_df.columns:
-            try:
-                hurst = full_df.iloc[current_index][hurst_col]
-            except (IndexError, KeyError):
-                hurst = None
-
-        # Fallback: compute Hurst from price history
-        if hurst is None or pd.isna(hurst):
-            try:
-                prices = full_df["Close"].iloc[: current_index + 1]
-                if len(prices) >= self.params.hurst_length:
-                    hurst = hurst_exponent(prices)
-            except (IndexError, KeyError, ValueError) as e:
-                log.debug(f"Hurst fallback computation failed: {e}")
-                hurst = None
+            hurst = full_df.iloc[current_index].get(hurst_col)
 
         if adf_p_value is None or pd.isna(adf_p_value):
-            log.warning(f"ADF p-value unavailable for signal on {full_df.index[current_index].date()}.")
+            log.debug(f"ADF p-value not found in pre-computed data for {full_df.index[current_index].date()}.")
             adf_score = 0.0
         else:
             adf_score = linear_score(
@@ -77,7 +52,7 @@ class StatGuard:
             )
 
         if hurst is None or pd.isna(hurst):
-            log.warning(f"Hurst exponent unavailable for signal on {full_df.index[current_index].date()}.")
+            log.debug(f"Hurst exponent not found in pre-computed data for {full_df.index[current_index].date()}.")
             hurst_score = 0.0
         else:
             hurst_score = linear_score(
@@ -86,6 +61,8 @@ class StatGuard:
                 max_val=self.scoring.hurst_score_max_h,
             )
 
+        # The geometric mean is used to ensure both conditions must be met to get a good score.
+        # If either score is 0, the final score will be 0.
         final_score = math.sqrt(adf_score * hurst_score)
 
         log.debug(
