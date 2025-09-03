@@ -16,6 +16,10 @@ def make_minimal_config(tmp_cache_dir: str) -> Config:
     strategy_params = StrategyParamsConfig(
         bb_length=15,
         bb_std=2.0,
+        bb_weekly_length=10,
+        bb_weekly_std=2.5,
+        bb_monthly_length=6,
+        bb_monthly_std=3.0,
         rsi_length=14,
         hurst_length=100,
         exit_days=5,
@@ -80,7 +84,11 @@ def make_minimal_config(tmp_cache_dir: str) -> Config:
     )
 
 
-def make_sample_df():
+from typing import Any
+from pytest import MonkeyPatch
+from pathlib import Path
+
+def make_sample_df() -> pd.DataFrame:
     dates = pd.date_range(start="2020-01-01", periods=10, freq="D")
     df = pd.DataFrame(
         {
@@ -95,14 +103,14 @@ def make_sample_df():
     return df
 
 
-def test_orchestrator_bypasses_llm(monkeypatch, tmp_path):
+def test_orchestrator_bypasses_llm(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     """When use_llm_audit is False, orchestrator should not call LLMAuditService and should assign confidence 1.0."""
     cfg = make_minimal_config(str(tmp_path))
 
     # Replace DataService.get_data to return our small dataframe
     sample_df = make_sample_df()
 
-    def fake_get_data(self, stock, start, end, sector_ticker=None):
+    def fake_get_data(self: Any, stock: str, start: str, end: str, sector_ticker: Any = None) -> pd.DataFrame:
         return sample_df
 
     monkeypatch.setattr("praxis_engine.services.data_service.DataService.get_data", fake_get_data)
@@ -110,7 +118,7 @@ def test_orchestrator_bypasses_llm(monkeypatch, tmp_path):
     # Track whether LLMAuditService.get_confidence_score is called
     called = {"was_called": False}
 
-    def fake_get_confidence(self, historical_stats, signal, df_window):
+    def fake_get_confidence(self: Any, historical_stats: Any, signal: Any, df_window: Any) -> float:
         called["was_called"] = True
         return 0.0
 

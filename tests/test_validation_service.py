@@ -35,6 +35,10 @@ def strategy_params() -> StrategyParamsConfig:
     return StrategyParamsConfig(
         bb_length=20,
         bb_std=2.0,
+        bb_weekly_length=10,
+        bb_weekly_std=2.5,
+        bb_monthly_length=6,
+        bb_monthly_std=3.0,
         rsi_length=14,
         hurst_length=100,
         exit_days=10,

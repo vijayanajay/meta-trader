@@ -22,7 +22,6 @@ class StatGuard:
         self.scoring = scoring
         self.params = params
 
-    # impure
     @normalize_guard_args
     def validate(self, full_df: pd.DataFrame, current_index: int, signal: Signal) -> float:
         """

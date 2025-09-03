@@ -72,6 +72,14 @@ class DataService:
         """
         Adds sector volatility to the dataframe.
         """
+        # TODO: This is a temporary workaround. The yfinance tickers for sectoral
+        # indices are not working. A proper fix involves finding the correct tickers
+        # or switching to a different data provider like nsepy for index data.
+        if sector_ticker.startswith('^NIFTY') and sector_ticker != "^NSEI":
+             log.warning(f"Skipping sector vol calculation for invalid ticker: {sector_ticker}")
+             df["sector_vol"] = 0.0 # Add a dummy column to prevent re-caching
+             return df
+
         sector_df = yf.download(
             sector_ticker, start=start_date, end=end_date, progress=False, auto_adjust=False
         )

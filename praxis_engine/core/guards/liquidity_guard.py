@@ -20,7 +20,6 @@ class LiquidityGuard:
         self.scoring = scoring
         self.params = params
 
-    # impure
     @normalize_guard_args
     def validate(self, full_df: pd.DataFrame, current_index: int, signal: Signal) -> float:
         """Calculates a score based on the stock's average daily turnover using an index-based lookup."""

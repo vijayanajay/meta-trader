@@ -576,29 +576,59 @@ This document provides a detailed, sequential list of tasks required to build th
 ### Task 30 — Implement Single-Pass Historical Simulation to Fix Catastrophic LLM Stats Recalculation
 
 *   **Rationale:** (Hinton/Nadh) The current implementation for gathering historical statistics for the LLM audit is catastrophically inefficient. It triggers a *full, separate backtest* on all data prior to the current signal. This "loop-within-a-loop" is the single greatest performance bottleneck when signals are frequent. The correct, scientific approach is to calculate these accumulating statistics in a single, point-in-time correct pass. This task replaces the repetitive, brute-force recalculation with an efficient, single-pass pre-computation.
-*   **Items to implement:**
-    1.  **Create New Orchestrator Method:** In `praxis_engine/core/orchestrator.py`, create a new private helper method: `_pre_calculate_historical_performance(self, df_with_indicators: pd.DataFrame) -> pd.DataFrame`.
-    2.  **Implement Single-Pass Simulation:** This new method will:
-        a. Initialize empty lists for historical returns and empty columns in the dataframe (e.g., `hist_win_rate`, `hist_profit_factor`, `hist_sample_size`).
-        b. Run its own walk-forward loop over the `df_with_indicators`.
-        c. Inside the loop, it will simulate the *entire* strategy logic for each day (signal generation, validation, and trade exit determination) using the pre-calculated indicators.
-        d. If a trade is completed at day `i`, its net return is calculated and appended to the list of historical returns.
-        e. For each day `i`, it will calculate the win rate, profit factor, and sample size based on the contents of the `historical_returns` list *as of that day*.
-        f. It will populate the new columns at index `i` with these calculated statistics.
-        g. The method will return the dataframe, now enriched with the historical performance time series.
-    3.  **Refactor `run_backtest`:**
-        a. At the beginning of `run_backtest`, after pre-calculating indicators (from Task 29), call this new `_pre_calculate_historical_performance` method.
-        b. Completely **delete** the existing call to `_calculate_historical_stats_for_llm` from inside the main loop.
-        c. Modify the call to `llm_audit_service.get_confidence_score`. The `historical_stats` dictionary will now be populated by a simple `O(1)` lookup from the new columns in the dataframe at the current index `i`.
-*   **Tests to cover:**
-    *   **Unit Test for Pre-calculation (Critical):** Create a dedicated test for `_pre_calculate_historical_performance`. Use a small, synthetic dataframe with 2-3 known trade signals and outcomes. Assert that the values in the generated `hist_win_rate` and `hist_profit_factor` columns are correct at each time step, proving the accumulating logic is point-in-time correct and free of lookahead bias.
-    *   **Correctness Test:** Similar to Task 29, run a full backtest before and after the change. The final results must be numerically identical.
-    *   **Performance Benchmark:** Run a backtest on a stock that is known to generate many signals. The performance improvement should be dramatic.
-*   **Acceptance Criteria (AC):**
-    *   The backtester produces numerically identical trade results to the pre-refactoring version.
-    *   The `_calculate_historical_stats_for_llm` method is removed and its functionality is replaced by the more efficient pre-computation pass.
-    *   The backtest log no longer shows repeated "Calculating historical stats for..." messages for the same stock.
-*   **Definition of Done (DoD):**
-    *   The new pre-calculation method is implemented and fully unit-tested for correctness. The main backtest loop is refactored to use the pre-calculated results. The old, inefficient method is deleted.
-*   **Time estimate:** 10 hours
 *   **Status:** Done
+
+---
+## Epic 9: Code Quality and Configuration Cleanup
+
+*Goal: To address technical debt and configuration drift identified during a full-code review. These tasks are critical for ensuring the system is maintainable, reproducible, and correctly implements the documented strategy.*
+
+---
+
+### Task 31 — Achieve 100% `mypy --strict` Compliance
+
+*   **Rationale:** A code review found that the codebase fails the `mypy --strict` check with numerous errors, violating the project's foundational rule `[H-1]`. A deterministic system requires rigorous type safety.
+*   **Items to implement:**
+    1.  Methodically fix all `mypy` errors reported by `mypy --strict .`.
+    2.  This includes adding missing type annotations, fixing incompatible types, and ensuring all function signatures are fully typed.
+*   **Status:** Done
+
+### Task 32 — Refactor Orchestrator to Eliminate Code Duplication
+
+*   **Rationale:** A code review revealed a critical code duplication issue in `Orchestrator`, where the core strategy simulation logic was copied between the main `run_backtest` loop and the `_pre_calculate_historical_performance` method. This violates the DRY principle and is a major source of potential bugs.
+*   **Items to implement:**
+    1.  Refactor the duplicated logic into new private helper methods (`_get_validated_signal`, `_simulate_trade_from_signal`).
+    2.  Update both `run_backtest` and `_pre_calculate_historical_performance` to use these new, shared helper methods.
+*   **Status:** Done
+
+### Task 33 — Fix `sector_map` and Curate Stock Universe in `config.ini`
+
+*   **Rationale:** The default `config.ini` incorrectly maps all stocks to the generic `^NSEI` index, which invalidates the sector volatility guard. Additionally, the stock list does not use the curated universe of mean-reverting stocks from Task 25.
+*   **Items to implement:**
+    1.  Update the `sector_map` with correct Nifty sectoral indices for the stocks in the universe.
+    2.  Run the `scripts/universe_analyzer.py` script and replace the `stocks_to_backtest` list with its output.
+*   **Status:** Done
+
+### Task 34 — Remove Hardcoded Bollinger Band Parameters from `SignalEngine`
+
+*   **Rationale:** The `SignalEngine` contained hardcoded "magic numbers" for weekly and monthly Bollinger Band parameters, violating the centralized configuration rule `[H-10]`.
+*   **Items to implement:**
+    1.  Add the weekly/monthly BB parameters to `config.ini`.
+    2.  Update the `StrategyParamsConfig` Pydantic model to include these new parameters.
+    3.  Update the `precompute_indicators` and `SignalEngine` to use these parameters from the config.
+*   **Status:** Done
+
+### Task 35 — Fix Missing `hurst` Dependency in `requirements.txt`
+
+*   **Rationale:** The `hurst` library is a required dependency but was missing from `requirements.txt`, preventing a clean installation from working.
+*   **Items to implement:**
+    1.  Add `hurst` to `requirements.txt`.
+*   **Status:** Done
+
+### Task 36 — Fix Sectoral Index Tickers in `DataService`
+
+*   **Rationale:** The `yfinance` library fails to fetch data for the Nifty sectoral indices using the conventional ticker format (e.g., `^NIFTYIT`). This breaks the sector volatility guard, a critical component of the strategy.
+*   **Items to implement:**
+    1.  A temporary workaround was implemented in `DataService` to prevent crashes by skipping the download of invalid tickers.
+    2.  A permanent fix requires either finding the correct `yfinance` tickers or modifying the `DataService` to use `nsepy` for fetching index data, which would require updating rule `[H-11]`.
+*   **Status:** To Do

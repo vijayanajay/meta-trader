@@ -13,7 +13,7 @@ from praxis_engine.core.orchestrator import Orchestrator
 from praxis_engine.core.models import BacktestMetrics, Config, Opportunity, Trade, RunMetadata
 from praxis_engine.services.report_generator import ReportGenerator
 from praxis_engine.utils import get_git_commit_hash
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 import os
 
 # Load environment variables from .env file
@@ -24,7 +24,7 @@ app = typer.Typer()
 logger = get_logger(__name__)
 
 
-def run_backtest_for_stock(payload: Tuple[str, str]) -> Dict:
+def run_backtest_for_stock(payload: Tuple[str, str]) -> Dict[str, Any]:
     """
     Top-level helper function to run a backtest for a single stock.
     Designed to be picklable for multiprocessing.

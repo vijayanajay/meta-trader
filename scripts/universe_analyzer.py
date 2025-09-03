@@ -89,7 +89,7 @@ def analyze_universe(tickers: list[str], start_date: str, end_date: str) -> pd.D
     return pd.DataFrame(results).sort_values(by="hurst", ascending=True)
 
 
-def main():
+def main() -> None:
     """Main function to run the universe analysis."""
     # impure
     results_df = analyze_universe(

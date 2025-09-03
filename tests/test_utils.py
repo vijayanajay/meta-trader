@@ -45,7 +45,7 @@ def test_generate_ascii_histogram_basic() -> None:
     """
     Tests the basic functionality of the ASCII histogram generation.
     """
-    data = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5]
+    data = [1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 5.0, 5.0, 5.0, 5.0, 5.0]
     histogram = generate_ascii_histogram(data, bins=4)
 
     # Expected output structure
