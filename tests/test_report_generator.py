@@ -153,5 +153,5 @@ def test_generate_per_stock_report(report_generator: ReportGenerator, sample_tra
     )
 
     assert "### Per-Stock Performance Breakdown" in report
-    assert "| STOCKA | 0.15% | 2 | 10 | 3 | 1 |" in report
+    assert "| STOCKA | 15.50% | 2 | 10 | 3 | 1 |" in report
     assert "| STOCKB | 0.00% | 0 | 0 | 0 | 0 |" in report

@@ -8,8 +8,15 @@ from pathlib import Path
 from typing import Iterator, Tuple
 
 from praxis_engine.core.orchestrator import Orchestrator
-from praxis_engine.core.models import Config, Signal, ValidationScores
+from praxis_engine.core.models import Config, Signal, ValidationScores, Trade
 from praxis_engine.services.config_service import ConfigService
+
+def mock_pre_calculate(df: pd.DataFrame) -> pd.DataFrame:
+    """A helper to mock the pre-calculation by adding required columns."""
+    df["hist_win_rate"] = 0.0
+    df["hist_profit_factor"] = 0.0
+    df["hist_sample_size"] = 0
+    return df
 
 @pytest.fixture
 def test_config(tmp_path: Path) -> Config:
@@ -122,13 +129,22 @@ def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[MagicMock, ...
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
     mock_llm_audit_service.get_confidence_score.return_value = 0.9
 
-    orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
+    def mock_pre_calculate(df):
+        df["hist_win_rate"] = 0.0
+        df["hist_profit_factor"] = 0.0
+        df["hist_sample_size"] = 0
+        return df
+
+    with patch.object(orchestrator, '_pre_calculate_historical_performance', side_effect=mock_pre_calculate):
+        orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
 
     mock_execution_simulator.simulate_trade.assert_called_once()
     call_args = mock_execution_simulator.simulate_trade.call_args[1]
 
+    # The signal is at index 14, so entry is at index 15
     assert call_args['entry_date'] == dates[15]
     assert call_args['exit_date'] == dates[17]
+    # Stop loss is entry_price - atr * multiplier = 100 - 10 * 2 = 80
     assert call_args['exit_price'] == 80.0
 
 
@@ -146,7 +162,8 @@ def test_run_backtest_low_score_skips_llm(mock_orchestrator: Tuple[MagicMock, ..
     # This composite score (0.5*0.5*0.5=0.125) is below the 0.5 threshold in config
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.5, regime_score=0.5, stat_score=0.5)
 
-    orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
+    with patch.object(orchestrator, '_pre_calculate_historical_performance', side_effect=mock_pre_calculate):
+        orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
 
     # Assert that the LLM service was never called
     mock_llm_audit_service.get_confidence_score.assert_not_called()
@@ -182,7 +199,9 @@ def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[MagicMock, ...],
     ]
     mock_llm_audit_service.get_confidence_score.return_value = 0.9
 
-    result = orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
+    with patch.object(orchestrator, '_pre_calculate_historical_performance', side_effect=mock_pre_calculate):
+        result = orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
+
     metrics = result["metrics"]
 
     assert metrics.potential_signals == 3
@@ -190,3 +209,62 @@ def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[MagicMock, ...],
     assert metrics.rejections_by_llm == 1
     assert metrics.trades_executed == 1
     mock_execution_simulator.simulate_trade.assert_called_once()
+
+
+from praxis_engine.core.models import Config, Signal, ValidationScores, Trade
+
+def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[MagicMock, ...], test_config: Config) -> None:
+    """
+    Tests the _pre_calculate_historical_performance method for point-in-time correctness.
+    """
+    orchestrator, _, mock_signal_engine, mock_validation_service, _, mock_execution_simulator = mock_orchestrator
+
+    dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=40))
+    data = {
+        "High": [105.0] * 40, "Low": [95.0] * 40, "Open": [100.0] * 40,
+        "Close": [100.0] * 40, "Volume": [1000.0] * 40, "sector_vol": [15.0] * 40,
+        "ATR_14": [10.0] * 40,
+    }
+    df = pd.DataFrame(data, index=dates)
+
+    # Signal at index 20 -> Enters at 21. _determine_exit will calculate exit at 31 (max hold).
+    # We mock simulate_trade to return a trade that exits earlier, on the 26th.
+    # Signal at index 30 -> Enters at 31. _determine_exit will calculate exit at 33 (ATR stop).
+    df.loc[dates[33], "Low"] = 79.0
+
+    # Signal is checked for i from 15 to 38.
+    # Signal at i=20 is the 6th call (index 5).
+    # Signal at i=30 is 10 calls later (index 15).
+    side_effect_list = [None] * 24
+    side_effect_list[5] = Signal(entry_price=100, stop_loss=90, exit_target_days=5, frames_aligned=[], sector_vol=0.1)
+    side_effect_list[15] = Signal(entry_price=100, stop_loss=90, exit_target_days=5, frames_aligned=[], sector_vol=0.1)
+    mock_signal_engine.generate_signal.side_effect = side_effect_list
+
+    mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
+
+    signal_obj = Signal(entry_price=100, stop_loss=90, exit_target_days=5, frames_aligned=[], sector_vol=0.1)
+    trade1 = Trade(stock='TEST.NS', entry_date=dates[21], exit_date=dates[26], entry_price=100, exit_price=110, net_return_pct=0.1, signal=signal_obj, confidence_score=1.0, cost_pct=0.0, gross_return_pct=0.1)
+    trade2 = Trade(stock='TEST.NS', entry_date=dates[31], exit_date=dates[33], entry_price=100, exit_price=90, net_return_pct=-0.1, signal=signal_obj, confidence_score=1.0, cost_pct=0.0, gross_return_pct=-0.1)
+    mock_execution_simulator.simulate_trade.side_effect = [trade1, trade2]
+
+    with patch.object(orchestrator, '_determine_exit', side_effect=[(dates[26], 110.0), (dates[33], 90.0)]) as mock_determine_exit:
+        result_df = orchestrator._pre_calculate_historical_performance(df)
+        assert mock_determine_exit.call_count == 2
+
+    # Before any trades exit, stats are 0
+    assert result_df.loc[dates[25], "hist_win_rate"] == 0
+    assert result_df.loc[dates[25], "hist_sample_size"] == 0
+
+    # On the day the first trade exits
+    assert result_df.loc[dates[26], "hist_win_rate"] == 100.0
+    assert result_df.loc[dates[26], "hist_profit_factor"] == 999.0
+    assert result_df.loc[dates[26], "hist_sample_size"] == 1
+
+    # Before the second trade exits
+    assert result_df.loc[dates[32], "hist_win_rate"] == 100.0
+    assert result_df.loc[dates[32], "hist_sample_size"] == 1
+
+    # On the day the second trade exits
+    assert result_df.loc[dates[33], "hist_win_rate"] == 50.0
+    assert result_df.loc[dates[33], "hist_profit_factor"] == 1.0
+    assert result_df.loc[dates[33], "hist_sample_size"] == 2

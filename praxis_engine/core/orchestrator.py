@@ -63,6 +63,13 @@ class Orchestrator:
             # Log and continue with original dataframe — precompute should not crash the backtest
             log.warning(f"Indicator precomputation failed: {e}")
 
+        # Pre-calculate historical performance in a single pass (Task 30)
+        try:
+            full_df = self._pre_calculate_historical_performance(full_df)
+        except Exception as e:
+            log.warning(f"Historical performance precomputation failed: {e}")
+
+
         # Ensure sector_vol is present (data_service should provide it already)
         # Main loop: iterate by index; `i` remains the point-in-time for potential entry's NEXT day
         for i in range(min_history_days, len(full_df) - 1):  # -1 to ensure there's a next day for entry
@@ -92,10 +99,13 @@ class Orchestrator:
 
             log.debug(f"Validated signal found for {stock} on {signal_date.date()} with composite score {composite_score:.2f}")
 
-            # Calculate historical stats on all data *prior* to the current signal.
-            # This prevents lookahead bias.
-            historical_df = full_df.iloc[0:i-1]
-            historical_stats = self._calculate_historical_stats_for_llm(stock, historical_df)
+            # O(1) lookup for historical stats from pre-calculated columns
+            historical_stats = {
+                "win_rate": full_df.at[signal_date, "hist_win_rate"],
+                "profit_factor": full_df.at[signal_date, "hist_profit_factor"],
+                "sample_size": full_df.at[signal_date, "hist_sample_size"],
+            }
+
 
             if self.config.llm.use_llm_audit:
                 confidence_score = self.llm_audit_service.get_confidence_score(
@@ -190,46 +200,65 @@ class Orchestrator:
             "sample_size": len(returns),
         }
 
-    def _calculate_historical_stats_for_llm(self, stock: str, df: pd.DataFrame) -> Dict[str, float | int]:
+    def _pre_calculate_historical_performance(self, df_with_indicators: pd.DataFrame) -> pd.DataFrame:
         """
-        Runs a lean, non-recursive backtest to gather historical stats for the LLM audit.
+        Performs a single-pass simulation to calculate historical performance statistics
+        in a point-in-time correct way, avoiding lookahead bias.
         """
-        log.info(f"Calculating historical stats for {stock}...")
-        trades: List[Trade] = []
+        df = df_with_indicators.copy()
+        df["hist_win_rate"] = np.nan
+        df["hist_profit_factor"] = np.nan
+        df["hist_sample_size"] = np.nan
+
         min_history_days = self.config.strategy_params.min_history_days
 
+        # This will store trades that have been identified but not yet exited
+        trades_in_flight: List[Trade] = []
+        historical_returns: List[float] = []
 
-        for i in range(min_history_days, len(df) -1):
-            window = df.iloc[0:i].copy()
-            current_index = i - 1
-            signal = self.signal_engine.generate_signal(df, current_index)
-            if not signal:
-                continue
+        for i in range(len(df)):
+            today = df.index[i]
 
-            scores = self.validation_service.validate(df, current_index, signal)
-            composite_score = scores.liquidity_score * scores.regime_score * scores.stat_score
-            if composite_score < self.config.llm.min_composite_score_for_llm:
-                continue
+            # Process trades that exit today by comparing normalized dates
+            exited_trades_returns = [t.net_return_pct for t in trades_in_flight if t.exit_date.normalize() == today.normalize()]
+            if exited_trades_returns:
+                historical_returns.extend(exited_trades_returns)
+                trades_in_flight = [t for t in trades_in_flight if t.exit_date.normalize() != today.normalize()]
 
-            entry_price = df.iloc[i]["Open"]
-            exit_date, exit_price = self._determine_exit(i, entry_price, df, window)
+            # Update stats for today, only after the min history period
+            if i >= min_history_days:
+                stats = self._calculate_stats_from_returns(historical_returns)
+                df.loc[today, "hist_win_rate"] = stats["win_rate"]
+                df.loc[today, "hist_profit_factor"] = stats["profit_factor"]
+                df.loc[today, "hist_sample_size"] = stats["sample_size"]
 
-            trade = self.execution_simulator.simulate_trade(
-                stock=stock,
-                entry_price=entry_price,
-                exit_price=exit_price,
-                entry_date=df.index[i],
-                exit_date=exit_date,
-                signal=signal,
-                confidence_score=1.0,
-                entry_volume=df.iloc[i]["Volume"]
-            )
-            if trade:
-                trades.append(trade)
+            # Check for new signals at index `i` to enter at `i+1`
+            if i >= min_history_days and i < len(df) - 1:
+                window = df.iloc[0:i+1]
+                signal = self.signal_engine.generate_signal(df, i)
+                if signal:
+                    scores = self.validation_service.validate(df, i, signal)
+                    if scores.liquidity_score * scores.regime_score * scores.stat_score >= self.config.llm.min_composite_score_for_llm:
+                        entry_index = i + 1
+                        entry_price = df.iloc[entry_index]["Open"]
 
-        returns = [t.net_return_pct for t in trades]
-        return self._calculate_stats_from_returns(returns)
+                        # Pass the window up to the entry point to _determine_exit
+                        exit_window = df.iloc[0:entry_index]
+                        exit_date, exit_price = self._determine_exit(entry_index, entry_price, df, exit_window)
 
+                        trade = self.execution_simulator.simulate_trade(
+                            stock="HISTORICAL",
+                            entry_price=entry_price,
+                            exit_price=exit_price,
+                            entry_date=df.index[entry_index],
+                            exit_date=exit_date,
+                            signal=signal,
+                            confidence_score=1.0,
+                            entry_volume=df.iloc[entry_index]["Volume"]
+                        )
+                        if trade:
+                            trades_in_flight.append(trade)
+        return df
 
     def generate_opportunities(
         self, stock: str, lookback_days: int = 365
@@ -265,8 +294,15 @@ class Orchestrator:
             log.debug(f"Signal for {stock} rejected by pre-filter. Composite score: {composite_score:.2f}")
             return None
 
-        historical_df = full_df.iloc[:-1]
-        historical_stats = self._calculate_historical_stats_for_llm(stock, historical_df)
+        # Precompute indicators and historical performance
+        full_df = precompute_indicators(full_df, self.config)
+        full_df = self._pre_calculate_historical_performance(full_df)
+
+        historical_stats = {
+            "win_rate": full_df.iloc[-1]["hist_win_rate"],
+            "profit_factor": full_df.iloc[-1]["hist_profit_factor"],
+            "sample_size": full_df.iloc[-1]["hist_sample_size"],
+        }
         log.debug(f"Historical stats for {stock}: {historical_stats}")
 
         if self.config.llm.use_llm_audit:

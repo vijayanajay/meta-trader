@@ -4,9 +4,9 @@
 ### Run Configuration & Metadata
 | Parameter | Value |
 | --- | --- |
-| Run Timestamp | 2025-09-04 01:39:21 UTC |
+| Run Timestamp | 2025-09-03 20:31:54 UTC |
 | Config File | `config.ini` |
-| Git Commit Hash | `e2672cf` |
+| Git Commit Hash | `dd6e909` |
 
 **Period:** 2018-01-01 to 2025-08-25
 **Total Trades:** 383
@@ -70,12 +70,12 @@
 | NESTLEIND.NS | 103.90% | 21 | 23 | 2 | 0 |
 | COALINDIA.NS | 27.08% | 29 | 38 | 9 | 0 |
 | SBIN.NS | 257.22% | 19 | 20 | 1 | 0 |
-| ONGC.NS | 46.64% | 33 | 36 | 3 | 0 |
 | WIPRO.NS | -46.15% | 37 | 43 | 6 | 0 |
+| ONGC.NS | 46.64% | 33 | 36 | 3 | 0 |
 | ADANIPORTS.NS | 12.93% | 27 | 32 | 5 | 0 |
 | RELIANCE.NS | 177.36% | 28 | 28 | 0 | 0 |
-| NTPC.NS | 2.70% | 31 | 34 | 3 | 0 |
 | ICICIBANK.NS | 140.84% | 20 | 23 | 3 | 0 |
+| NTPC.NS | 2.70% | 31 | 34 | 3 | 0 |
 | HEROMOTOCO.NS | 3.19% | 27 | 32 | 5 | 0 |
 | INFY.NS | 35.02% | 31 | 33 | 2 | 0 |
 | LT.NS | -30.88% | 24 | 27 | 3 | 0 |
