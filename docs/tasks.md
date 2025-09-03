@@ -568,7 +568,8 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   All indicator calculations are moved out of the main loop. All relevant services are refactored to use lookups instead of calculations. All existing tests pass, and new correctness and performance tests are added.
 *   **Time estimate:** 8 hours
-*   **Status:** To Do
+*   **Status:** Done
+*   **Resolution:** The O(N^2) inefficiency has been eliminated. The `Orchestrator` now calls a `precompute_indicators` function once per stock. The `SignalEngine`, `ValidationService`, and `StatGuard` have been fully refactored to remove all on-the-fly calculation logic and legacy code paths. They now exclusively use efficient O(1) lookups on the pre-computed dataframe, adhering to the architecture. This completes the performance refactoring outlined in this task.
 
 ---
 

@@ -84,7 +84,8 @@ def test_validation_service_aggregation(
     # and call the validate method.
     validation_service = ValidationService(scoring=scoring_config, params=strategy_params)
     df = pd.DataFrame({"Close": [100]}, index=[pd.to_datetime("2023-01-01")])
-    result = validation_service.validate(df, sample_signal)
+    current_index = 0
+    result = validation_service.validate(df, current_index, sample_signal)
 
     # Assert: Check that the result is a ValidationScores object with the correct scores
     assert isinstance(result, ValidationScores)
@@ -93,6 +94,6 @@ def test_validation_service_aggregation(
     assert result.stat_score == 0.9
 
     # Assert: Check that each guard's validate method was called exactly once
-    mock_liquidity_guard.validate.assert_called_once_with(df, sample_signal)
-    mock_regime_guard.validate.assert_called_once_with(df, sample_signal)
-    mock_stat_guard.validate.assert_called_once_with(df, sample_signal)
+    mock_liquidity_guard.validate.assert_called_once_with(df, current_index, sample_signal)
+    mock_regime_guard.validate.assert_called_once_with(df, current_index, sample_signal)
+    mock_stat_guard.validate.assert_called_once_with(df, current_index, sample_signal)
