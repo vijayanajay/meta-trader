@@ -232,14 +232,29 @@ class ReportGenerator:
         if not per_stock_metrics:
             return "### Per-Stock Performance Breakdown\n\nNo per-stock data available."
 
-        header = "| Stock | P/L | Total Trades | Potential Signals | Rejections by Guard | Rejections by LLM |\n"
+        # Show compounded total return per stock (not mean per-trade return).
+        # This aligns with the project's requirement to report reproducible,
+        # economically-meaningful metrics (see HARD_RULES.md).
+        header = "| Stock | Compounded Return | Total Trades | Potential Signals | Rejections by Guard | Rejections by LLM |\n"
         separator = "|---|---|---|---|---|---|\n"
         rows = []
         for stock, metrics in per_stock_metrics.items():
             trades = per_stock_trades.get(stock, [])
-            pnl = sum(trade.net_return_pct for trade in trades)
+            # Calculate compounded return from time-ordered trades. Each trade.net_return_pct
+            # is expressed as a decimal (e.g., 0.02 for +2%). We compute the product
+            # of (1 + r) across trades to get total compounded multiplier, then
+            # subtract 1 and convert to percentage for display.
+            if trades:
+                # Ensure trades are ordered by exit date to avoid leakage
+                trades_sorted = sorted(trades, key=lambda t: t.exit_date)
+                multiplier = 1.0
+                for tr in trades_sorted:
+                    multiplier *= (1.0 + tr.net_return_pct)
+                compounded_return = (multiplier - 1.0) * 100.0
+            else:
+                compounded_return = 0.0
             rejections_by_guard = sum(metrics.rejections_by_guard.values())
-            row = f"| {stock} | {pnl:.2f}% | {metrics.trades_executed} | {metrics.potential_signals} | {rejections_by_guard} | {metrics.rejections_by_llm} |"
+            row = f"| {stock} | {compounded_return:.2f}% | {metrics.trades_executed} | {metrics.potential_signals} | {rejections_by_guard} | {metrics.rejections_by_llm} |"
             rows.append(row)
 
         return (
