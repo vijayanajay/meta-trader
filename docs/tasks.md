@@ -601,4 +601,4 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Definition of Done (DoD):**
     *   The new pre-calculation method is implemented and fully unit-tested for correctness. The main backtest loop is refactored to use the pre-calculated results. The old, inefficient method is deleted.
 *   **Time estimate:** 10 hours
-*   **Status:** To Do
+*   **Status:** Done

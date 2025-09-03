@@ -212,3 +212,17 @@ A full code review identified several critical, interacting flaws in the `Orches
     *   **Issue 2:** `np.polyfit()` is not supported. The initial attempt to replace it with `np.linalg.lstsq()` also failed, as `lstsq` is not supported either.
     *   **Fix:** A manual implementation of simple linear regression was used to calculate the slope, which is compatible with Numba and avoids unsupported functions.
     *   **Lesson:** While Numba is powerful, it has a subset of supported Python and NumPy features in its high-performance `nopython` mode. When a function fails to compile, the traceback must be inspected carefully to identify the unsupported feature. Often, high-level functions like `polyfit` need to be replaced with their lower-level mathematical equivalents.
+
+## Task 30 Learnings
+
+1.  **Mock `side_effect` Consumption:** When testing a method that internally calls another method that also uses mocked services with `side_effect` lists, it's crucial to be aware that the `side_effect` lists are consumed by the internal method calls. This can lead to unexpected behavior in the main method's test, as the mocks might not return the expected values.
+    *   **Fix:** In tests that are not directly testing the new method, patch the new method itself to prevent it from running and consuming the mocks. This isolates the test to the logic of the main method.
+    *   **Lesson:** When testing complex objects with nested method calls that use mocks, be mindful of the mock consumption order. Patching internal methods can help isolate the logic under test.
+
+2.  **Mocking vs. Real Objects in Tests:** Using `MagicMock` for complex objects like `pd.Timestamp` or custom data models can sometimes lead to subtle issues with equality comparisons.
+    *   **Fix:** In the test for `_pre_calculate_historical_performance`, `MagicMock` for `Trade` objects was replaced with real `Trade` objects. This made the test more robust and easier to debug.
+    *   **Lesson:** For complex data objects, it's often better to use real instances in tests instead of mocks. This avoids potential issues with mock behavior and makes the tests more realistic.
+
+3.  **Mock `side_effect` List Construction:** When using a list as a `side_effect` for a mock, the list is consumed sequentially on each call. The construction of this list must precisely match the expected call order in the test.
+    *   **Fix:** The `side_effect` list for `generate_signal` was re-calculated to have `None` values at the correct indices to match the calls made in the test loop, ensuring that `Signal` objects were returned at the intended times.
+    *   **Lesson:** Be meticulous when constructing `side_effect` lists for mocks. The order and content must exactly match the sequence of calls in the code being tested.
