@@ -10,7 +10,9 @@ import numpy as np
 import datetime
 from typing import Optional, Any, Tuple
 
-from praxis_engine.core.indicators import atr
+from praxis_engine.core.indicators import atr, bbands, rsi
+from praxis_engine.core.statistics import hurst_exponent, adf_test
+from praxis_engine.core.precompute import precompute_indicators
 from praxis_engine.core.models import BacktestMetrics, BacktestSummary, Config, Trade, Opportunity
 from praxis_engine.services.data_service import DataService
 from praxis_engine.services.signal_engine import SignalEngine
@@ -53,26 +55,30 @@ class Orchestrator:
 
         trades: List[Trade] = []
         min_history_days = self.config.strategy_params.min_history_days
-        atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
 
+        # Precompute and merge all indicators once (Task 29)
+        try:
+            full_df = precompute_indicators(full_df, self.config)
+        except Exception as e:
+            # Log and continue with original dataframe — precompute should not crash the backtest
+            log.warning(f"Indicator precomputation failed: {e}")
+
+        # Ensure sector_vol is present (data_service should provide it already)
+        # Main loop: iterate by index; `i` remains the point-in-time for potential entry's NEXT day
         for i in range(min_history_days, len(full_df) - 1):  # -1 to ensure there's a next day for entry
+            # The signal is generated based on the last available historical row: index = i - 1
+            current_index = i - 1
             window = full_df.iloc[0:i].copy()
-            signal_date = window.index[-1]
+            signal_date = full_df.index[current_index]
 
-            if self.config.exit_logic.use_atr_exit:
-                atr_series = atr(window["High"], window["Low"], window["Close"], length=self.config.exit_logic.atr_period)
-                if atr_series is not None:
-                    window[atr_col_name] = atr_series
-                    window[atr_col_name] = window[atr_col_name].bfill()
-
-            signal = self.signal_engine.generate_signal(window)
+            signal = self.signal_engine.generate_signal(full_df, current_index)
             if not signal:
                 continue
 
             metrics.potential_signals += 1
             log.debug(f"Preliminary signal found for {stock} on {signal_date.date()}")
 
-            scores = self.validation_service.validate(window, signal)
+            scores = self.validation_service.validate(full_df, current_index, signal)
             composite_score = scores.liquidity_score * scores.regime_score * scores.stat_score
 
             if composite_score < self.config.llm.min_composite_score_for_llm:
@@ -192,13 +198,15 @@ class Orchestrator:
         trades: List[Trade] = []
         min_history_days = self.config.strategy_params.min_history_days
 
+
         for i in range(min_history_days, len(df) -1):
             window = df.iloc[0:i].copy()
-            signal = self.signal_engine.generate_signal(window)
+            current_index = i - 1
+            signal = self.signal_engine.generate_signal(df, current_index)
             if not signal:
                 continue
 
-            scores = self.validation_service.validate(window, signal)
+            scores = self.validation_service.validate(df, current_index, signal)
             composite_score = scores.liquidity_score * scores.regime_score * scores.stat_score
             if composite_score < self.config.llm.min_composite_score_for_llm:
                 continue
@@ -243,13 +251,14 @@ class Orchestrator:
             return None
 
         latest_data_window = full_df.copy()
-        signal = self.signal_engine.generate_signal(latest_data_window)
+        current_index = len(full_df) - 1
+        signal = self.signal_engine.generate_signal(full_df, current_index)
         if not signal:
             log.info(f"No preliminary signal for {stock} on the latest data.")
             return None
 
         log.debug(f"Preliminary signal found for {stock} on {full_df.index[-1].date()}")
-        scores = self.validation_service.validate(latest_data_window, signal)
+        scores = self.validation_service.validate(full_df, current_index, signal)
         composite_score = scores.liquidity_score * scores.regime_score * scores.stat_score
 
         if composite_score < self.config.llm.min_composite_score_for_llm:

@@ -7,6 +7,7 @@ import pandas as pd
 from praxis_engine.core.models import Signal, StrategyParamsConfig, SignalLogicConfig
 from praxis_engine.core.logger import get_logger
 from praxis_engine.core.indicators import bbands, rsi
+from praxis_engine.core.statistics import hurst_exponent
 
 log = get_logger(__name__)
 
@@ -49,32 +50,83 @@ class SignalEngine:
 
         return df_daily, df_weekly, df_monthly
 
-    def generate_signal(self, df_daily: pd.DataFrame) -> Optional[Signal]:
+    def generate_signal(self, full_df_with_indicators: pd.DataFrame, current_index: int | None = None) -> Optional[Signal]:
         """
-        Generates a signal based on Bollinger Band and RSI alignment
-        across daily, weekly, and monthly timeframes.
+        Generates a signal.
+
+        Backwards-compatible behaviour:
+        - If `current_index` is None, treat `full_df_with_indicators` as the
+          original daily dataframe and run the legacy `_prepare_dataframes` path.
+        - If `current_index` is provided, assume indicators are precomputed on
+          the full dataframe and perform efficient lookups.
         """
-        if len(df_daily) < self.params.bb_length:
+
+        # Legacy path: caller passed only a daily df and expects _prepare_dataframes
+        if current_index is None:
+            df_daily = full_df_with_indicators
+            if len(df_daily) < self.params.bb_length:
+                return None
+
+            prepared_data = self._prepare_dataframes(df_daily)
+            if prepared_data is None:
+                return None
+
+            df_daily_prep, df_weekly, df_monthly = prepared_data
+
+            # Check for sufficient data after resampling
+            if df_daily_prep.empty or df_weekly.empty or df_monthly.empty:
+                return None
+
+            last_date = df_daily_prep.index[-1]
+            latest_daily = df_daily_prep.iloc[-1]
+            latest_weekly = df_weekly.asof(last_date)
+            latest_monthly = df_monthly.asof(last_date)
+
+            # After all calculations, check if the latest data points have NaNs
+            if latest_daily.isnull().any() or latest_weekly.isnull().any() or latest_monthly.isnull().any():
+                return None
+
+            # Column names from our indicator functions
+            bb_daily_lower_col = f"BBL_{self.params.bb_length}_{self.params.bb_std}"
+            bb_daily_mid_col = f"BBM_{self.params.bb_length}_{self.params.bb_std}"
+            rsi_daily_col = f"RSI_{self.params.rsi_length}"
+            bb_weekly_lower_col = "BBL_10_2.5"
+            bb_monthly_lower_col = "BBL_6_3.0"
+
+            # -- Multi-frame alignment check --
+            daily_oversold = latest_daily["Close"] < latest_daily[bb_daily_lower_col] and latest_daily[rsi_daily_col] < self.logic.rsi_threshold
+            weekly_oversold = latest_weekly["Close"] < latest_weekly[bb_weekly_lower_col]
+            monthly_not_oversold = latest_monthly["Close"] > latest_monthly[bb_monthly_lower_col]
+
+            # Build the list of conditions based on the config
+            conditions = []
+            if self.logic.require_daily_oversold:
+                conditions.append(daily_oversold)
+            if self.logic.require_weekly_oversold:
+                conditions.append(weekly_oversold)
+            if self.logic.require_monthly_not_oversold:
+                conditions.append(monthly_not_oversold)
+
+            if all(conditions):
+                entry_price = latest_daily["Close"] * 1.001  # Slippage
+                stop_loss = latest_daily[bb_daily_mid_col]
+
+                signal = Signal(
+                    entry_price=entry_price,
+                    stop_loss=stop_loss,
+                    exit_target_days=self.params.exit_days,
+                    frames_aligned=["daily", "weekly"],
+                    sector_vol=latest_daily["sector_vol"],
+                )
+                return signal
+
             return None
 
-        prepared_data = self._prepare_dataframes(df_daily)
-        if prepared_data is None:
+        # New, efficient path: use precomputed indicators and index-based lookup
+        if current_index < self.params.bb_length:
             return None
 
-        df_daily, df_weekly, df_monthly = prepared_data
-
-        # Check for sufficient data after resampling
-        if df_daily.empty or df_weekly.empty or df_monthly.empty:
-            return None
-
-        last_date = df_daily.index[-1]
-        latest_daily = df_daily.iloc[-1]
-        latest_weekly = df_weekly.asof(last_date)
-        latest_monthly = df_monthly.asof(last_date)
-
-        # After all calculations, check if the latest data points have NaNs
-        if latest_daily.isnull().any() or latest_weekly.isnull().any() or latest_monthly.isnull().any():
-            return None
+        latest_daily = full_df_with_indicators.iloc[current_index]
 
         # Column names from our indicator functions
         bb_daily_lower_col = f"BBL_{self.params.bb_length}_{self.params.bb_std}"
@@ -83,12 +135,30 @@ class SignalEngine:
         bb_weekly_lower_col = "BBL_10_2.5"
         bb_monthly_lower_col = "BBL_6_3.0"
 
-        # -- Multi-frame alignment check --
-        daily_oversold = latest_daily["Close"] < latest_daily[bb_daily_lower_col] and latest_daily[rsi_daily_col] < self.logic.rsi_threshold
-        weekly_oversold = latest_weekly["Close"] < latest_weekly[bb_weekly_lower_col]
-        monthly_not_oversold = latest_monthly["Close"] > latest_monthly[bb_monthly_lower_col]
+        # Ensure required columns exist
+        required_cols = [bb_daily_lower_col, bb_daily_mid_col, rsi_daily_col, "sector_vol", bb_weekly_lower_col, bb_monthly_lower_col]
+        if not all(c in full_df_with_indicators.columns for c in required_cols):
+            return None
 
-        # Build the list of conditions based on the config
+        # If any of the lookup values are NaN, skip
+        if pd.isna(latest_daily[bb_daily_lower_col]) or pd.isna(latest_daily[rsi_daily_col]):
+            return None
+
+        # Multi-frame alignment
+        daily_oversold = latest_daily["Close"] < latest_daily[bb_daily_lower_col] and latest_daily[rsi_daily_col] < self.logic.rsi_threshold
+        weekly_oversold = False
+        monthly_not_oversold = False
+
+        try:
+            weekly_oversold = full_df_with_indicators.iloc[current_index]["Close"] < full_df_with_indicators.iloc[current_index][bb_weekly_lower_col]
+        except Exception:
+            weekly_oversold = False
+
+        try:
+            monthly_not_oversold = full_df_with_indicators.iloc[current_index]["Close"] > full_df_with_indicators.iloc[current_index][bb_monthly_lower_col]
+        except Exception:
+            monthly_not_oversold = False
+
         conditions = []
         if self.logic.require_daily_oversold:
             conditions.append(daily_oversold)
@@ -106,7 +176,7 @@ class SignalEngine:
                 stop_loss=stop_loss,
                 exit_target_days=self.params.exit_days,
                 frames_aligned=["daily", "weekly"],
-                sector_vol=latest_daily["sector_vol"],
+                sector_vol=latest_daily.get("sector_vol", 0.0),
             )
             return signal
 

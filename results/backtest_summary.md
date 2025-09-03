@@ -4,58 +4,61 @@
 ### Run Configuration & Metadata
 | Parameter | Value |
 | --- | --- |
-| Run Timestamp | 2025-09-03 01:03:24 UTC |
+| Run Timestamp | 2025-09-03 09:07:53 UTC |
 | Config File | `config.ini` |
-| Git Commit Hash | `2d0613d` |
+| Git Commit Hash | `5e5fff4` |
 
 **Period:** 2018-01-01 to 2025-08-25
-**Total Trades:** 443
+**Total Trades:** 383
 
 
 ### Filtering Funnel
 | Stage | Count | % of Previous Stage |
 | --- | --- | --- |
-| Potential Signals | 443 | 100.00% |
-| Survived Guardrails | 443 | 100.00% |
-| Survived LLM Audit | 443 | 100.00% |
-| Trades Executed | 443 | 100.00% |
+| Potential Signals | 436 | 100.00% |
+| Survived Guardrails | 383 | 87.84% |
+| Survived LLM Audit | 383 | 100.00% |
+| Trades Executed | 383 | 100.00% |
+
 
 ### Guardrail Rejection Analysis
+| Guardrail | Rejection Count | % of Total Guard Rejections |
+| --- | --- | --- |
+| StatGuard | 53 | 100.00% |
 
-No signals were rejected by guardrails.
 
 ### Key Performance Indicators
 | Metric | Value |
 | --- | --- |
-| Net Annualized Return | 72.70% |
-| Sharpe Ratio | 0.94 |
-| Profit Factor | 1.45 |
-| Maximum Drawdown | -80.15% |
-| Win Rate | 44.70% |
+| Net Annualized Return | 74.42% |
+| Sharpe Ratio | 0.97 |
+| Profit Factor | 1.49 |
+| Maximum Drawdown | -74.68% |
+| Win Rate | 44.13% |
 
 ### Trade Distribution Analysis
 | Metric | Value |
 | --- | --- |
-| Avg. Holding Period | 36.94 days |
-| Avg. Win | 12.33% |
-| Avg. Loss | -6.87% |
-| Best Trade | 50.91% |
-| Worst Trade | -21.91% |
-| Skewness | 1.21 |
-| Kurtosis | 1.63 |
+| Avg. Holding Period | 36.87 days |
+| Avg. Win | 11.87% |
+| Avg. Loss | -6.30% |
+| Best Trade | 48.91% |
+| Worst Trade | -16.30% |
+| Skewness | 1.36 |
+| Kurtosis | 1.86 |
 
 ### Net Return (%) Distribution
 ```
- -21.91 - -14.63  | █ (12)
- -14.63 - -7.35   | ████████ (52)
-  -7.35 - -0.06   | ██████████████████████████████ (181)
-  -0.06 - 7.22    | ███████████ (71)
-   7.22 - 14.50   | ███████████ (69)
-  14.50 - 21.78   | ███ (23)
-  21.78 - 29.06   | ███ (19)
-  29.06 - 36.35   | █ (9)
-  36.35 - 43.63   |  (4)
-  43.63 - 50.91   |  (3)
+ -16.30 - -9.78   | ██ (17)
+  -9.78 - -3.26   | ██████████████████████████████ (183)
+  -3.26 - 3.26    | ███████ (46)
+   3.26 - 9.78    | █████████ (57)
+   9.78 - 16.30   | ██████ (41)
+  16.30 - 22.82   | ██ (14)
+  22.82 - 29.34   | ██ (14)
+  29.34 - 35.86   |  (6)
+  35.86 - 42.39   |  (2)
+  42.39 - 48.91   |  (3)
 ```
 
 
@@ -64,17 +67,17 @@ No signals were rejected by guardrails.
 | Stock | P/L | Total Trades | Potential Signals | Rejections by Guard | Rejections by LLM |
 |---|---|---|---|---|---|
 | BHARTIARTL.NS | 0.76% | 17 | 17 | 0 | 0 |
-| SBIN.NS | 1.22% | 21 | 21 | 0 | 0 |
-| ICICIBANK.NS | 0.94% | 24 | 24 | 0 | 0 |
-| NESTLEIND.NS | 1.03% | 24 | 24 | 0 | 0 |
-| HEROMOTOCO.NS | 0.17% | 32 | 32 | 0 | 0 |
-| NTPC.NS | 0.41% | 34 | 34 | 0 | 0 |
-| COALINDIA.NS | 0.58% | 38 | 38 | 0 | 0 |
-| ADANIPORTS.NS | 1.28% | 32 | 32 | 0 | 0 |
+| NESTLEIND.NS | 0.79% | 21 | 23 | 2 | 0 |
+| COALINDIA.NS | 0.44% | 29 | 38 | 9 | 0 |
+| SBIN.NS | 1.47% | 19 | 20 | 1 | 0 |
+| ONGC.NS | 0.56% | 33 | 36 | 3 | 0 |
+| WIPRO.NS | -0.55% | 37 | 43 | 6 | 0 |
+| ADANIPORTS.NS | 0.36% | 27 | 32 | 5 | 0 |
 | RELIANCE.NS | 1.25% | 28 | 28 | 0 | 0 |
-| ONGC.NS | 0.55% | 36 | 36 | 0 | 0 |
-| LT.NS | 0.02% | 29 | 29 | 0 | 0 |
-| INFY.NS | 0.56% | 34 | 34 | 0 | 0 |
-| DLF.NS | -0.45% | 22 | 22 | 0 | 0 |
-| WIPRO.NS | -0.86% | 43 | 43 | 0 | 0 |
-| ADANIENT.NS | 0.12% | 29 | 29 | 0 | 0 |
+| NTPC.NS | 0.22% | 31 | 34 | 3 | 0 |
+| ICICIBANK.NS | 1.06% | 20 | 23 | 3 | 0 |
+| HEROMOTOCO.NS | 0.14% | 27 | 32 | 5 | 0 |
+| INFY.NS | 0.40% | 31 | 33 | 2 | 0 |
+| LT.NS | -0.29% | 24 | 27 | 3 | 0 |
+| ADANIENT.NS | 0.40% | 24 | 29 | 5 | 0 |
+| DLF.NS | -0.43% | 15 | 21 | 6 | 0 |
