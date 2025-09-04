@@ -54,7 +54,7 @@ def _calculate_hurst(time_series: NDArray[np.float64], max_lag: int = 20) -> flo
 
     m = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x**2)
 
-    return cast(float, m)
+    return m
 
 def hurst_exponent(series: pd.Series, max_lag: int = 20) -> Optional[float]:
     """
@@ -67,11 +67,13 @@ def hurst_exponent(series: pd.Series, max_lag: int = 20) -> Optional[float]:
     Returns:
         The Hurst Exponent value, or None if calculation fails.
     """
+    # The series must be long enough to get a reliable calculation.
     if len(series) < 100:
         return None
 
     try:
-        # Numba-jitted functions are seen as 'Any' by mypy, so we cast the result
-        return cast(float, _calculate_hurst(series.to_numpy(dtype=np.float64), max_lag))
+        # Note: The `_calculate_hurst` function is JIT-compiled with Numba.
+        return _calculate_hurst(series.to_numpy(dtype=np.float64), max_lag)
     except Exception:
+        # If any mathematical error occurs (e.g., log of zero), return None.
         return None

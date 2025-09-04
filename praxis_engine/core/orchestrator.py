@@ -79,8 +79,14 @@ class Orchestrator:
             metrics.potential_signals += 1
 
             if scores.composite_score < self.config.llm.min_composite_score_for_llm:
-                rejection_reason = min(scores.model_dump(), key=lambda k: scores.model_dump()[k])
-                guard_name = f"{rejection_reason.split('_')[0].capitalize()}Guard"
+                # Find the guard that produced the lowest score to attribute the rejection.
+                # We exclude 'composite_score' itself from this calculation.
+                individual_scores = {
+                    k: v for k, v in scores.model_dump().items() if k != 'composite_score'
+                }
+                # Find the key corresponding to the minimum value in the filtered dict
+                rejection_reason_key = min(individual_scores, key=individual_scores.get)
+                guard_name = f"{rejection_reason_key.split('_')[0].capitalize()}Guard"
                 metrics.rejections_by_guard[guard_name] += 1
                 continue
 
