@@ -180,6 +180,15 @@ This document provides a detailed, sequential list of tasks required to build th
 
 ---
 
+### Task 31 — System Hardening and Test Suite Fixes
+*   **Rationale:** Following a series of refactorings and feature additions, the main test suite developed several critical failures that prevented the `backtest` command from running successfully. This task addresses these regressions to restore the system to a stable, verifiable state.
+*   **Items to implement:**
+    1.  **Fix Numba Compatibility in `hurst_exponent`:** Resolved a `TypingError` in `core/statistics.py` by removing a `typing.cast` call that was incompatible with the `@numba.jit(nopython=True)` decorator. This fixed 9 related test failures in `test_statistics.py` and `test_llm_audit_service.py`.
+    2.  **Correct Backtest Metric Tracking:** Fixed a bug in `core/orchestrator.py` where guardrail rejections were incorrectly attributed to `CompositeGuard`. The logic was corrected to identify and log the specific guard responsible for the rejection, resolving the final test failure in `test_orchestrator.py`.
+*   **Status:** Done
+
+---
+
 ## Epic 5: Critical Refactoring & Validation
 
 *Goal: To correct severe architectural flaws, data leakage, and inefficiencies discovered during a full-code review. These fixes are non-negotiable for the system to produce scientifically valid results.*
