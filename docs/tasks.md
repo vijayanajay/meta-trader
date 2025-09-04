@@ -1,7 +1,3 @@
-Of course. Here is a comprehensive and detailed task breakdown for implementing the "Praxis" engine, written with the specified mindset of Kailash Nadh and ensuring no detail from the PRD, project brief, or architecture is missed.
-
----
-
 # **"Praxis" Engine — Task Breakdown**
 
 This document provides a detailed, sequential list of tasks required to build the "Praxis" Mean-Reversion Engine. Each task is designed as a small, logical unit of work, mapping directly to the requirements in the `prd.md` and `architecture.md`. We build methodically, test rigorously, and earn complexity. We do not build for a hypothetical future.
@@ -579,56 +575,3 @@ This document provides a detailed, sequential list of tasks required to build th
 *   **Status:** Done
 
 ---
-## Epic 9: Code Quality and Configuration Cleanup
-
-*Goal: To address technical debt and configuration drift identified during a full-code review. These tasks are critical for ensuring the system is maintainable, reproducible, and correctly implements the documented strategy.*
-
----
-
-### Task 31 — Achieve 100% `mypy --strict` Compliance
-
-*   **Rationale:** A code review found that the codebase fails the `mypy --strict` check with numerous errors, violating the project's foundational rule `[H-1]`. A deterministic system requires rigorous type safety.
-*   **Items to implement:**
-    1.  Methodically fix all `mypy` errors reported by `mypy --strict .`.
-    2.  This includes adding missing type annotations, fixing incompatible types, and ensuring all function signatures are fully typed.
-*   **Status:** Done
-
-### Task 32 — Refactor Orchestrator to Eliminate Code Duplication
-
-*   **Rationale:** A code review revealed a critical code duplication issue in `Orchestrator`, where the core strategy simulation logic was copied between the main `run_backtest` loop and the `_pre_calculate_historical_performance` method. This violates the DRY principle and is a major source of potential bugs.
-*   **Items to implement:**
-    1.  Refactor the duplicated logic into new private helper methods (`_get_validated_signal`, `_simulate_trade_from_signal`).
-    2.  Update both `run_backtest` and `_pre_calculate_historical_performance` to use these new, shared helper methods.
-*   **Status:** Done
-
-### Task 33 — Fix `sector_map` and Curate Stock Universe in `config.ini`
-
-*   **Rationale:** The default `config.ini` incorrectly maps all stocks to the generic `^NSEI` index, which invalidates the sector volatility guard. Additionally, the stock list does not use the curated universe of mean-reverting stocks from Task 25.
-*   **Items to implement:**
-    1.  Update the `sector_map` with correct Nifty sectoral indices for the stocks in the universe.
-    2.  Run the `scripts/universe_analyzer.py` script and replace the `stocks_to_backtest` list with its output.
-*   **Status:** Done
-
-### Task 34 — Remove Hardcoded Bollinger Band Parameters from `SignalEngine`
-
-*   **Rationale:** The `SignalEngine` contained hardcoded "magic numbers" for weekly and monthly Bollinger Band parameters, violating the centralized configuration rule `[H-10]`.
-*   **Items to implement:**
-    1.  Add the weekly/monthly BB parameters to `config.ini`.
-    2.  Update the `StrategyParamsConfig` Pydantic model to include these new parameters.
-    3.  Update the `precompute_indicators` and `SignalEngine` to use these parameters from the config.
-*   **Status:** Done
-
-### Task 35 — Fix Missing `hurst` Dependency in `requirements.txt`
-
-*   **Rationale:** The `hurst` library is a required dependency but was missing from `requirements.txt`, preventing a clean installation from working.
-*   **Items to implement:**
-    1.  Add `hurst` to `requirements.txt`.
-*   **Status:** Done
-
-### Task 36 — Fix Sectoral Index Tickers in `DataService`
-
-*   **Rationale:** The `yfinance` library fails to fetch data for the Nifty sectoral indices using the conventional ticker format (e.g., `^NIFTYIT`). This breaks the sector volatility guard, a critical component of the strategy.
-*   **Items to implement:**
-    1.  A temporary workaround was implemented in `DataService` to prevent crashes by skipping the download of invalid tickers.
-    2.  A permanent fix requires either finding the correct `yfinance` tickers or modifying the `DataService` to use `nsepy` for fetching index data, which would require updating rule `[H-11]`.
-*   **Status:** To Do
