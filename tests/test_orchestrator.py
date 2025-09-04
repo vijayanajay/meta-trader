@@ -73,6 +73,7 @@ use_atr_exit = true
 atr_period = 14
 atr_stop_loss_multiplier = 2.0
 max_holding_days = 10
+use_mean_reversion_exit = true
 
 [cost_model]
 brokerage_rate = 0.0
@@ -115,25 +116,21 @@ def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[Orchestrator, 
     orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
 
     dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=30))
+    # Make price action have low volatility so ATR is small
     data = {
-        "High":  [105.0] * 30, "Low":   [95.0] * 30, "Open":  [100.0] * 30,
+        "High":  [101.0] * 30, "Low":   [99.0] * 30, "Open":  [100.0] * 30,
         "Close": [100.0] * 30, "Volume": [1000.0] * 30, "sector_vol": [15.0] * 30,
     }
     df = pd.DataFrame(data, index=dates)
-    df.loc[dates[17], "Low"] = 79.9
+    # ATR will be ~2. Stop loss price will be ~ 100 - (2 * 2.0) = 96.
+    df.loc[dates[17], "Low"] = 95.9
     mock_data_service.get_data.return_value = df
 
     mock_signal_engine.generate_signal.side_effect = [
-        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
-    ] + ([None] * 15)
+        Signal(entry_price=100, stop_loss=96, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
+    ] + ([None] * 20)
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
     mock_llm_audit_service.get_confidence_score.return_value = 0.9
-
-    def mock_pre_calculate(df: pd.DataFrame) -> pd.DataFrame:
-        df["hist_win_rate"] = 0.0
-        df["hist_profit_factor"] = 0.0
-        df["hist_sample_size"] = 0
-        return df
 
     with patch.object(orchestrator, '_pre_calculate_historical_performance', side_effect=mock_pre_calculate):
         orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
@@ -141,11 +138,9 @@ def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[Orchestrator, 
     mock_execution_simulator.simulate_trade.assert_called_once()
     call_args = mock_execution_simulator.simulate_trade.call_args[1]
 
-    # The signal is at index 14, so entry is at index 15
     assert call_args['entry_date'] == dates[15]
     assert call_args['exit_date'] == dates[17]
-    # Stop loss is entry_price - atr * multiplier = 100 - 10 * 2 = 80
-    assert call_args['exit_price'] == 80.0
+    assert pytest.approx(call_args['exit_price']) == 96.0
 
 
 def test_run_backtest_low_score_skips_llm(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
@@ -265,3 +260,85 @@ def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[Orchestra
     assert result_df.loc[dates[33], "hist_win_rate"] == 50.0
     assert result_df.loc[dates[33], "hist_profit_factor"] == 1.0
     assert result_df.loc[dates[33], "hist_sample_size"] == 2
+
+
+def test_run_backtest_mean_reversion_exit_triggered(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
+    """
+    Tests that a trade is exited correctly when the mean-reversion profit target (middle BB) is hit.
+    """
+    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
+
+    dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=30))
+    data = {
+        "High":  [105.0] * 30, "Low":   [95.0] * 30, "Open":  [100.0] * 30,
+        "Close": [100.0] * 30, "Volume": [1000.0] * 30, "sector_vol": [15.0] * 30,
+    }
+    df = pd.DataFrame(data, index=dates)
+    # The price hits the profit target on this day. Middle BB will be ~100.
+    df.loc[dates[16], "High"] = 100.1
+    mock_data_service.get_data.return_value = df
+
+    mock_signal_engine.generate_signal.side_effect = [
+        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
+    ] + ([None] * 20)
+    mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
+    mock_llm_audit_service.get_confidence_score.return_value = 0.9
+
+    # We need to mock the precompute function to control the indicator values
+    with patch('praxis_engine.core.orchestrator.precompute_indicators') as mock_precompute:
+        def precompute_side_effect(df, config):
+            df_copy = df.copy()
+            df_copy[f"BBM_{config.strategy_params.bb_length}_{config.strategy_params.bb_std}"] = 100.0
+            df_copy[f"ATR_{config.exit_logic.atr_period}"] = 5.0 # Low ATR so stop loss is not hit
+            return df_copy
+        mock_precompute.side_effect = precompute_side_effect
+
+        with patch.object(orchestrator, '_pre_calculate_historical_performance', side_effect=mock_pre_calculate):
+            orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
+
+    mock_execution_simulator.simulate_trade.assert_called_once()
+    call_args = mock_execution_simulator.simulate_trade.call_args[1]
+
+    assert call_args['entry_date'] == dates[15]
+    assert call_args['exit_date'] == dates[16]
+    assert pytest.approx(call_args['exit_price']) == 100.0
+
+
+def test_run_backtest_atr_takes_precedence_over_mean_reversion(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
+    """
+    Tests that the ATR stop-loss triggers even if the profit target is also met on the same day.
+    """
+    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
+
+    dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=30))
+    data = {
+        "High":  [105.0] * 30, "Low":   [95.0] * 30, "Open":  [100.0] * 30,
+        "Close": [100.0] * 30, "Volume": [1000.0] * 30, "sector_vol": [15.0] * 30,
+    }
+    df = pd.DataFrame(data, index=dates)
+    df.loc[dates[17], "High"] = 108.1
+    df.loc[dates[17], "Low"] = 79.9
+    mock_data_service.get_data.return_value = df
+
+    mock_signal_engine.generate_signal.side_effect = [
+        Signal(entry_price=100, stop_loss=80, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
+    ] + ([None] * 20)
+    mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
+    mock_llm_audit_service.get_confidence_score.return_value = 0.9
+
+    with patch('praxis_engine.core.orchestrator.precompute_indicators') as mock_precompute:
+        def precompute_side_effect(df, config):
+            df_copy = df.copy()
+            df_copy[f"BBM_{config.strategy_params.bb_length}_{config.strategy_params.bb_std}"] = 108.0
+            df_copy[f"ATR_{config.exit_logic.atr_period}"] = 10.0 # High ATR
+            return df_copy
+        mock_precompute.side_effect = precompute_side_effect
+
+        with patch.object(orchestrator, '_pre_calculate_historical_performance', side_effect=mock_pre_calculate):
+            orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
+
+    mock_execution_simulator.simulate_trade.assert_called_once()
+    call_args = mock_execution_simulator.simulate_trade.call_args[1]
+
+    assert call_args['exit_date'] == dates[17]
+    assert call_args['exit_price'] == 80.0
