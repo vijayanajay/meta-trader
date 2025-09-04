@@ -11,7 +11,19 @@ from praxis_engine.core.models import BacktestMetrics, Config, DataConfig, Strat
 def base_config() -> Config:
     return Config(
         data=DataConfig(cache_dir="test", stocks_to_backtest=["TEST.NS"], start_date="2022-01-01", end_date="2022-12-31", sector_map={"TEST.NS": "^NSEI"}),
-        strategy_params=StrategyParamsConfig(bb_length=20, bb_std=2, rsi_length=14, hurst_length=100, exit_days=20, min_history_days=200, liquidity_lookback_days=5),
+        strategy_params=StrategyParamsConfig(
+            bb_length=20,
+            bb_std=2,
+            bb_weekly_length=10,
+            bb_weekly_std=2.5,
+            bb_monthly_length=6,
+            bb_monthly_std=3.0,
+            rsi_length=14,
+            hurst_length=100,
+            exit_days=20,
+            min_history_days=200,
+            liquidity_lookback_days=5
+        ),
         filters=FiltersConfig(sector_vol_threshold=22.0, liquidity_turnover_crores=5.0, adf_p_value_threshold=0.05, hurst_threshold=0.45),
         scoring=ScoringConfig(
             liquidity_score_min_turnover_crores=2.5,

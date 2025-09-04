@@ -141,18 +141,18 @@ class ReportGenerator:
 
 
         return {
-            "net_annualized_return": annualized_return,
-            "sharpe_ratio": sharpe_ratio,
-            "profit_factor": profit_factor,
-            "max_drawdown": max_drawdown,
-            "win_rate": win_rate,
-            "avg_holding_period_days": avg_holding_period,
-            "avg_win_pct": avg_win_pct,
-            "avg_loss_pct": avg_loss_pct,
-            "best_trade_pct": best_trade_pct,
-            "worst_trade_pct": worst_trade_pct,
-            "skewness": skewness,
-            "kurtosis": kurtosis,
+            "net_annualized_return": float(annualized_return),
+            "sharpe_ratio": float(sharpe_ratio),
+            "profit_factor": float(profit_factor),
+            "max_drawdown": float(max_drawdown),
+            "win_rate": float(win_rate),
+            "avg_holding_period_days": float(avg_holding_period),
+            "avg_win_pct": float(avg_win_pct),
+            "avg_loss_pct": float(avg_loss_pct),
+            "best_trade_pct": float(best_trade_pct),
+            "worst_trade_pct": float(worst_trade_pct),
+            "skewness": float(skewness),
+            "kurtosis": float(kurtosis),
         }
 
     def _generate_filtering_funnel_table(self, metrics: BacktestMetrics) -> str:

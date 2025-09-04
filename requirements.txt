@@ -16,3 +16,4 @@ numba
 # Development & Testing
 pytest
 mypy
+hurst

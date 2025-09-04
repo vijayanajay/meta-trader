@@ -8,9 +8,12 @@ Orchestrator.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Callable, Any
 import pandas as pd
+import numpy as np
+from numpy.typing import NDArray
 
+from praxis_engine.core.models import Config
 from praxis_engine.core.indicators import bbands, rsi, atr
 from praxis_engine.core.statistics import hurst_exponent, adf_test
 from praxis_engine.core.logger import get_logger
@@ -26,7 +29,7 @@ def _safe_reindex_and_ffill(series: pd.DataFrame | pd.Series, target_index: pd.I
         return None
 
 
-def rolling_apply_series(series: pd.Series, window: int, func) -> pd.Series:
+def rolling_apply_series(series: pd.Series, window: int, func: Callable[[pd.Series], Optional[float]]) -> pd.Series:
     """Wrapper for rolling.apply that passes a Series to `func` and returns a Series.
 
     This helper ensures consistent handling of short windows and exceptions.
@@ -34,20 +37,21 @@ def rolling_apply_series(series: pd.Series, window: int, func) -> pd.Series:
     if window <= 0:
         raise ValueError("window must be positive")
 
-    def _wrapped(arr):
+    def _wrapped(arr: NDArray[np.float64]) -> float:
         try:
             s = pd.Series(arr)
             if s.dropna().size < window:
-                return float("nan")
-            return float(func(s))
-        except (ValueError, TypeError) as e:
+                return np.nan
+            result = func(s)
+            return result if result is not None else np.nan
+        except (ValueError, TypeError):
             # Return nan and let caller handle logging if necessary
-            return float("nan")
+            return np.nan
 
     return series.rolling(window=window).apply(_wrapped, raw=True)
 
 
-def precompute_indicators(full_df: pd.DataFrame, config) -> pd.DataFrame:
+def precompute_indicators(full_df: pd.DataFrame, config: Config) -> pd.DataFrame:
     """Precompute and merge indicator columns into a copy of `full_df`.
 
     Args:
@@ -87,7 +91,7 @@ def precompute_indicators(full_df: pd.DataFrame, config) -> pd.DataFrame:
     try:
         df_weekly = df.resample("W-MON").last()
         if not df_weekly.empty:
-            bb_weekly = bbands(df_weekly["Close"], length=10, std=2.5)
+            bb_weekly = bbands(df_weekly["Close"], length=params.bb_weekly_length, std=params.bb_weekly_std)
             if bb_weekly is not None:
                 bb_weekly = _safe_reindex_and_ffill(bb_weekly, df.index)
                 if bb_weekly is not None:
@@ -98,7 +102,7 @@ def precompute_indicators(full_df: pd.DataFrame, config) -> pd.DataFrame:
     try:
         df_monthly = df.resample("MS").last()
         if not df_monthly.empty:
-            bb_monthly = bbands(df_monthly["Close"], length=6, std=3.0)
+            bb_monthly = bbands(df_monthly["Close"], length=params.bb_monthly_length, std=params.bb_monthly_std)
             if bb_monthly is not None:
                 bb_monthly = _safe_reindex_and_ffill(bb_monthly, df.index)
                 if bb_monthly is not None:

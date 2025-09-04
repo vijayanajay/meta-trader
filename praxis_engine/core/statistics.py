@@ -5,12 +5,13 @@ This module provides pure, well-tested functions for all required
 statistical tests. These are the mathematical building blocks of the strategy
 and must be provably correct.
 """
-from typing import Optional
+from typing import Optional, cast, Any
 
 import numpy as np
 import pandas as pd
 import numba
 from statsmodels.tsa.stattools import adfuller
+from numpy.typing import NDArray
 
 
 def adf_test(series: pd.Series) -> Optional[float]:
@@ -26,21 +27,23 @@ def adf_test(series: pd.Series) -> Optional[float]:
     if series.empty:
         return None
     try:
+        # adfuller result is a tuple, p-value is the second element
         result = adfuller(series)
-        return float(result[1])
+        return cast(float, result[1])
     except Exception:
         return None
 
 @numba.jit(nopython=True)
-def _calculate_hurst(time_series: np.ndarray, max_lag: int = 20) -> float:
+def _calculate_hurst(time_series: NDArray[np.float64], max_lag: int = 20) -> float:
     """
     Numba-jitted function to calculate the Hurst exponent.
     """
     lags = np.arange(2, max_lag)
-    tau = [np.std(time_series[lag:] - time_series[:-lag]) for lag in lags]
+    # Note: Numba requires explicit array creation for list comprehensions
+    tau = np.array([np.std(time_series[lag:] - time_series[:-lag]) for lag in lags])
 
     log_lags = np.log(lags)
-    log_tau = np.log(np.array(tau))
+    log_tau = np.log(tau)
 
     # manual linear regression
     n = len(log_lags)
@@ -51,7 +54,7 @@ def _calculate_hurst(time_series: np.ndarray, max_lag: int = 20) -> float:
 
     m = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x**2)
 
-    return m
+    return cast(float, m)
 
 def hurst_exponent(series: pd.Series, max_lag: int = 20) -> Optional[float]:
     """
@@ -68,6 +71,7 @@ def hurst_exponent(series: pd.Series, max_lag: int = 20) -> Optional[float]:
         return None
 
     try:
-        return _calculate_hurst(series.to_numpy(), max_lag)
+        # Numba-jitted functions are seen as 'Any' by mypy, so we cast the result
+        return cast(float, _calculate_hurst(series.to_numpy(dtype=np.float64), max_lag))
     except Exception:
         return None

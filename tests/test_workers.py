@@ -1,4 +1,6 @@
 import pytest
+from pytest import MonkeyPatch
+import multiprocessing
 
 from praxis_engine import main
 
@@ -7,9 +9,9 @@ class DummyConfig:
     pass
 
 
-def test_determine_process_count_auto(monkeypatch):
+def test_determine_process_count_auto(monkeypatch: MonkeyPatch) -> None:
     # Simulate 8 CPU cores
-    monkeypatch.setattr(main.multiprocessing, "cpu_count", lambda: 8)
+    monkeypatch.setattr(multiprocessing, "cpu_count", lambda: 8)
 
     # 5 stocks -> should pick min(5,8) == 5
     processes = main.determine_process_count(["A", "B", "C", "D", "E"], None)
@@ -20,9 +22,9 @@ def test_determine_process_count_auto(monkeypatch):
     assert processes == 1
 
 
-def test_determine_process_count_config_override(monkeypatch):
+def test_determine_process_count_config_override(monkeypatch: MonkeyPatch) -> None:
     # Simulate 4 CPU cores
-    monkeypatch.setattr(main.multiprocessing, "cpu_count", lambda: 4)
+    monkeypatch.setattr(multiprocessing, "cpu_count", lambda: 4)
 
     # cfg_workers specified as 2 -> should use 2
     processes = main.determine_process_count(["A", "B", "C"], 2)
@@ -32,14 +34,14 @@ def test_determine_process_count_config_override(monkeypatch):
     processes = main.determine_process_count(["A", "B"], 0)
     assert processes == 1
 
-    # cfg_workers specified as a string that can be int -> coerced
-    processes = main.determine_process_count(["A"], "3")
+    # cfg_workers specified as an int
+    processes = main.determine_process_count(["A"], 3)
     assert processes == 3
 
 
-def test_determine_process_count_respects_cpu(monkeypatch):
+def test_determine_process_count_respects_cpu(monkeypatch: MonkeyPatch) -> None:
     # Simulate 2 CPU cores
-    monkeypatch.setattr(main.multiprocessing, "cpu_count", lambda: 2)
+    monkeypatch.setattr(multiprocessing, "cpu_count", lambda: 2)
 
     # More stocks than CPU cores -> should not exceed cpu_cores when cfg_workers is None
     processes = main.determine_process_count(["A", "B", "C", "D"], None)

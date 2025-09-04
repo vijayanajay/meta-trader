@@ -13,7 +13,15 @@ from typing import Optional, Any, Tuple
 from praxis_engine.core.indicators import atr, bbands, rsi
 from praxis_engine.core.statistics import hurst_exponent, adf_test
 from praxis_engine.core.precompute import precompute_indicators
-from praxis_engine.core.models import BacktestMetrics, BacktestSummary, Config, Trade, Opportunity
+from praxis_engine.core.models import (
+    BacktestMetrics,
+    BacktestSummary,
+    Config,
+    Trade,
+    Opportunity,
+    Signal,
+    ValidationScores,
+)
 from praxis_engine.services.data_service import DataService
 from praxis_engine.services.signal_engine import SignalEngine
 from praxis_engine.services.validation_service import ValidationService
@@ -39,13 +47,9 @@ class Orchestrator:
     def run_backtest(self, stock: str, start_date: str, end_date: str) -> Dict[str, Any]:
         """
         Runs a walk-forward backtest for a single stock.
-
-        Returns:
-            A dictionary containing the list of trades and the backtest metrics.
         """
         log.debug(f"Starting backtest for {stock} from {start_date} to {end_date}...")
         metrics = BacktestMetrics()
-
         sector_ticker = self.config.data.sector_map.get(stock)
         full_df = self.data_service.get_data(stock, start_date, end_date, sector_ticker)
 
@@ -56,100 +60,88 @@ class Orchestrator:
         trades: List[Trade] = []
         min_history_days = self.config.strategy_params.min_history_days
 
-        # Precompute and merge all indicators once (Task 29)
         try:
             full_df = precompute_indicators(full_df, self.config)
-        except Exception as e:
-            # Log and continue with original dataframe — precompute should not crash the backtest
-            log.warning(f"Indicator precomputation failed: {e}")
-
-        # Pre-calculate historical performance in a single pass (Task 30)
-        try:
             full_df = self._pre_calculate_historical_performance(full_df)
         except Exception as e:
-            log.warning(f"Historical performance precomputation failed: {e}")
+            log.error(f"Precomputation failed for {stock}: {e}", exc_info=True)
+            return {"trades": [], "metrics": metrics}
 
-
-        # Ensure sector_vol is present (data_service should provide it already)
-        # Main loop: iterate by index; `i` remains the point-in-time for potential entry's NEXT day
-        for i in range(min_history_days, len(full_df) - 1):  # -1 to ensure there's a next day for entry
-            # The signal is generated based on the last available historical row: index = i - 1
+        for i in range(min_history_days, len(full_df) - 1):
             current_index = i - 1
-            window = full_df.iloc[0:i].copy()
             signal_date = full_df.index[current_index]
 
-            signal = self.signal_engine.generate_signal(full_df, current_index)
-            if not signal:
+            validated_signal = self._get_validated_signal(full_df, current_index, stock)
+            if not validated_signal:
                 continue
 
+            signal, scores = validated_signal
             metrics.potential_signals += 1
-            log.debug(f"Preliminary signal found for {stock} on {signal_date.date()}")
 
-            scores = self.validation_service.validate(full_df, current_index, signal)
-            composite_score = scores.liquidity_score * scores.regime_score * scores.stat_score
-
-            if composite_score < self.config.llm.min_composite_score_for_llm:
-                log.debug(f"Signal for {stock} rejected by pre-filter. Composite score: {composite_score:.2f}")
-                # Determine the primary reason for rejection
-                scores_dict = scores.model_dump()
-                rejection_reason = min(scores_dict, key=lambda k: scores_dict[k])
+            if scores.composite_score < self.config.llm.min_composite_score_for_llm:
+                rejection_reason = min(scores.model_dump(), key=lambda k: scores.model_dump()[k])
                 guard_name = f"{rejection_reason.split('_')[0].capitalize()}Guard"
-                metrics.rejections_by_guard[guard_name] = metrics.rejections_by_guard.get(guard_name, 0) + 1
+                metrics.rejections_by_guard[guard_name] += 1
                 continue
 
-            log.debug(f"Validated signal found for {stock} on {signal_date.date()} with composite score {composite_score:.2f}")
-
-            # O(1) lookup for historical stats from pre-calculated columns
             historical_stats = {
                 "win_rate": full_df.at[signal_date, "hist_win_rate"],
                 "profit_factor": full_df.at[signal_date, "hist_profit_factor"],
                 "sample_size": full_df.at[signal_date, "hist_sample_size"],
             }
 
-
-            if self.config.llm.use_llm_audit:
-                confidence_score = self.llm_audit_service.get_confidence_score(
-                    historical_stats=historical_stats,
-                    signal=signal,
-                    df_window=window,
-                )
-            else:
-                confidence_score = 1.0  # Bypass LLM audit with max confidence
-                log.debug("LLM audit is disabled. Assigning default confidence score of 1.0.")
+            confidence_score = self.llm_audit_service.get_confidence_score(
+                historical_stats=historical_stats,
+                signal=signal,
+                df_window=full_df.iloc[0:i]
+            ) if self.config.llm.use_llm_audit else 1.0
 
             if confidence_score < self.config.llm.confidence_threshold:
-                log.debug(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
                 metrics.rejections_by_llm += 1
                 continue
 
-            entry_date_actual = full_df.index[i]
-            entry_price = full_df.iloc[i]["Open"]
-            entry_volume = full_df.iloc[i]["Volume"]
-
-            exit_date_actual, exit_price = self._determine_exit(i, entry_price, full_df, window)
-
-            assert exit_date_actual is not None and exit_price is not None
-
-            trade = self.execution_simulator.simulate_trade(
-                stock=stock,
-                entry_price=entry_price,
-                exit_price=exit_price,
-                entry_date=entry_date_actual,
-                exit_date=exit_date_actual,
-                signal=signal,
-                confidence_score=confidence_score,
-                entry_volume=entry_volume
-            )
-
+            trade = self._simulate_trade_from_signal(full_df, current_index, signal, stock, confidence_score)
             if trade:
-                log.debug(f"Trade simulated: {trade}")
                 trades.append(trade)
                 metrics.trades_executed += 1
 
         log.debug(f"Backtest for {stock} complete. Found {len(trades)} trades.")
         return {"trades": trades, "metrics": metrics}
 
-    def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame) -> Tuple[pd.Timestamp, float]:
+    def _get_validated_signal(self, df: pd.DataFrame, index: int, stock: str) -> Optional[Tuple[Signal, ValidationScores]]:
+        """Generates and validates a signal for a given point in time."""
+        signal = self.signal_engine.generate_signal(df, index)
+        if not signal:
+            return None
+
+        log.debug(f"Preliminary signal found for {stock} on {df.index[index].date()}")
+        scores = self.validation_service.validate(df, index, signal)
+        return signal, scores
+
+    def _simulate_trade_from_signal(self, df: pd.DataFrame, signal_index: int, signal: Signal, stock: str, confidence: float) -> Optional[Trade]:
+        """Determines exit and simulates a single trade from a validated signal."""
+        entry_index = signal_index + 1
+        entry_price = df.iloc[entry_index]["Open"]
+        entry_volume = df.iloc[entry_index]["Volume"]
+        entry_date = df.index[entry_index]
+
+        exit_date, exit_price = self._determine_exit(entry_index, entry_price, df, df.iloc[0:entry_index])
+
+        if exit_date is None or exit_price is None:
+            return None
+
+        return self.execution_simulator.simulate_trade(
+            stock=stock,
+            entry_price=entry_price,
+            exit_price=exit_price,
+            entry_date=entry_date,
+            exit_date=exit_date,
+            signal=signal,
+            confidence_score=confidence,
+            entry_volume=entry_volume
+        )
+
+    def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame) -> Tuple[Optional[pd.Timestamp], Optional[float]]:
         """ Determines the exit date and price for a trade. """
         atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
         use_atr = self.config.exit_logic.use_atr_exit and atr_col_name in window_df.columns and not pd.isna(window_df.iloc[-1][atr_col_name])
@@ -161,25 +153,18 @@ class Orchestrator:
 
             for j in range(entry_index + 1, min(entry_index + 1 + max_hold, len(full_df))):
                 if full_df.iloc[j]["Low"] <= stop_loss_price:
-                    exit_date_actual = full_df.index[j]
-                    exit_price = stop_loss_price
-                    return exit_date_actual, exit_price
+                    return full_df.index[j], stop_loss_price
 
             timeout_index = min(entry_index + max_hold, len(full_df) - 1)
-            exit_date_actual = full_df.index[timeout_index]
-            exit_price = full_df.iloc[timeout_index]["Close"]
-            log.debug(f"Max hold period triggered on {exit_date_actual.date()}")
-            return exit_date_actual, exit_price
+            log.debug(f"Max hold period triggered on {full_df.index[timeout_index].date()}")
+            return full_df.index[timeout_index], full_df.iloc[timeout_index]["Close"]
         else:  # Use legacy fixed-day exit
             exit_target_days = self.config.strategy_params.exit_days
             exit_date_target_index = entry_index + exit_target_days
             if exit_date_target_index >= len(full_df):
-                exit_date_actual = full_df.index[-1]
-                exit_price = full_df.iloc[-1]["Close"]
+                return full_df.index[-1], full_df.iloc[-1]["Close"]
             else:
-                exit_date_actual = full_df.index[exit_date_target_index]
-                exit_price = full_df.iloc[exit_date_target_index]["Close"]
-            return exit_date_actual, exit_price
+                return full_df.index[exit_date_target_index], full_df.iloc[exit_date_target_index]["Close"]
 
     def _calculate_stats_from_returns(self, returns: List[float]) -> Dict[str, float | int]:
         """Calculates performance statistics from a list of returns."""
@@ -211,51 +196,29 @@ class Orchestrator:
         df["hist_sample_size"] = np.nan
 
         min_history_days = self.config.strategy_params.min_history_days
-
-        # This will store trades that have been identified but not yet exited
         trades_in_flight: List[Trade] = []
         historical_returns: List[float] = []
 
         for i in range(len(df)):
             today = df.index[i]
 
-            # Process trades that exit today by comparing normalized dates
             exited_trades_returns = [t.net_return_pct for t in trades_in_flight if t.exit_date.normalize() == today.normalize()]
             if exited_trades_returns:
                 historical_returns.extend(exited_trades_returns)
                 trades_in_flight = [t for t in trades_in_flight if t.exit_date.normalize() != today.normalize()]
 
-            # Update stats for today, only after the min history period
             if i >= min_history_days:
                 stats = self._calculate_stats_from_returns(historical_returns)
                 df.loc[today, "hist_win_rate"] = stats["win_rate"]
                 df.loc[today, "hist_profit_factor"] = stats["profit_factor"]
                 df.loc[today, "hist_sample_size"] = stats["sample_size"]
 
-            # Check for new signals at index `i` to enter at `i+1`
             if i >= min_history_days and i < len(df) - 1:
-                window = df.iloc[0:i+1]
-                signal = self.signal_engine.generate_signal(df, i)
-                if signal:
-                    scores = self.validation_service.validate(df, i, signal)
-                    if scores.liquidity_score * scores.regime_score * scores.stat_score >= self.config.llm.min_composite_score_for_llm:
-                        entry_index = i + 1
-                        entry_price = df.iloc[entry_index]["Open"]
-
-                        # Pass the window up to the entry point to _determine_exit
-                        exit_window = df.iloc[0:entry_index]
-                        exit_date, exit_price = self._determine_exit(entry_index, entry_price, df, exit_window)
-
-                        trade = self.execution_simulator.simulate_trade(
-                            stock="HISTORICAL",
-                            entry_price=entry_price,
-                            exit_price=exit_price,
-                            entry_date=df.index[entry_index],
-                            exit_date=exit_date,
-                            signal=signal,
-                            confidence_score=1.0,
-                            entry_volume=df.iloc[entry_index]["Volume"]
-                        )
+                validated_signal = self._get_validated_signal(df, i, "HISTORICAL")
+                if validated_signal:
+                    signal, scores = validated_signal
+                    if scores.composite_score >= self.config.llm.min_composite_score_for_llm:
+                        trade = self._simulate_trade_from_signal(df, i, signal, "HISTORICAL", 1.0)
                         if trade:
                             trades_in_flight.append(trade)
         return df

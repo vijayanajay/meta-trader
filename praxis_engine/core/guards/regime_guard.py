@@ -19,7 +19,6 @@ class RegimeGuard:
     def __init__(self, scoring: ScoringConfig):
         self.scoring = scoring
 
-    # impure
     @normalize_guard_args
     def validate(self, full_df: pd.DataFrame, current_index: int, signal: Signal) -> float:
         """Calculates a regime score based on sector volatility. Prefers `signal.sector_vol` and falls back to dataframe column."""

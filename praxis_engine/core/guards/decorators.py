@@ -6,19 +6,25 @@ Provides a decorator to allow guards to accept either (df, signal) or
 """
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Any, TypeVar
 import functools
 import pandas as pd
 
+from praxis_engine.core.models import Signal
 
-def normalize_guard_args(func: Callable) -> Callable:
+F = TypeVar('F', bound=Callable[..., Any])
+
+def normalize_guard_args(func: F) -> F:
     """Decorator that normalizes validate args to (full_df, current_index, signal).
 
     If caller passed (full_df, signal), current_index will default to len(full_df)-1.
     """
 
     @functools.wraps(func)
-    def wrapper(self, full_df: pd.DataFrame, *args, **kwargs):
+    def wrapper(self: Any, full_df: pd.DataFrame, *args: Any, **kwargs: Any) -> Any:
+        signal: Signal
+        current_index: int
+
         if len(args) == 1:
             signal = args[0]
             current_index = len(full_df) - 1
@@ -32,4 +38,4 @@ def normalize_guard_args(func: Callable) -> Callable:
 
         return func(self, full_df, current_index, signal)
 
-    return wrapper
+    return wrapper  # type: ignore

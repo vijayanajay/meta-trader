@@ -36,8 +36,9 @@ class SignalEngine:
         bb_daily_lower_col = f"BBL_{self.params.bb_length}_{self.params.bb_std}"
         bb_daily_mid_col = f"BBM_{self.params.bb_length}_{self.params.bb_std}"
         rsi_daily_col = f"RSI_{self.params.rsi_length}"
-        bb_weekly_lower_col = "BBL_10_2.5"
-        bb_monthly_lower_col = "BBL_6_3.0"
+        bb_weekly_lower_col = f"BBL_{self.params.bb_weekly_length}_{self.params.bb_weekly_std}"
+        bb_monthly_lower_col = f"BBL_{self.params.bb_monthly_length}_{self.params.bb_monthly_std}"
+
 
         # Ensure required columns exist
         required_cols = [bb_daily_lower_col, bb_daily_mid_col, rsi_daily_col, "sector_vol", bb_weekly_lower_col, bb_monthly_lower_col]

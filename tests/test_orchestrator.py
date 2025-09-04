@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
 from pathlib import Path
-from typing import Iterator, Tuple
+from typing import Iterator, Tuple, List, Any
 
 from praxis_engine.core.orchestrator import Orchestrator
 from praxis_engine.core.models import Config, Signal, ValidationScores, Trade
@@ -90,7 +90,7 @@ slippage_rate_low_liquidity = 0.0
     return config
 
 @pytest.fixture
-def mock_orchestrator(test_config: Config) -> Iterator[Tuple[MagicMock, ...]]:
+def mock_orchestrator(test_config: Config) -> Iterator[Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock]]:
     """A fixture to create an Orchestrator with mocked services."""
     with patch('praxis_engine.core.orchestrator.DataService') as MockDataService, \
          patch('praxis_engine.core.orchestrator.SignalEngine') as MockSignalEngine, \
@@ -108,7 +108,7 @@ def mock_orchestrator(test_config: Config) -> Iterator[Tuple[MagicMock, ...]]:
 
         yield orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator
 
-def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[MagicMock, ...], test_config: Config) -> None:
+def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
     Tests that a trade is exited correctly when the ATR stop-loss is triggered.
     """
@@ -129,7 +129,7 @@ def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[MagicMock, ...
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
     mock_llm_audit_service.get_confidence_score.return_value = 0.9
 
-    def mock_pre_calculate(df):
+    def mock_pre_calculate(df: pd.DataFrame) -> pd.DataFrame:
         df["hist_win_rate"] = 0.0
         df["hist_profit_factor"] = 0.0
         df["hist_sample_size"] = 0
@@ -148,7 +148,7 @@ def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[MagicMock, ...
     assert call_args['exit_price'] == 80.0
 
 
-def test_run_backtest_low_score_skips_llm(mock_orchestrator: Tuple[MagicMock, ...], test_config: Config) -> None:
+def test_run_backtest_low_score_skips_llm(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
     Tests that the LLM audit is skipped if the composite score is below the threshold.
     """
@@ -171,7 +171,7 @@ def test_run_backtest_low_score_skips_llm(mock_orchestrator: Tuple[MagicMock, ..
     mock_execution_simulator.simulate_trade.assert_not_called()
 
 
-def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[MagicMock, ...], test_config: Config) -> None:
+def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
     Tests that the BacktestMetrics are tracked correctly through the funnel.
     """
@@ -210,10 +210,7 @@ def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[MagicMock, ...],
     assert metrics.trades_executed == 1
     mock_execution_simulator.simulate_trade.assert_called_once()
 
-
-from praxis_engine.core.models import Config, Signal, ValidationScores, Trade
-
-def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[MagicMock, ...], test_config: Config) -> None:
+def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
     Tests the _pre_calculate_historical_performance method for point-in-time correctness.
     """
@@ -235,7 +232,7 @@ def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[MagicMock
     # Signal is checked for i from 15 to 38.
     # Signal at i=20 is the 6th call (index 5).
     # Signal at i=30 is 10 calls later (index 15).
-    side_effect_list = [None] * 24
+    side_effect_list: List[Any] = [None] * 24
     side_effect_list[5] = Signal(entry_price=100, stop_loss=90, exit_target_days=5, frames_aligned=[], sector_vol=0.1)
     side_effect_list[15] = Signal(entry_price=100, stop_loss=90, exit_target_days=5, frames_aligned=[], sector_vol=0.1)
     mock_signal_engine.generate_signal.side_effect = side_effect_list
@@ -243,8 +240,8 @@ def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[MagicMock
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
 
     signal_obj = Signal(entry_price=100, stop_loss=90, exit_target_days=5, frames_aligned=[], sector_vol=0.1)
-    trade1 = Trade(stock='TEST.NS', entry_date=dates[21], exit_date=dates[26], entry_price=100, exit_price=110, net_return_pct=0.1, signal=signal_obj, confidence_score=1.0, cost_pct=0.0, gross_return_pct=0.1)
-    trade2 = Trade(stock='TEST.NS', entry_date=dates[31], exit_date=dates[33], entry_price=100, exit_price=90, net_return_pct=-0.1, signal=signal_obj, confidence_score=1.0, cost_pct=0.0, gross_return_pct=-0.1)
+    trade1 = Trade(stock='TEST.NS', entry_date=dates[21], exit_date=dates[26], entry_price=100, exit_price=110, net_return_pct=0.1, signal=signal_obj, confidence_score=1.0)
+    trade2 = Trade(stock='TEST.NS', entry_date=dates[31], exit_date=dates[33], entry_price=100, exit_price=90, net_return_pct=-0.1, signal=signal_obj, confidence_score=1.0)
     mock_execution_simulator.simulate_trade.side_effect = [trade1, trade2]
 
     with patch.object(orchestrator, '_determine_exit', side_effect=[(dates[26], 110.0), (dates[33], 90.0)]) as mock_determine_exit:

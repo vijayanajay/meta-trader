@@ -30,4 +30,10 @@ class ConfigService:
                     # If it's not a literal, treat it as a string
                     config_dict[section][key] = value
 
+        # Special handling for stocks_to_backtest to ensure it's a list
+        if 'data' in config_dict and 'stocks_to_backtest' in config_dict['data']:
+            stocks = config_dict['data']['stocks_to_backtest']
+            if isinstance(stocks, str):
+                config_dict['data']['stocks_to_backtest'] = [s.strip() for s in stocks.split(',')]
+
         return Config.model_validate(config_dict)

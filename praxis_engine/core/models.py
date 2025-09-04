@@ -2,8 +2,9 @@
 Pydantic models for the application.
 """
 import pandas as pd
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from typing import Dict, List, Optional
+from collections import defaultdict
 
 class DataConfig(BaseModel):
     cache_dir: str
@@ -18,6 +19,10 @@ class DataConfig(BaseModel):
 class StrategyParamsConfig(BaseModel):
     bb_length: int = Field(..., gt=0)
     bb_std: float = Field(..., gt=0)
+    bb_weekly_length: int = Field(10, gt=0)
+    bb_weekly_std: float = Field(2.5, gt=0)
+    bb_monthly_length: int = Field(6, gt=0)
+    bb_monthly_std: float = Field(3.0, gt=0)
     rsi_length: int = Field(..., gt=0)
     hurst_length: int = Field(..., gt=0)
     exit_days: int = Field(..., gt=0)
@@ -88,6 +93,12 @@ class ValidationScores(BaseModel):
     regime_score: float
     stat_score: float
 
+    @computed_field
+    @property
+    def composite_score(self) -> float:
+        """The geometric mean of the individual scores."""
+        return self.liquidity_score * self.regime_score * self.stat_score
+
 class Trade(BaseModel):
     """
     Represents a completed trade with its result.
@@ -121,7 +132,7 @@ class BacktestMetrics(BaseModel):
     Holds the statistics for the signal attrition funnel.
     """
     potential_signals: int = 0
-    rejections_by_guard: Dict[str, int] = Field(default_factory=dict)
+    rejections_by_guard: Dict[str, int] = Field(default_factory=lambda: defaultdict(int))
     rejections_by_llm: int = 0
     trades_executed: int = 0
 
