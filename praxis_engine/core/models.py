@@ -68,6 +68,7 @@ class ExitLogicConfig(BaseModel):
     atr_period: int = Field(..., gt=0)
     atr_stop_loss_multiplier: float = Field(..., gt=0)
     max_holding_days: int = Field(..., gt=0)
+    use_mean_reversion_exit: bool = Field(False)
 
 class SignalLogicConfig(BaseModel):
     require_daily_oversold: bool

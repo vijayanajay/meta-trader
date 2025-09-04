@@ -148,29 +148,45 @@ class Orchestrator:
         )
 
     def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame) -> Tuple[Optional[pd.Timestamp], Optional[float]]:
-        """ Determines the exit date and price for a trade. """
-        atr_col_name = f"ATR_{self.config.exit_logic.atr_period}"
-        use_atr = self.config.exit_logic.use_atr_exit and atr_col_name in window_df.columns and not pd.isna(window_df.iloc[-1][atr_col_name])
+        """
+        Determines the exit date and price for a trade based on a hierarchy of exit conditions.
+        """
+        exit_logic = self.config.exit_logic
+        strat_params = self.config.strategy_params
 
+        # 1. ATR Stop-Loss
+        atr_col_name = f"ATR_{exit_logic.atr_period}"
+        use_atr = exit_logic.use_atr_exit and atr_col_name in window_df.columns and not pd.isna(window_df.iloc[-1][atr_col_name])
+        stop_loss_price = None
         if use_atr:
             atr_at_signal = window_df.iloc[-1][atr_col_name]
-            stop_loss_price = entry_price - (atr_at_signal * self.config.exit_logic.atr_stop_loss_multiplier)
-            max_hold = self.config.exit_logic.max_holding_days
+            stop_loss_price = entry_price - (atr_at_signal * exit_logic.atr_stop_loss_multiplier)
 
-            for j in range(entry_index + 1, min(entry_index + 1 + max_hold, len(full_df))):
-                if full_df.iloc[j]["Low"] <= stop_loss_price:
-                    return full_df.index[j], stop_loss_price
+        # 2. Mean-Reversion Profit Target
+        use_mean_reversion_exit = exit_logic.use_mean_reversion_exit
+        bbm_col_name = f"BBM_{strat_params.bb_length}_{strat_params.bb_std}"
 
-            timeout_index = min(entry_index + max_hold, len(full_df) - 1)
-            log.debug(f"Max hold period triggered on {full_df.index[timeout_index].date()}")
-            return full_df.index[timeout_index], full_df.iloc[timeout_index]["Close"]
-        else:  # Use legacy fixed-day exit
-            exit_target_days = self.config.strategy_params.exit_days
-            exit_date_target_index = entry_index + exit_target_days
-            if exit_date_target_index >= len(full_df):
-                return full_df.index[-1], full_df.iloc[-1]["Close"]
-            else:
-                return full_df.index[exit_date_target_index], full_df.iloc[exit_date_target_index]["Close"]
+        max_hold = exit_logic.max_holding_days
+        for j in range(entry_index + 1, min(entry_index + 1 + max_hold, len(full_df))):
+            current_day = full_df.iloc[j]
+
+            # Priority 1: Check for ATR Stop-Loss
+            if stop_loss_price and current_day["Low"] <= stop_loss_price:
+                log.debug(f"ATR stop-loss triggered on {current_day.name.date()}")
+                return current_day.name, stop_loss_price
+
+            # Priority 2: Check for Mean-Reversion Profit Target
+            if use_mean_reversion_exit and bbm_col_name in full_df.columns:
+                profit_target_price = current_day[bbm_col_name]
+                if not pd.isna(profit_target_price) and current_day["High"] >= profit_target_price:
+                    log.debug(f"Mean-reversion profit target hit on {current_day.name.date()}")
+                    # Exit at the target price for a conservative simulation
+                    return current_day.name, profit_target_price
+
+        # Priority 3: Max Holding Period Timeout
+        timeout_index = min(entry_index + max_hold, len(full_df) - 1)
+        log.debug(f"Max hold period triggered on {full_df.index[timeout_index].date()}")
+        return full_df.index[timeout_index], full_df.iloc[timeout_index]["Close"]
 
     def _calculate_stats_from_returns(self, returns: List[float]) -> Dict[str, float | int]:
         """Calculates performance statistics from a list of returns."""

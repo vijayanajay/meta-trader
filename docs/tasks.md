@@ -412,4 +412,18 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Definition of Done (DoD):**
     *   All new code is implemented, the `config.ini` is updated, and new integration tests are written and passing.
 *   **Time estimate:** 4 hours
+*   **Status:** Done
+*   **Resolution:** The mean-reversion profit target exit has been implemented in the Orchestrator. The logic correctly exits a trade when the price hits the middle Bollinger Band, and this exit is prioritized after the ATR stop-loss but before the max holding period timeout. New integration tests have been added to `tests/test_orchestrator.py` to verify this functionality and its correct precedence.
+
+---
+
+### Task 32 — Fix Test Warnings and Flaky Tests
+
+*   **Rationale:** The test suite, while passing, produces several warnings related to `DeprecationWarning` and `FutureWarning` from pandas. Additionally, some tests have been identified as potentially flaky due to their reliance on exact floating-point comparisons or hardcoded test data that may not be robust to minor changes in indicator calculations. A clean, warning-free test suite is a sign of a healthy codebase.
+*   **Items to implement:**
+    1.  **Address Deprecation Warnings:** Investigate the source of `DeprecationWarning` and `FutureWarning` messages in the pytest output. Update the code to use the recommended newer methods or patterns to eliminate these warnings.
+    2.  **Improve Test Robustness:** Replace direct equality checks for floating-point numbers with `pytest.approx()` to make tests more robust to minor floating-point inaccuracies.
+    3.  **Refactor Brittle Test Data:** Review tests that use hardcoded data for indicators (like ATR or BBM). Refactor these tests to mock the `precompute_indicators` function or to use more controlled and predictable input data, reducing their brittleness.
+*   **Tests to cover:**
+    *   The primary goal is to run the entire test suite (`pytest`) and see zero warnings and consistent passes.
 *   **Status:** To Do
