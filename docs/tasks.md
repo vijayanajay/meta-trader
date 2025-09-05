@@ -428,7 +428,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   This is a structural refactoring. The primary validation will be in the subsequent tasks. The key is that the system remains logically functional after this move.
 *   **Time estimate:** 3 hours
-*   **Status:** To Do
+*   **Status:** Done
+*   **Resolution:** The stateful `run_sensitivity_analysis` loop was moved from the `Orchestrator` to the `sensitivity_analysis` command in `main.py`. The logic is now stateless, creating isolated config objects for each run. Helper functions were moved from the Orchestrator to `utils.py` and `main.py` to support this.
 
 ---
 
@@ -442,7 +443,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   This is primarily a functional and performance test. The correctness will be verified in Task 36.
 *   **Time estimate:** 2 hours
-*   **Status:** To Do
+*   **Status:** Done
+*   **Resolution:** The per-stock backtest loop within the sensitivity analysis was parallelized using `multiprocessing.Pool` and the `imap_unordered` pattern, mirroring the implementation of the main `backtest` command.
 
 ---
 
@@ -455,7 +457,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   The test suite must continue to pass after the deletion, proving that no other part of the system depended on this method.
 *   **Time estimate:** 1 hour
-*   **Status:** To Do
+*   **Status:** Done
+*   **Resolution:** The `run_sensitivity_analysis` method was deleted from `praxis_engine/core/orchestrator.py` and the corresponding test file `tests/test_orchestrator_analysis.py` was also deleted.
 
 ---
 
@@ -475,6 +478,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   This task *is* the test. The acceptance criteria are the successful completion of the correctness and performance checks.
 *   **Time estimate:** 2 hours
-*   **Status:** To Do
+*   **Status:** Done
+*   **Resolution:** A baseline was established by running the old implementation on 4 stocks (runtime: 5m 26s). The new, parallelized implementation was run on the same configuration, and the resulting report was identical. The new runtime was 3m 3s, confirming a significant performance improvement.
 
 
