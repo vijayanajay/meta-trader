@@ -317,7 +317,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Definition of Done (DoD):**
     *   The `main.py` backtest command is refactored to use `multiprocessing.Pool`. The system correctly utilizes parallel processing, and the results are verified to be correct.
 *   **Time estimate:** 4 hours
-*   **Status:** Done
+*   **Status:** Done & Reverted
+*   **Resolution & Learnings:** The BBU target created an uncontrolled, asymmetrical risk profile and was replaced by the fixed R:R logic in **Task 38**.
 
 ---
 
@@ -532,7 +533,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   The full test suite must pass after these removals, ensuring no regressions were introduced.
 *   **Time estimate:** 2 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
@@ -553,7 +554,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   **Scenario 1:** The synthetic price series must be designed to cross the calculated `profit_target_price` *before* hitting the ATR stop-loss. Assert that the trade exits on the correct day and that the `exit_price` is the `profit_target_price`.
     *   **Scenario 2:** Create a second test where the price hits the ATR stop-loss *before* reaching the profit target, and assert that the stop-loss exit correctly takes precedence.
 *   **Time estimate:** 4 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
@@ -568,5 +569,5 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
         c. **Root Cause Analysis:** Explain the "moving target" problem. The BBU expands with volatility, pushing the profit target further away and creating an unfavorable risk/reward ratio, especially in volatile conditions.
         d. **Lesson Learned:** An exit must be symmetrical to the *risk taken at entry*, not just conceptually symmetrical to the entry indicator. A fixed profit target based on the initial stop-loss distance provides a more robust and controllable risk management framework.
 *   **Time estimate:** 1 hour
-*   **Status:** To Do
+*   **Status:** Done
 

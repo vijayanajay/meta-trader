@@ -68,3 +68,12 @@ We maintain this log to adhere to two core principles:
     *   **The Conflict:** This created an unpredictable and asymmetrical risk/reward profile for every trade. In periods of increasing volatility, the profit target would move *away* from the price, forcing the trade to take on more risk for a reward that was becoming harder to reach. This led to many profitable trades being stopped out by the fixed ATR stop before they could ever reach the distant, moving `BBU` target, thus crippling the average win size and failing to control drawdown.
 
 *   **Lesson Learned:** An exit target must not only be philosophically consistent with the entry but must also be **deterministic at the point of entry**. A moving, volatility-dependent target like the BBU introduces unpredictable risk and is inferior to a fixed target derived from the entry conditions. The potential reward should be a known function of the initial risk, not a variable subject to future market volatility.
+
+---
+
+### Experiment (Task 35): Symmetrical Profit Target (Exit at Upper Bollinger Band)
+
+*   **Hypothesis:** State the original idea: "Since the entry is at the lower band, a symmetrical exit at the upper band should capture the full reversion cycle."
+*   **Outcome & Evidence:** State clearly that the backtest **conclusively falsified** this hypothesis. Quote the key evidence from `backtest_summary.md`: Sharpe Ratio of 0.87 and Max Drawdown of -65.13%, with an `Avg. Win` of only +6.35% compared to the baseline's +11.62%.
+*   **Root Cause Analysis:** Explain the "moving target" problem. The BBU expands with volatility, pushing the profit target further away and creating an unfavorable risk/reward ratio, especially in volatile conditions.
+*   **Lesson Learned:** An exit must be symmetrical to the *risk taken at entry*, not just conceptually symmetrical to the entry indicator. A fixed profit target based on the initial stop-loss distance provides a more robust and controllable risk management framework.

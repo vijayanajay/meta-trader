@@ -68,6 +68,7 @@ use_atr_exit = false
 atr_period = 10
 atr_stop_loss_multiplier = 2.0
 max_holding_days = 25
+reward_risk_ratio = 1.75
 """
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)
@@ -144,6 +145,7 @@ use_atr_exit = false
 atr_period = 10
 atr_stop_loss_multiplier = 2.0
 max_holding_days = 25
+reward_risk_ratio = 1.75
 """
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)
@@ -215,6 +217,7 @@ use_atr_exit = false
 atr_period = 10
 atr_stop_loss_multiplier = 2.0
 max_holding_days = 25
+reward_risk_ratio = 1.75
 
 [sensitivity_analysis]
 parameter_to_vary = "filters.sector_vol_threshold"
@@ -286,6 +289,7 @@ use_atr_exit = false
 atr_period = 10
 atr_stop_loss_multiplier = 2.0
 max_holding_days = 25
+reward_risk_ratio = 1.75
 """
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)

@@ -159,13 +159,13 @@ class Orchestrator:
         atr_col_name = f"ATR_{exit_logic.atr_period}"
         use_atr = exit_logic.use_atr_exit and atr_col_name in window_df.columns and not pd.isna(window_df.iloc[-1][atr_col_name])
         stop_loss_price = None
+        profit_target_price = None
+
         if use_atr:
             atr_at_signal = window_df.iloc[-1][atr_col_name]
             stop_loss_price = entry_price - (atr_at_signal * exit_logic.atr_stop_loss_multiplier)
-
-        # 2. Symmetrical Bollinger Band Profit Target
-        use_symmetrical_bb_exit = exit_logic.use_symmetrical_bb_exit
-        bbu_col_name = f"BBU_{strat_params.bb_length}_{strat_params.bb_std}"
+            risk_per_share = entry_price - stop_loss_price
+            profit_target_price = entry_price + (risk_per_share * exit_logic.reward_risk_ratio)
 
         max_hold = exit_logic.max_holding_days
         for j in range(entry_index + 1, min(entry_index + 1 + max_hold, len(full_df))):
@@ -176,13 +176,10 @@ class Orchestrator:
                 log.debug(f"ATR stop-loss triggered on {current_day.name.date()}")
                 return current_day.name, stop_loss_price
 
-            # Priority 2: Check for Symmetrical BB Profit Target
-            if use_symmetrical_bb_exit and bbu_col_name in full_df.columns:
-                profit_target_price = current_day[bbu_col_name]
-                if not pd.isna(profit_target_price) and current_day["High"] >= profit_target_price:
-                    log.debug(f"Symmetrical BB profit target hit on {current_day.name.date()}")
-                    # Exit at the target price for a conservative simulation
-                    return current_day.name, profit_target_price
+            # Priority 2: Check for Fixed Profit Target
+            if profit_target_price and current_day["High"] >= profit_target_price:
+                log.debug(f"Fixed profit target hit on {current_day.name.date()}")
+                return current_day.name, profit_target_price
 
         # Priority 3: Max Holding Period Timeout
         timeout_index = min(entry_index + max_hold, len(full_df) - 1)

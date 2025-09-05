@@ -70,6 +70,7 @@ def make_minimal_config(tmp_cache_dir: str) -> Config:
         atr_period=14,
         atr_stop_loss_multiplier=2.0,
         max_holding_days=10,
+        reward_risk_ratio=1.75,
     )
 
     return Config(
