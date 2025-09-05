@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 from pathlib import Path
 
-from praxis_engine.services.config_service import ConfigService
+from praxis_engine.services.config_service import load_config
 from praxis_engine.core.models import Config
 
 def test_load_config_success(tmp_path: Path) -> None:
@@ -15,16 +15,27 @@ cache_dir = "test_cache"
 stocks_to_backtest = ["TEST.NS"]
 start_date = "2022-01-01"
 end_date = "2023-01-01"
-sector_map = {"TEST": "^TESTINDEX"}
+sector_map = {"TEST.NS": "^TESTINDEX"}
+workers = 4
 
 [strategy_params]
 bb_length = 10
 bb_std = 1.5
+bb_weekly_length = 10
+bb_weekly_std = 2.0
+bb_monthly_length = 10
+bb_monthly_std = 2.5
 rsi_length = 7
 hurst_length = 50
 exit_days = 10
 min_history_days = 200
 liquidity_lookback_days = 5
+
+[filters]
+sector_vol_threshold = 25.0
+liquidity_turnover_crores = 2.0
+adf_p_value_threshold = 0.1
+hurst_threshold = 0.5
 
 [cost_model]
 brokerage_rate = 0.0003
@@ -34,12 +45,6 @@ assumed_trade_value_inr = 100000
 slippage_volume_threshold = 1000000
 slippage_rate_high_liquidity = 0.001
 slippage_rate_low_liquidity = 0.005
-
-[filters]
-sector_vol_threshold = 25.0
-liquidity_turnover_crores = 2.0
-adf_p_value_threshold = 0.1
-hurst_threshold = 0.5
 
 [scoring]
 liquidity_score_min_turnover_crores = 1.0
@@ -52,8 +57,10 @@ adf_score_min_pvalue = 0.1
 adf_score_max_pvalue = 0.01
 
 [llm]
+use_llm_audit = false
 provider = "test"
 confidence_threshold = 0.6
+min_composite_score_for_llm = 0.5
 model = "test/model"
 prompt_template_path = "test/prompt.txt"
 
@@ -73,7 +80,7 @@ reward_risk_ratio = 1.75
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)
 
-    config = ConfigService(str(config_file)).load_config()
+    config = load_config(str(config_file))
 
     assert isinstance(config, Config)
     assert config.data.cache_dir == "test_cache"
@@ -92,16 +99,26 @@ cache_dir = "test_cache"
 # stocks_to_backtest is missing
 start_date = "2022-01-01"
 end_date = "2023-01-01"
-sector_map = {"TEST": "^TESTINDEX"}
+sector_map = {"TEST.NS": "^TESTINDEX"}
 
 [strategy_params]
 bb_length = 10
 bb_std = 1.5
+bb_weekly_length = 10
+bb_weekly_std = 2.0
+bb_monthly_length = 10
+bb_monthly_std = 2.5
 rsi_length = 7
 hurst_length = 50
 exit_days = 10
 min_history_days = 200
 liquidity_lookback_days = 5
+
+[filters]
+sector_vol_threshold = 25.0
+liquidity_turnover_crores = 2.0
+adf_p_value_threshold = 0.1
+hurst_threshold = 0.5
 
 [cost_model]
 brokerage_rate = 0.0003
@@ -111,12 +128,6 @@ assumed_trade_value_inr = 100000
 slippage_volume_threshold = 1000000
 slippage_rate_high_liquidity = 0.001
 slippage_rate_low_liquidity = 0.005
-
-[filters]
-sector_vol_threshold = 25.0
-liquidity_turnover_crores = 2.0
-adf_p_value_threshold = 0.1
-hurst_threshold = 0.5
 
 [scoring]
 liquidity_score_min_turnover_crores = 1.0
@@ -129,8 +140,10 @@ adf_score_min_pvalue = 0.1
 adf_score_max_pvalue = 0.01
 
 [llm]
+use_llm_audit = false
 provider = "test"
 confidence_threshold = 0.6
+min_composite_score_for_llm = 0.5
 model = "test/model"
 prompt_template_path = "test/prompt.txt"
 
@@ -151,7 +164,7 @@ reward_risk_ratio = 1.75
     config_file.write_text(config_content)
 
     with pytest.raises(ValidationError):
-        ConfigService(str(config_file)).load_config()
+        load_config(str(config_file))
 
 
 def test_load_config_with_sensitivity_analysis(tmp_path: Path) -> None:
@@ -164,16 +177,26 @@ cache_dir = "test_cache"
 stocks_to_backtest = ["TEST.NS"]
 start_date = "2022-01-01"
 end_date = "2023-01-01"
-sector_map = {"TEST": "^TESTINDEX"}
+sector_map = {"TEST.NS": "^TESTINDEX"}
 
 [strategy_params]
 bb_length = 10
 bb_std = 1.5
+bb_weekly_length = 10
+bb_weekly_std = 2.0
+bb_monthly_length = 10
+bb_monthly_std = 2.5
 rsi_length = 7
 hurst_length = 50
 exit_days = 10
 min_history_days = 200
 liquidity_lookback_days = 5
+
+[filters]
+sector_vol_threshold = 25.0
+liquidity_turnover_crores = 2.0
+adf_p_value_threshold = 0.1
+hurst_threshold = 0.5
 
 [cost_model]
 brokerage_rate = 0.0003
@@ -183,12 +206,6 @@ assumed_trade_value_inr = 100000
 slippage_volume_threshold = 1000000
 slippage_rate_high_liquidity = 0.001
 slippage_rate_low_liquidity = 0.005
-
-[filters]
-sector_vol_threshold = 25.0
-liquidity_turnover_crores = 2.0
-adf_p_value_threshold = 0.1
-hurst_threshold = 0.5
 
 [scoring]
 liquidity_score_min_turnover_crores = 1.0
@@ -201,8 +218,10 @@ adf_score_min_pvalue = 0.1
 adf_score_max_pvalue = 0.01
 
 [llm]
+use_llm_audit = false
 provider = "test"
 confidence_threshold = 0.6
+min_composite_score_for_llm = 0.5
 model = "test/model"
 prompt_template_path = "test/prompt.txt"
 
@@ -220,7 +239,7 @@ max_holding_days = 25
 reward_risk_ratio = 1.75
 
 [sensitivity_analysis]
-parameter_to_vary = "filters.sector_vol_threshold"
+parameter_to_vary = "strategy_params.bb_length"
 start_value = 20.0
 end_value = 30.0
 step_size = 1.0
@@ -228,10 +247,10 @@ step_size = 1.0
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)
 
-    config = ConfigService(str(config_file)).load_config()
+    config = load_config(str(config_file))
 
     assert config.sensitivity_analysis is not None
-    assert config.sensitivity_analysis.parameter_to_vary == "filters.sector_vol_threshold"
+    assert config.sensitivity_analysis.parameter_to_vary == "strategy_params.bb_length"
     assert config.sensitivity_analysis.start_value == 20.0
     assert config.sensitivity_analysis.end_value == 30.0
     assert config.sensitivity_analysis.step_size == 1.0
@@ -246,16 +265,26 @@ cache_dir = "test_cache"
 stocks_to_backtest = ["TEST.NS"]
 start_date = "2022-01-01"
 end_date = "2023-01-01"
-sector_map = {"TEST": "^TESTINDEX"}
+sector_map = {"TEST.NS": "^TESTINDEX"}
 
 [strategy_params]
 bb_length = "not-an-int"  # Invalid type
 bb_std = 1.5
+bb_weekly_length = 10
+bb_weekly_std = 2.0
+bb_monthly_length = 10
+bb_monthly_std = 2.5
 rsi_length = 7
 hurst_length = 50
 exit_days = 10
 min_history_days = 200
 liquidity_lookback_days = 5
+
+[filters]
+sector_vol_threshold = 25.0
+liquidity_turnover_crores = 2.0
+adf_p_value_threshold = 0.1
+hurst_threshold = 0.5
 
 [cost_model]
 brokerage_rate = 0.0003
@@ -266,15 +295,21 @@ slippage_volume_threshold = 1000000
 slippage_rate_high_liquidity = 0.001
 slippage_rate_low_liquidity = 0.005
 
-[filters]
-sector_vol_threshold = 25.0
-liquidity_turnover_crores = 2.0
-adf_p_value_threshold = 0.1
-hurst_threshold = 0.5
+[scoring]
+liquidity_score_min_turnover_crores = 1.0
+liquidity_score_max_turnover_crores = 4.0
+regime_score_min_volatility_pct = 30.0
+regime_score_max_volatility_pct = 15.0
+hurst_score_min_h = 0.5
+hurst_score_max_h = 0.4
+adf_score_min_pvalue = 0.1
+adf_score_max_pvalue = 0.01
 
 [llm]
+use_llm_audit = false
 provider = "test"
 confidence_threshold = 0.6
+min_composite_score_for_llm = 0.5
 model = "test/model"
 prompt_template_path = "test/prompt.txt"
 
@@ -295,4 +330,4 @@ reward_risk_ratio = 1.75
     config_file.write_text(config_content)
 
     with pytest.raises(ValidationError):
-        ConfigService(str(config_file)).load_config()
+        load_config(str(config_file))

@@ -22,11 +22,10 @@ from praxis_engine.core.models import (
     Signal,
     ValidationScores,
 )
-from praxis_engine.services.data_service import DataService
+from praxis_engine.core.data_service import DataService
 from praxis_engine.services.signal_engine import SignalEngine
 from praxis_engine.services.validation_service import ValidationService
-from praxis_engine.services.llm_audit_service import LLMAuditService
-from praxis_engine.services.execution_simulator import ExecutionSimulator
+from praxis_engine.core.execution_simulator import ExecutionSimulator
 from praxis_engine.core.logger import get_logger
 from praxis_engine.utils import get_nested_attr, set_nested_attr
 
@@ -43,7 +42,6 @@ class Orchestrator:
         self.signal_engine = SignalEngine(config.strategy_params, config.signal_logic)
         self.validation_service = ValidationService(config.scoring, config.strategy_params)
         self.execution_simulator = ExecutionSimulator(config.cost_model)
-        self.llm_audit_service = LLMAuditService(config.llm)
 
     def run_backtest(self, stock: str, start_date: str, end_date: str) -> Dict[str, Any]:
         """
@@ -91,23 +89,8 @@ class Orchestrator:
                 metrics.rejections_by_guard[guard_name] += 1
                 continue
 
-            historical_stats = {
-                "win_rate": full_df.at[signal_date, "hist_win_rate"],
-                "profit_factor": full_df.at[signal_date, "hist_profit_factor"],
-                "sample_size": full_df.at[signal_date, "hist_sample_size"],
-            }
-
-            confidence_score = self.llm_audit_service.get_confidence_score(
-                historical_stats=historical_stats,
-                signal=signal,
-                df_window=full_df.iloc[0:i]
-            ) if self.config.llm.use_llm_audit else 1.0
-
-            if confidence_score < self.config.llm.confidence_threshold:
-                metrics.rejections_by_llm += 1
-                continue
-
-            trade = self._simulate_trade_from_signal(full_df, current_index, signal, stock, confidence_score)
+            # LLM audit is removed from the core pipeline. A default confidence of 1.0 is passed.
+            trade = self._simulate_trade_from_signal(full_df, current_index, signal, stock, 1.0)
             if trade:
                 trades.append(trade)
                 metrics.trades_executed += 1
@@ -288,25 +271,12 @@ class Orchestrator:
         }
         log.debug(f"Historical stats for {stock}: {historical_stats}")
 
-        if self.config.llm.use_llm_audit:
-            confidence_score = self.llm_audit_service.get_confidence_score(
-                historical_stats=historical_stats,
-                signal=signal,
-                df_window=latest_data_window,
-            )
-        else:
-            confidence_score = 1.0 # Bypass LLM audit with max confidence
-            log.debug("LLM audit is disabled. Assigning default confidence score of 1.0.")
-
-        if confidence_score < self.config.llm.confidence_threshold:
-            log.debug(f"Signal for {stock} rejected by LLM audit (score: {confidence_score})")
-            return None
-
+        # LLM audit is removed from the core pipeline. A default confidence of 1.0 is used.
         opportunity = Opportunity(
             stock=stock,
             signal_date=full_df.index[-1],
             signal=signal,
-            confidence_score=confidence_score,
+            confidence_score=1.0,
         )
         log.info(f"High-confidence opportunity found: {opportunity}")
         return opportunity

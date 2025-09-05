@@ -114,7 +114,7 @@ def test_orchestrator_bypasses_llm(monkeypatch: MonkeyPatch, tmp_path: Path) -> 
     def fake_get_data(self: Any, stock: str, start: str, end: str, sector_ticker: Any = None) -> pd.DataFrame:
         return sample_df
 
-    monkeypatch.setattr("praxis_engine.services.data_service.DataService.get_data", fake_get_data)
+    monkeypatch.setattr("praxis_engine.core.data_service.DataService.get_data", fake_get_data)
 
     # Track whether LLMAuditService.get_confidence_score is called
     called = {"was_called": False}
