@@ -163,9 +163,9 @@ class Orchestrator:
             atr_at_signal = window_df.iloc[-1][atr_col_name]
             stop_loss_price = entry_price - (atr_at_signal * exit_logic.atr_stop_loss_multiplier)
 
-        # 2. Mean-Reversion Profit Target
-        use_mean_reversion_exit = exit_logic.use_mean_reversion_exit
-        bbm_col_name = f"BBM_{strat_params.bb_length}_{strat_params.bb_std}"
+        # 2. Symmetrical Bollinger Band Profit Target
+        use_symmetrical_bb_exit = exit_logic.use_symmetrical_bb_exit
+        bbu_col_name = f"BBU_{strat_params.bb_length}_{strat_params.bb_std}"
 
         max_hold = exit_logic.max_holding_days
         for j in range(entry_index + 1, min(entry_index + 1 + max_hold, len(full_df))):
@@ -176,11 +176,11 @@ class Orchestrator:
                 log.debug(f"ATR stop-loss triggered on {current_day.name.date()}")
                 return current_day.name, stop_loss_price
 
-            # Priority 2: Check for Mean-Reversion Profit Target
-            if use_mean_reversion_exit and bbm_col_name in full_df.columns:
-                profit_target_price = current_day[bbm_col_name]
+            # Priority 2: Check for Symmetrical BB Profit Target
+            if use_symmetrical_bb_exit and bbu_col_name in full_df.columns:
+                profit_target_price = current_day[bbu_col_name]
                 if not pd.isna(profit_target_price) and current_day["High"] >= profit_target_price:
-                    log.debug(f"Mean-reversion profit target hit on {current_day.name.date()}")
+                    log.debug(f"Symmetrical BB profit target hit on {current_day.name.date()}")
                     # Exit at the target price for a conservative simulation
                     return current_day.name, profit_target_price
 

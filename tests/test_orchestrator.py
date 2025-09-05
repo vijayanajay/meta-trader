@@ -73,7 +73,7 @@ use_atr_exit = true
 atr_period = 14
 atr_stop_loss_multiplier = 2.0
 max_holding_days = 10
-use_mean_reversion_exit = true
+use_symmetrical_bb_exit = true
 
 [cost_model]
 brokerage_rate = 0.0
@@ -262,9 +262,9 @@ def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[Orchestra
     assert result_df.loc[dates[33], "hist_sample_size"] == 2
 
 
-def test_run_backtest_mean_reversion_exit_triggered(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
+def test_run_backtest_symmetrical_bb_exit_triggered(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
-    Tests that a trade is exited correctly when the mean-reversion profit target (middle BB) is hit.
+    Tests that a trade is exited correctly when the symmetrical profit target (upper BB) is hit.
     """
     orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
 
@@ -274,8 +274,8 @@ def test_run_backtest_mean_reversion_exit_triggered(mock_orchestrator: Tuple[Orc
         "Close": [100.0] * 30, "Volume": [1000.0] * 30, "sector_vol": [15.0] * 30,
     }
     df = pd.DataFrame(data, index=dates)
-    # The price hits the profit target on this day. Middle BB will be ~100.
-    df.loc[dates[16], "High"] = 100.1
+    # The price hits the profit target on this day. Upper BB is mocked to be 108.0
+    df.loc[dates[18], "High"] = 108.1
     mock_data_service.get_data.return_value = df
 
     mock_signal_engine.generate_signal.side_effect = [
@@ -288,7 +288,7 @@ def test_run_backtest_mean_reversion_exit_triggered(mock_orchestrator: Tuple[Orc
     with patch('praxis_engine.core.orchestrator.precompute_indicators') as mock_precompute:
         def precompute_side_effect(df, config):
             df_copy = df.copy()
-            df_copy[f"BBM_{config.strategy_params.bb_length}_{config.strategy_params.bb_std}"] = 100.0
+            df_copy[f"BBU_{config.strategy_params.bb_length}_{config.strategy_params.bb_std}"] = 108.0
             df_copy[f"ATR_{config.exit_logic.atr_period}"] = 5.0 # Low ATR so stop loss is not hit
             return df_copy
         mock_precompute.side_effect = precompute_side_effect
@@ -300,13 +300,13 @@ def test_run_backtest_mean_reversion_exit_triggered(mock_orchestrator: Tuple[Orc
     call_args = mock_execution_simulator.simulate_trade.call_args[1]
 
     assert call_args['entry_date'] == dates[15]
-    assert call_args['exit_date'] == dates[16]
-    assert pytest.approx(call_args['exit_price']) == 100.0
+    assert call_args['exit_date'] == dates[18]
+    assert pytest.approx(call_args['exit_price']) == 108.0
 
 
-def test_run_backtest_atr_takes_precedence_over_mean_reversion(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
+def test_run_backtest_atr_takes_precedence_over_symmetrical_bb(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
-    Tests that the ATR stop-loss triggers even if the profit target is also met on the same day.
+    Tests that the ATR stop-loss triggers even if the BB profit target is also met on the same day.
     """
     orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
 
@@ -316,8 +316,9 @@ def test_run_backtest_atr_takes_precedence_over_mean_reversion(mock_orchestrator
         "Close": [100.0] * 30, "Volume": [1000.0] * 30, "sector_vol": [15.0] * 30,
     }
     df = pd.DataFrame(data, index=dates)
-    df.loc[dates[17], "High"] = 108.1
-    df.loc[dates[17], "Low"] = 79.9
+    # On this day, the high hits the profit target, but the low also hits the stop loss.
+    df.loc[dates[17], "High"] = 110.1
+    df.loc[dates[17], "Low"] = 79.9 # Stop loss is at 80.0
     mock_data_service.get_data.return_value = df
 
     mock_signal_engine.generate_signal.side_effect = [
@@ -329,8 +330,10 @@ def test_run_backtest_atr_takes_precedence_over_mean_reversion(mock_orchestrator
     with patch('praxis_engine.core.orchestrator.precompute_indicators') as mock_precompute:
         def precompute_side_effect(df, config):
             df_copy = df.copy()
-            df_copy[f"BBM_{config.strategy_params.bb_length}_{config.strategy_params.bb_std}"] = 108.0
-            df_copy[f"ATR_{config.exit_logic.atr_period}"] = 10.0 # High ATR
+            # The BBU is set to a value that is hit on the same day as the stop loss
+            df_copy[f"BBU_{config.strategy_params.bb_length}_{config.strategy_params.bb_std}"] = 110.0
+            # ATR is 10, stop multiplier is 2.0. Entry is 100. Stop loss is 100 - (10 * 2) = 80.0
+            df_copy[f"ATR_{config.exit_logic.atr_period}"] = 10.0
             return df_copy
         mock_precompute.side_effect = precompute_side_effect
 
@@ -340,5 +343,6 @@ def test_run_backtest_atr_takes_precedence_over_mean_reversion(mock_orchestrator
     mock_execution_simulator.simulate_trade.assert_called_once()
     call_args = mock_execution_simulator.simulate_trade.call_args[1]
 
+    # The exit must be the stop loss price because it's checked first.
     assert call_args['exit_date'] == dates[17]
     assert call_args['exit_price'] == 80.0
