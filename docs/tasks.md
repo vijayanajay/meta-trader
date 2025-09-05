@@ -377,20 +377,13 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 
 ---
 
-### Task 30 — Implement Single-Pass Historical Simulation to Fix Catastrophic LLM Stats Recalculation
-
-*   **Rationale:** (Hinton/Nadh) The current implementation for gathering historical statistics for the LLM audit is catastrophically inefficient. It triggers a *full, separate backtest* on all data prior to the current signal. This "loop-within-a-loop" is the single greatest performance bottleneck when signals are frequent. The correct, scientific approach is to calculate these accumulating statistics in a single, point-in-time correct pass. This task replaces the repetitive, brute-force recalculation with an efficient, single-pass pre-computation.
-*   **Status:** Done
-
----
-
 ## Epic 9: Intelligent Exit Logic Refinement
 
 *Goal: To address the core flaw of the passive exit strategy by introducing a profit-taking mechanism that is philosophically consistent with the mean-reversion entry signal. This epic aims to drastically reduce drawdown and improve the Sharpe Ratio by closing trades once their statistical edge has been realized, rather than holding them and re-introducing market risk.*
 
 ---
 
-### Task 31 — Implement Mean-Reversion Profit Target Exit (Exit at Middle Bollinger Band)
+### Task 30 — Implement Mean-Reversion Profit Target Exit (Exit at Middle Bollinger Band)
 
 *   **Rationale:** (Hinton) The current exit logic is asymmetrical. We have a rule for when we are wrong (ATR stop-loss) but no rule for when we are right, leading to profit decay and catastrophic drawdowns. The strategy's entire premise is reversion to the mean. Therefore, the most scientifically sound exit is the moment this reversion occurs. (Nadh) This is the most pragmatic and simplest effective change. It replaces an arbitrary timeout with a data-driven, dynamic target (the mean) that is already being calculated. This aligns the exit with the entry thesis, completing the strategy's logical loop with minimal code complexity.
 *   **Items to implement:**
@@ -417,13 +410,71 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 
 ---
 
-### Task 32 — Fix Test Warnings and Flaky Tests
+## Epic 10: Architectural Refactoring & Performance Alignment
 
-*   **Rationale:** The test suite, while passing, produces several warnings related to `DeprecationWarning` and `FutureWarning` from pandas. Additionally, some tests have been identified as potentially flaky due to their reliance on exact floating-point comparisons or hardcoded test data that may not be robust to minor changes in indicator calculations. A clean, warning-free test suite is a sign of a healthy codebase.
+*Goal: To correct the architectural flaws in the `sensitivity_analysis` implementation. The current serial, stateful approach in the `Orchestrator` is a performance bottleneck and an architectural inconsistency. This epic refactors the feature to align with the high-performance, parallel, and stateless patterns established in the primary `backtest` command, making it a genuinely useful tool for rapid, large-scale experimentation.*
+
+---
+
+### Task 31 — Refactor Sensitivity Analysis Orchestration from Orchestrator to CLI
+
+*   **Rationale:** (Nadh) The current implementation makes the `Orchestrator` stateful by having it modify its own configuration inside a loop. This is a code smell and violates `[H-2]`. The responsibility for orchestrating a multi-run experiment belongs in the CLI entry point (`main.py`), not in the core engine. This task moves the "looping" logic to the correct layer of abstraction.
 *   **Items to implement:**
-    1.  **Address Deprecation Warnings:** Investigate the source of `DeprecationWarning` and `FutureWarning` messages in the pytest output. Update the code to use the recommended newer methods or patterns to eliminate these warnings.
-    2.  **Improve Test Robustness:** Replace direct equality checks for floating-point numbers with `pytest.approx()` to make tests more robust to minor floating-point inaccuracies.
-    3.  **Refactor Brittle Test Data:** Review tests that use hardcoded data for indicators (like ATR or BBM). Refactor these tests to mock the `precompute_indicators` function or to use more controlled and predictable input data, reducing their brittleness.
+    1.  **Create New Top-Level Helper:** In `praxis_engine/main.py`, create a new top-level function `run_backtest_for_stock_with_config(payload: Tuple[str, Config])`. This function will be picklable by `multiprocessing`. It will accept a stock ticker and a complete `Config` object, instantiate a *new* `Orchestrator`, and run a single backtest.
+    2.  **Move Parameter Loop to CLI:** In `praxis_engine/main.py`, refactor the `sensitivity_analysis` command function. It will now contain the primary loop that iterates through the parameter values defined in `config.ini`.
+    3.  **Isolate Configurations:** Inside this loop, for each parameter value, create a `copy.deepcopy()` of the base configuration object. This ensures that each parallel run receives a clean, isolated configuration, preventing any state leakage.
+    4.  **Modify Config Copy:** Use the `_set_nested_attr` helper to modify the parameter value in the copied config object.
+    5.  **Aggregation Logic:** The `_aggregate_trades` method is a helper within the `Orchestrator`. The CLI function will need to call it. The most pragmatic solution is to instantiate a temporary, stateless `Orchestrator` at the end of each parameter loop *only* to call this aggregation helper.
 *   **Tests to cover:**
-    *   The primary goal is to run the entire test suite (`pytest`) and see zero warnings and consistent passes.
+    *   This is a structural refactoring. The primary validation will be in the subsequent tasks. The key is that the system remains logically functional after this move.
+*   **Time estimate:** 3 hours
 *   **Status:** To Do
+
+---
+
+### Task 32 — Parallelize Sensitivity Analysis Stock Runs
+
+*   **Rationale:** (Nadh/Hinton) The most critical flaw is the serial execution of per-stock backtests within the sensitivity analysis. This is an "embarrassingly parallel" problem that we have already solved correctly in the `backtest` command. Failing to apply the same solution here is an architectural failure that makes the feature too slow to be scientifically useful. This task implements the required parallelization.
+*   **Items to implement:**
+    1.  **Integrate `multiprocessing.Pool`:** In the refactored `sensitivity_analysis` command in `main.py`, within the main parameter loop, use `multiprocessing.Pool`.
+    2.  **Distribute Work:** For each parameter value, create a list of payloads `zip(stock_list, repeat(run_config))` and pass it to `pool.imap_unordered`, using the new `run_backtest_for_stock_with_config` helper.
+    3.  **Progress Bar:** Integrate `tqdm` to provide a progress bar for the parallel execution of stocks *within* each parameter step, giving the user clear feedback on the progress.
+*   **Tests to cover:**
+    *   This is primarily a functional and performance test. The correctness will be verified in Task 36.
+*   **Time estimate:** 2 hours
+*   **Status:** To Do
+
+---
+
+### Task 33 — Deprecate and Remove `Orchestrator.run_sensitivity_analysis`
+
+*   **Rationale:** (Nadh) Prefer deletion over abstraction. The logic for running the sensitivity analysis now lives entirely in `praxis_engine/main.py`. The old method in the `Orchestrator` is now redundant, stateful, and inefficient. It must be removed to prevent confusion and to enforce the new, correct architecture. Every line is a liability.
+*   **Items to implement:**
+    1.  **Delete Method:** In `praxis_engine/core/orchestrator.py`, delete the entire `run_sensitivity_analysis` method.
+    2.  **Delete Test:** In `tests/test_orchestrator_analysis.py`, delete the test file or the specific tests that cover the now-removed method.
+*   **Tests to cover:**
+    *   The test suite must continue to pass after the deletion, proving that no other part of the system depended on this method.
+*   **Time estimate:** 1 hour
+*   **Status:** To Do
+
+---
+
+### Task 34 — Add Correctness and Performance Verification for Sensitivity Analysis
+
+*   **Rationale:** (Hinton) A refactoring of this magnitude requires rigorous verification. We must prove two things: 1) The new, parallel implementation produces numerically identical results to the old, serial one, ensuring the scientific integrity of the experiment is preserved. 2) The new implementation is significantly faster, justifying the refactoring effort.
+*   **Items to implement:**
+    1.  **Correctness Test:**
+        a. Before implementing the changes, run a sensitivity analysis on a small, fixed set of parameters and 2-4 stocks (e.g., `POWERGRID.NS`, `ITC.NS`).
+        b. Save the generated `sensitivity_analysis_report.md` as a baseline (e.g., `sensitivity_analysis_report_baseline.md`).
+        c. After implementing Tasks 33-35, run the exact same analysis.
+        d. The newly generated report must be a character-for-character match with the baseline file. This is the ground truth.
+    2.  **Performance Benchmark:**
+        a. On a multi-core machine, time the execution of the baseline run from step 1a.
+        b. Time the execution of the new, parallel implementation from step 1c.
+        c. The new implementation must be demonstrably faster (e.g., at least 2x faster on a 4-core machine for 4 stocks).
+*   **Tests to cover:**
+    *   This task *is* the test. The acceptance criteria are the successful completion of the correctness and performance checks.
+*   **Time estimate:** 2 hours
+*   **Status:** To Do
+
+
