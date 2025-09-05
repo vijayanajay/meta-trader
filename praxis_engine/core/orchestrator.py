@@ -28,6 +28,7 @@ from praxis_engine.services.validation_service import ValidationService
 from praxis_engine.services.llm_audit_service import LLMAuditService
 from praxis_engine.services.execution_simulator import ExecutionSimulator
 from praxis_engine.core.logger import get_logger
+from praxis_engine.utils import get_nested_attr, set_nested_attr
 
 log = get_logger(__name__)
 
@@ -313,106 +314,3 @@ class Orchestrator:
         log.info(f"High-confidence opportunity found: {opportunity}")
         return opportunity
 
-    def run_sensitivity_analysis(self) -> List[BacktestSummary]:
-        """
-        Runs multiple backtests to analyze the sensitivity of a parameter.
-        """
-        if not self.config.sensitivity_analysis:
-            log.error("Sensitivity analysis section not found in config.")
-            return []
-
-        sa_config = self.config.sensitivity_analysis
-        param_name = sa_config.parameter_to_vary
-        start = sa_config.start_value
-        end = sa_config.end_value
-        step = sa_config.step_size
-
-        log.info(f"Starting sensitivity analysis for '{param_name}' from {start} to {end} with step {step}")
-
-        results: List[BacktestSummary] = []
-        for value_np in np.arange(start, end + step, step):
-            value = float(value_np)
-            log.info(f"Running backtest with {param_name} = {value:.4f}")
-
-            # Define the type of final_value to satisfy mypy for the conditional assignment
-            final_value: float | int = value
-            if param_name in ['strategy_params.bb_length', 'strategy_params.rsi_length',
-                            'strategy_params.hurst_length', 'strategy_params.exit_days',
-                            'strategy_params.min_history_days', 'strategy_params.liquidity_lookback_days',
-                            'exit_logic.atr_period', 'exit_logic.max_holding_days']:
-                final_value = int(value)
-
-            # This is a critical change for efficiency. Instead of creating a new
-            # Orchestrator for each loop, we temporarily modify the config of the
-            # existing one. This avoids the overhead of re-initializing all services.
-            original_value = _get_nested_attr(self.config, param_name)
-            _set_nested_attr(self.config, param_name, final_value)
-
-            all_trades: List[Trade] = []
-            # Metrics are not yet used in sensitivity analysis report, but we handle them
-            # to align with the new run_backtest signature.
-            for stock in self.config.data.stocks_to_backtest:
-                result = self.run_backtest(
-                    stock, self.config.data.start_date, self.config.data.end_date
-                )
-                all_trades.extend(result["trades"])
-
-            # Restore the original config value to ensure the orchestrator is in a
-            # clean state after the analysis.
-            _set_nested_attr(self.config, param_name, original_value)
-
-            summary = self._aggregate_trades(all_trades, value)
-            results.append(summary)
-            log.info(f"Summary for {param_name} = {value:.4f}: {summary.total_trades} trades")
-
-        return results
-
-    def _aggregate_trades(self, trades: List[Trade], param_value: float) -> BacktestSummary:
-        """
-        Aggregates a list of trades into a BacktestSummary object.
-        """
-        if not trades:
-            return BacktestSummary(
-                parameter_value=param_value,
-                total_trades=0,
-                win_rate_pct=0.0,
-                profit_factor=0.0,
-                net_return_pct_mean=0.0,
-                net_return_pct_std=0.0
-            )
-
-        returns = [t.net_return_pct for t in trades]
-        wins = [r for r in returns if r > 0]
-        losses = [r for r in returns if r <= 0]
-
-        win_rate = len(wins) / len(trades) if trades else 0.0
-        total_profit = sum(wins)
-        total_loss = abs(sum(losses))
-        profit_factor = total_profit / total_loss if total_loss > 0 else 999.0
-
-        return BacktestSummary(
-            parameter_value=param_value,
-            total_trades=len(trades),
-            win_rate_pct=win_rate * 100,
-            profit_factor=profit_factor,
-            net_return_pct_mean=float(np.mean(returns)) * 100,
-            net_return_pct_std=float(np.std(returns)) * 100
-        )
-
-
-import functools
-
-def _get_nested_attr(obj: Any, attr_string: str) -> Any:
-    """
-    Gets a nested attribute from an object based on a dot-separated string.
-    """
-    return functools.reduce(getattr, attr_string.split('.'), obj)
-
-
-def _set_nested_attr(obj: Any, attr_string: str, value: Any) -> None:
-    """
-    Sets a nested attribute on an object based on a dot-separated string.
-    """
-    attrs = attr_string.split('.')
-    parent = functools.reduce(getattr, attrs[:-1], obj)
-    setattr(parent, attrs[-1], value)

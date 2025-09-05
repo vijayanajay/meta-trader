@@ -191,6 +191,62 @@ def generate_report(
     logger.info("\n" + report)
 
 
+import numpy as np
+import copy
+from praxis_engine.core.models import BacktestSummary
+from praxis_engine.utils import get_nested_attr, set_nested_attr
+
+
+def _aggregate_trades(trades: List[Trade], param_value: float) -> BacktestSummary:
+    """
+    Aggregates a list of trades into a BacktestSummary object.
+    """
+    if not trades:
+        return BacktestSummary(
+            parameter_value=param_value,
+            total_trades=0,
+            win_rate_pct=0.0,
+            profit_factor=0.0,
+            net_return_pct_mean=0.0,
+            net_return_pct_std=0.0
+        )
+
+    returns = [t.net_return_pct for t in trades]
+    wins = [r for r in returns if r > 0]
+    losses = [r for r in returns if r <= 0]
+
+    win_rate = len(wins) / len(trades) if trades else 0.0
+    total_profit = sum(wins)
+    total_loss = abs(sum(losses))
+    profit_factor = total_profit / total_loss if total_loss > 0 else 999.0
+
+    return BacktestSummary(
+        parameter_value=param_value,
+        total_trades=len(trades),
+        win_rate_pct=win_rate * 100,
+        profit_factor=profit_factor,
+        net_return_pct_mean=float(np.mean(returns)) * 100,
+        net_return_pct_std=float(np.std(returns)) * 100
+    )
+
+
+def run_backtest_for_stock_with_config(payload: Tuple[str, Config]) -> Dict[str, Any]:
+    """
+    Top-level helper function to run a backtest for a single stock with a given config.
+    Designed to be picklable for multiprocessing.
+    """
+    stock, config = payload
+    orchestrator = Orchestrator(config)
+
+    result = orchestrator.run_backtest(
+        stock=stock,
+        start_date=config.data.start_date,
+        end_date=config.data.end_date,
+    )
+    result["stock"] = stock
+    return result
+
+
 @app.command()
 def sensitivity_analysis(
     config_path: str = typer.Option(
@@ -207,14 +263,54 @@ def sensitivity_analysis(
     logger.info("File logging configured. Starting sensitivity analysis...")
 
     config_service = ConfigService(config_path)
-    config: Config = config_service.load_config()
+    base_config: Config = config_service.load_config()
 
-    if not config.sensitivity_analysis:
+    if not base_config.sensitivity_analysis:
         logger.error("`sensitivity_analysis` section not found in the config file.")
         raise typer.Exit(code=1)
 
-    orchestrator = Orchestrator(config)
-    results = orchestrator.run_sensitivity_analysis()
+    sa_config = base_config.sensitivity_analysis
+    param_name = sa_config.parameter_to_vary
+    start = sa_config.start_value
+    end = sa_config.end_value
+    step = sa_config.step_size
+
+    logger.info(f"Starting sensitivity analysis for '{param_name}' from {start} to {end} with step {step}")
+
+    results: List[BacktestSummary] = []
+    stock_list = base_config.data.stocks_to_backtest
+
+    for value_np in np.arange(start, end + step, step):
+        value = float(value_np)
+        logger.info(f"Running backtest with {param_name} = {value:.4f}")
+
+        run_config = copy.deepcopy(base_config)
+
+        final_value: float | int = value
+        if param_name in ['strategy_params.bb_length', 'strategy_params.rsi_length',
+                        'strategy_params.hurst_length', 'strategy_params.exit_days',
+                        'strategy_params.min_history_days', 'strategy_params.liquidity_lookback_days',
+                        'exit_logic.atr_period', 'exit_logic.max_holding_days']:
+            final_value = int(value)
+
+        set_nested_attr(run_config, param_name, final_value)
+
+        all_trades: List[Trade] = []
+        payloads = zip(stock_list, repeat(run_config))
+
+        cfg_workers = getattr(base_config.data, "workers", None)
+        processes = determine_process_count(stock_list, cfg_workers)
+
+        with multiprocessing.Pool(processes=processes) as pool:
+            desc = f"Analyzing {param_name}={value:.2f}"
+            with tqdm(total=len(stock_list), desc=desc, file=sys.stderr) as pbar:
+                for result in pool.imap_unordered(run_backtest_for_stock_with_config, payloads):
+                    all_trades.extend(result["trades"])
+                    pbar.update(1)
+
+        summary = _aggregate_trades(all_trades, value)
+        results.append(summary)
+        logger.info(f"Summary for {param_name} = {value:.4f}: {summary.total_trades} trades")
 
     if not results:
         logger.info("Sensitivity analysis complete. No results to report.")
@@ -223,7 +319,7 @@ def sensitivity_analysis(
     logger.info("Sensitivity analysis complete. Generating report...")
     report_generator = ReportGenerator()
     report = report_generator.generate_sensitivity_report(
-        results, config.sensitivity_analysis.parameter_to_vary
+        results, base_config.sensitivity_analysis.parameter_to_vary
     )
 
     results_dir = Path("results")

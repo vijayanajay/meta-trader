@@ -59,3 +59,22 @@ def get_git_commit_hash() -> str:
         # Catch any other unexpected errors
         logger.error(f"An unexpected error occurred while getting git hash: {e}")
         return "N/A"
+
+
+import functools
+from typing import Any
+
+def get_nested_attr(obj: Any, attr_string: str) -> Any:
+    """
+    Gets a nested attribute from an object based on a dot-separated string.
+    """
+    return functools.reduce(getattr, attr_string.split('.'), obj)
+
+
+def set_nested_attr(obj: Any, attr_string: str, value: Any) -> None:
+    """
+    Sets a nested attribute on an object based on a dot-separated string.
+    """
+    attrs = attr_string.split('.')
+    parent = functools.reduce(getattr, attrs[:-1], obj)
+    setattr(parent, attrs[-1], value)
