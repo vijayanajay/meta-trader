@@ -8,7 +8,7 @@ import multiprocessing
 from itertools import repeat
 
 from praxis_engine.core.logger import get_logger, setup_file_logger
-from praxis_engine.services.config_service import ConfigService
+from praxis_engine.services.config_service import load_config
 from praxis_engine.core.orchestrator import Orchestrator
 from praxis_engine.core.models import BacktestMetrics, Config, Opportunity, Trade, RunMetadata
 from praxis_engine.services.report_generator import ReportGenerator
@@ -32,8 +32,7 @@ def run_backtest_for_stock(payload: Tuple[str, str]) -> Dict[str, Any]:
     stock, config_path = payload
     # Each process needs its own instances of services.
     # Logging is inherited from the parent process.
-    config_service = ConfigService(config_path)
-    config: Config = config_service.load_config()
+    config: Config = load_config(config_path)
     orchestrator = Orchestrator(config)
 
     result = orchestrator.run_backtest(
@@ -73,8 +72,7 @@ def backtest(
     setup_file_logger()
     logger.info("File logging configured. Starting backtest...")
 
-    config_service = ConfigService(config_path)
-    config: Config = config_service.load_config()
+    config: Config = load_config(config_path)
     all_trades: List[Trade] = []
     per_stock_trades: Dict[str, List[Trade]] = {}
     aggregated_metrics = BacktestMetrics()
@@ -170,8 +168,7 @@ def generate_report(
     setup_file_logger()
     logger.info("File logging configured. Generating opportunities report...")
 
-    config_service = ConfigService(config_path)
-    config: Config = config_service.load_config()
+    config: Config = load_config(config_path)
     orchestrator = Orchestrator(config)
     opportunities: List[Opportunity] = []
     for stock in config.data.stocks_to_backtest:
@@ -262,8 +259,7 @@ def sensitivity_analysis(
     setup_file_logger()
     logger.info("File logging configured. Starting sensitivity analysis...")
 
-    config_service = ConfigService(config_path)
-    base_config: Config = config_service.load_config()
+    base_config: Config = load_config(config_path)
 
     if not base_config.sensitivity_analysis:
         logger.error("`sensitivity_analysis` section not found in the config file.")

@@ -9,7 +9,7 @@ from typing import Iterator, Tuple, List, Any
 
 from praxis_engine.core.orchestrator import Orchestrator
 from praxis_engine.core.models import Config, Signal, ValidationScores, Trade
-from praxis_engine.services.config_service import ConfigService
+from praxis_engine.services.config_service import load_config
 
 def mock_pre_calculate(df: pd.DataFrame) -> pd.DataFrame:
     """A helper to mock the pre-calculation by adding required columns."""
@@ -87,33 +87,31 @@ slippage_rate_low_liquidity = 0.0
     config_file = tmp_path / "config.ini"
     config_file.write_text(config_content)
     # Add scoring config to the main config object
-    config = ConfigService(str(config_file)).load_config()
+    config = load_config(str(config_file))
     return config
 
 @pytest.fixture
-def mock_orchestrator(test_config: Config) -> Iterator[Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock]]:
+def mock_orchestrator(test_config: Config) -> Iterator[Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock]]:
     """A fixture to create an Orchestrator with mocked services."""
     with patch('praxis_engine.core.orchestrator.DataService') as MockDataService, \
          patch('praxis_engine.core.orchestrator.SignalEngine') as MockSignalEngine, \
          patch('praxis_engine.core.orchestrator.ValidationService') as MockValidationService, \
-         patch('praxis_engine.core.orchestrator.LLMAuditService') as MockLLMAuditService, \
          patch('praxis_engine.core.orchestrator.ExecutionSimulator') as MockExecutionSimulator:
 
         mock_data_service = MockDataService.return_value
         mock_signal_engine = MockSignalEngine.return_value
         mock_validation_service = MockValidationService.return_value
-        mock_llm_audit_service = MockLLMAuditService.return_value
         mock_execution_simulator = MockExecutionSimulator.return_value
 
         orchestrator = Orchestrator(test_config)
 
-        yield orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator
+        yield orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_execution_simulator
 
-def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
+def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
     Tests that a trade is exited correctly when the ATR stop-loss is triggered.
     """
-    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
+    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_execution_simulator = mock_orchestrator
 
     dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=30))
     # Make price action have low volatility so ATR is small
@@ -130,7 +128,6 @@ def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[Orchestrator, 
         Signal(entry_price=100, stop_loss=96, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
     ] + ([None] * 20)
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
-    mock_llm_audit_service.get_confidence_score.return_value = 0.9
 
     with patch.object(orchestrator, '_pre_calculate_historical_performance', side_effect=mock_pre_calculate):
         orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
@@ -143,34 +140,11 @@ def test_run_backtest_atr_exit_triggered(mock_orchestrator: Tuple[Orchestrator, 
     assert pytest.approx(call_args['exit_price']) == 96.0
 
 
-def test_run_backtest_low_score_skips_llm(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
-    """
-    Tests that the LLM audit is skipped if the composite score is below the threshold.
-    """
-    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
-
-    dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=30))
-    df = pd.DataFrame({"Close": [100.0]*30, "Volume": [1000.0]*30, "High": [105.0]*30, "Low": [95.0]*30, "Open": [100.0]*30, "sector_vol": [15.0]*30}, index=dates)
-    mock_data_service.get_data.return_value = df
-
-    mock_signal_engine.generate_signal.return_value = Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
-    # This composite score (0.5*0.5*0.5=0.125) is below the 0.5 threshold in config
-    mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.5, regime_score=0.5, stat_score=0.5)
-
-    with patch.object(orchestrator, '_pre_calculate_historical_performance', side_effect=mock_pre_calculate):
-        orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
-
-    # Assert that the LLM service was never called
-    mock_llm_audit_service.get_confidence_score.assert_not_called()
-    # Assert that no trade was executed
-    mock_execution_simulator.simulate_trade.assert_not_called()
-
-
-def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
+def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
     Tests that the BacktestMetrics are tracked correctly through the funnel.
     """
-    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
+    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_execution_simulator = mock_orchestrator
 
     dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=30))
     df = pd.DataFrame({"Close": [100.0]*30, "Volume": [1000.0]*30, "High": [105.0]*30, "Low": [95.0]*30, "Open": [100.0]*30, "sector_vol": [15.0]*30}, index=dates)
@@ -179,37 +153,30 @@ def test_run_backtest_metrics_tracking(mock_orchestrator: Tuple[Orchestrator, Ma
     # Simulate a sequence of events
     mock_signal_engine.generate_signal.side_effect = [
         Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1), # 1. Rejected by guard
-        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1), # 2. Rejected by LLM
-        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1), # 3. Executed
-        *([None] * 27) # No more signals
+        Signal(entry_price=100, stop_loss=90, exit_target_days=10, frames_aligned=[], sector_vol=0.1), # 2. Executed
+        *([None] * 28) # No more signals
     ]
     mock_validation_service.validate.side_effect = [
         ValidationScores(liquidity_score=0.4, regime_score=0.9, stat_score=0.8), # Rejected (liquidity is lowest)
         ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9), # Passes
-        ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9), # Passes
     ]
-    mock_llm_audit_service.get_confidence_score.side_effect = [
-        0.4, # Rejected
-        0.9, # Passes
-    ]
-    mock_llm_audit_service.get_confidence_score.return_value = 0.9
 
     with patch.object(orchestrator, '_pre_calculate_historical_performance', side_effect=mock_pre_calculate):
         result = orchestrator.run_backtest("TEST.NS", "2023-01-01", "2023-01-30")
 
     metrics = result["metrics"]
 
-    assert metrics.potential_signals == 3
+    assert metrics.potential_signals == 2
     assert metrics.rejections_by_guard.get("LiquidityGuard") == 1
-    assert metrics.rejections_by_llm == 1
+    assert metrics.rejections_by_llm == 0 # This should always be 0 now
     assert metrics.trades_executed == 1
     mock_execution_simulator.simulate_trade.assert_called_once()
 
-def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
+def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
     Tests the _pre_calculate_historical_performance method for point-in-time correctness.
     """
-    orchestrator, _, mock_signal_engine, mock_validation_service, _, mock_execution_simulator = mock_orchestrator
+    orchestrator, _, mock_signal_engine, mock_validation_service, mock_execution_simulator = mock_orchestrator
 
     dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=40))
     data = {
@@ -262,11 +229,11 @@ def test_pre_calculate_historical_performance(mock_orchestrator: Tuple[Orchestra
     assert result_df.loc[dates[33], "hist_sample_size"] == 2
 
 
-def test_run_backtest_fixed_profit_target_triggered(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
+def test_run_backtest_fixed_profit_target_triggered(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
     Tests that a trade is exited correctly when the fixed profit target is hit.
     """
-    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
+    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_execution_simulator = mock_orchestrator
     test_config.exit_logic.reward_risk_ratio = 1.5
 
     dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=30))
@@ -284,7 +251,6 @@ def test_run_backtest_fixed_profit_target_triggered(mock_orchestrator: Tuple[Orc
         Signal(entry_price=100, stop_loss=92, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
     ] + ([None] * 20)
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
-    mock_llm_audit_service.get_confidence_score.return_value = 0.9
 
     with patch('praxis_engine.core.orchestrator.precompute_indicators') as mock_precompute:
         def precompute_side_effect(df, config):
@@ -304,11 +270,11 @@ def test_run_backtest_fixed_profit_target_triggered(mock_orchestrator: Tuple[Orc
     assert pytest.approx(call_args['exit_price']) == 112.0
 
 
-def test_run_backtest_atr_takes_precedence_over_fixed_profit_target(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
+def test_run_backtest_atr_takes_precedence_over_fixed_profit_target(mock_orchestrator: Tuple[Orchestrator, MagicMock, MagicMock, MagicMock, MagicMock], test_config: Config) -> None:
     """
     Tests that the ATR stop-loss triggers even if the fixed profit target is also met.
     """
-    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_llm_audit_service, mock_execution_simulator = mock_orchestrator
+    orchestrator, mock_data_service, mock_signal_engine, mock_validation_service, mock_execution_simulator = mock_orchestrator
     test_config.exit_logic.reward_risk_ratio = 1.5
 
     dates = pd.to_datetime(pd.date_range(start="2023-01-01", periods=30))
@@ -327,7 +293,6 @@ def test_run_backtest_atr_takes_precedence_over_fixed_profit_target(mock_orchest
         Signal(entry_price=100, stop_loss=92, exit_target_days=10, frames_aligned=[], sector_vol=0.1)
     ] + ([None] * 20)
     mock_validation_service.validate.return_value = ValidationScores(liquidity_score=0.9, regime_score=0.9, stat_score=0.9)
-    mock_llm_audit_service.get_confidence_score.return_value = 0.9
 
     with patch('praxis_engine.core.orchestrator.precompute_indicators') as mock_precompute:
         def precompute_side_effect(df, config):
