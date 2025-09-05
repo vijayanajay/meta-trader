@@ -4,9 +4,9 @@
 ### Run Configuration & Metadata
 | Parameter | Value |
 | --- | --- |
-| Run Timestamp | 2025-09-05 17:24:27 UTC |
+| Run Timestamp | 2025-09-05 23:09:23 UTC |
 | Config File | `config.ini` |
-| Git Commit Hash | `9ecf2e2` |
+| Git Commit Hash | `092a077` |
 
 **Period:** 2018-01-01 to 2025-08-25
 **Total Trades:** 530

@@ -481,4 +481,40 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Status:** Done
 *   **Resolution:** A baseline was established by running the old implementation on 4 stocks (runtime: 5m 26s). The new, parallelized implementation was run on the same configuration, and the resulting report was identical. The new runtime was 3m 3s, confirming a significant performance improvement.
 
+---
 
+### Task 35 — Refactor Exit Logic to Target Upper Bollinger Band
+
+*   **Rationale:** (Hinton) The current exit logic implemented in Task 30 is the primary cause of the strategy's failure. It is scientifically incoherent, as it exits a mean-reversion trade at the mean itself, systematically cutting off the most profitable part of the reversion. This is proven by the backtest data, which shows the average win collapsing from a profitable 11.62% to a disastrous 3.19%. (Nadh) This task replaces the flawed logic with a simple, robust, and symmetrical exit. The entry is a bet on reversion *from* the lower band; the exit should logically target the *upper* band. This aligns the exit with the entry thesis, completes the strategy's logical loop, and does so with minimal code complexity by reusing an already calculated indicator.
+*   **Items to implement:**
+    1.  **Configuration:** In `config.ini`, within the `[exit_logic]` section, rename the `use_mean_reversion_exit` parameter to `use_symmetrical_bb_exit` and ensure it is set to `True`.
+    2.  **Models:** In `core/models.py`, update the `ExitLogicConfig` Pantic model to reflect this name change, removing `use_mean_reversion_exit` and adding `use_symmetrical_bb_exit: bool`.
+    3.  **Orchestrator Logic:** Modify the `Orchestrator._determine_exit` method in `praxis_engine/core/orchestrator.py`.
+        a. Remove the logic that targets the middle Bollinger Band (`BBM`).
+        b. Implement a new profit-taking condition that runs if `use_symmetrical_bb_exit` is true.
+        c. This condition must check if the day's `High` price has crossed *above* the pre-computed **upper** Bollinger Band (`BBU`). The column name (e.g., `BBU_15_2.0`) must be constructed dynamically from the config parameters.
+        d. If the target is hit, the `exit_price` must be the `BBU` value for that day to ensure a conservative and deterministic simulation.
+        e. The order of checks within the loop must be strictly maintained: 1. ATR Stop-Loss, 2. Symmetrical BB Profit Target, 3. Max Holding Days Timeout.
+*   **Tests to cover:**
+    *   In `tests/test_orchestrator.py`, create a new integration test with a synthetic DataFrame.
+    *   **Scenario 1:** The synthetic price series must be designed to cross the `BBU` on a specific day *before* hitting the ATR stop-loss or the `max_holding_days` timeout. Assert that the trade exits on the correct day and that the `exit_price` is the `BBU` value for that day.
+    *   **Scenario 2:** Create a second test where the price hits the ATR stop-loss *before* reaching the `BBU`, and assert that the stop-loss exit correctly takes precedence.
+*   **Time estimate:** 4 hours
+*   **Status:** To Do
+
+---
+
+### Task 36 — Add Post-Mortem for Flawed Exit Logic to Project Memory
+
+*   **Rationale:** (Hinton) A failed experiment is only a waste if nothing is learned. The catastrophic performance drop caused by the "exit at the mean" logic is a critical data point. We must document this finding to ensure this flawed hypothesis is not re-tested in the future. (Nadh) The old code and configuration represent a liability. Now that the logic is replaced, we must remove the obsolete artifacts and record the reason in `docs/memory.md`. This keeps the codebase clean and the project's institutional knowledge sharp.
+*   **Items to implement:**
+    1.  **Update `docs/tasks.md`:** Mark the original **Task 30** as `Done & Reverted`. Add a `Resolution & Learnings` section explaining that the implementation was functionally correct but strategically flawed, leading to its replacement by the logic in **Task 35**.
+    2.  **Update `docs/memory.md`:** Create a new section titled "Task 30 & 35 Learnings: The Importance of Symmetrical Exits".
+        a. Briefly describe the "exit at the mean" hypothesis from Task 30.
+        b. State clearly that the backtest **falsified** this hypothesis.
+        c. Include the key evidence: the collapse of the average win from `11.62%` to `3.19%` while the average loss remained stable, destroying the risk/reward profile.
+        d. Conclude with the primary lesson: "A strategy's exit logic must be philosophically and mathematically consistent with its entry signal's statistical premise. For mean reversion, this means allowing the reversion to complete its cycle."
+*   **Tests to cover:**
+    *   The full test suite must continue to pass after any related code cleanup, ensuring no regressions were introduced.
+*   **Time estimate:** 1 hour
+*   **Status:** To Do
