@@ -405,8 +405,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Definition of Done (DoD):**
     *   All new code is implemented, the `config.ini` is updated, and new integration tests are written and passing.
 *   **Time estimate:** 4 hours
-*   **Status:** Done
-*   **Resolution:** The mean-reversion profit target exit has been implemented in the Orchestrator. The logic correctly exits a trade when the price hits the middle Bollinger Band, and this exit is prioritized after the ATR stop-loss but before the max holding period timeout. New integration tests have been added to `tests/test_orchestrator.py` to verify this functionality and its correct precedence.
+*   **Status:** Done & Reverted
+*   **Resolution & Learnings:** The implementation was functionally correct, but the "exit at the mean" hypothesis was scientifically flawed for this strategy. Backtests showed that exiting at the mean (`BBM`) systematically cut off the most profitable part of the reversion, collapsing the average win rate and destroying the strategy's edge. The hypothesis was **conclusively falsified**. This flawed logic was replaced by the symmetrical exit logic in **Task 35**, which targets the upper Bollinger Band, allowing the reversion to complete its cycle.
 
 ---
 
@@ -500,7 +500,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   **Scenario 1:** The synthetic price series must be designed to cross the `BBU` on a specific day *before* hitting the ATR stop-loss or the `max_holding_days` timeout. Assert that the trade exits on the correct day and that the `exit_price` is the `BBU` value for that day.
     *   **Scenario 2:** Create a second test where the price hits the ATR stop-loss *before* reaching the `BBU`, and assert that the stop-loss exit correctly takes precedence.
 *   **Time estimate:** 4 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
@@ -516,5 +516,17 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
         d. Conclude with the primary lesson: "A strategy's exit logic must be philosophically and mathematically consistent with its entry signal's statistical premise. For mean reversion, this means allowing the reversion to complete its cycle."
 *   **Tests to cover:**
     *   The full test suite must continue to pass after any related code cleanup, ensuring no regressions were introduced.
+*   **Time estimate:** 1 hour
+*   **Status:** Done
+
+---
+
+### Task 37 — Verify and Update Documentation for LLM Configuration
+
+*   **Rationale:** (Nadh) The user's initial instructions specified that the PRD should be updated to reflect the use of OpenRouter, a specific API key, and the Kimi 2 model. While a manual review suggests these details are already present in `prd.md` and the system uses a `.env` file, this task serves as a final, explicit verification to ensure all documentation is perfectly aligned with the user's requirements and no details were missed. Clean documentation is a feature.
+*   **Items to implement:**
+    1.  **Verify `prd.md`:** Thoroughly re-read `docs/prd.md` to confirm it explicitly mentions `OpenRouter` and the `moonshotai/kimi-k2` model.
+    2.  **Verify `.env` Usage:** Confirm that the architecture (`docs/architecture.md`) and hard rules (`docs/HARD_RULES.md`) mandate the use of a `.env` file for API keys, and that this is the actual implementation.
+    3.  **Update if Necessary:** If any discrepancies are found, update the relevant documents to ensure they are fully aligned.
 *   **Time estimate:** 1 hour
 *   **Status:** To Do
