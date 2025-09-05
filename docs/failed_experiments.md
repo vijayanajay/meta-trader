@@ -48,3 +48,23 @@ We maintain this log to adhere to two core principles:
     *   **The Conflict:** The resulting risk/reward profile is mathematically guaranteed to fail. The average loss is now significantly larger than the average win (`-5.22%` vs. `+3.19%`). No win rate can overcome such a skewed P/L structure.
 
 *   **Lesson Learned:** The profit in a mean-reversion trade is realized by the full amplitude of the reversion cycle, not just the return *to* the mean. Exit logic must be designed to capture a significant portion of this reversion, not just its beginning. An exit must be symmetrical to the entry's premise.
+
+### Experiment (Task 35): Symmetrical Profit Target (Exit at Upper Bollinger Band)
+
+*   **Hypothesis:** A symmetrical exit that targets the opposite Bollinger Band (`BBU`) would be philosophically consistent with a mean-reversion entry from the lower band (`BBL`), allowing the system to capture the full amplitude of the reversion cycle and thereby improve profitability and risk-adjusted returns.
+
+*   **Implementation:** The `Orchestrator._determine_exit` method was modified to trigger an exit if the price crossed above the upper Bollinger Band (`BBU`) after a long entry.
+
+*   **Outcome & Evidence:** The backtest revealed a severe degradation in risk-adjusted returns compared to the baseline, even though it was an improvement over the "exit at the mean" strategy. The hypothesis was **conclusively falsified**. The change is being **reverted** as part of implementing Task 39.
+    *   **Sharpe Ratio:** Dropped from a profitable `1.20` (baseline) to a mediocre `0.87`.
+    *   **Maximum Drawdown:** Remained catastrophically high at `-65.13%`.
+    *   **The Smoking Gun (Risk/Reward Profile):**
+        *   **Average Win:** Collapsed from **`+11.62%`** (baseline) to **`+6.35%`**.
+        *   **Average Holding Period:** Halved from `37.95 days` to `18.72 days`.
+
+*   **Root Cause Analysis:** The core flaw was the use of a **non-deterministic, moving profit target**.
+    *   **The Strategy:** The entry is based on a statistical edge at a specific point in time. The risk (ATR stop-loss) is calculated and fixed at this point.
+    *   **The Exit Logic:** The upper Bollinger Band (`BBU`) is not a fixed target. It expands and contracts based on recent volatility.
+    *   **The Conflict:** This created an unpredictable and asymmetrical risk/reward profile for every trade. In periods of increasing volatility, the profit target would move *away* from the price, forcing the trade to take on more risk for a reward that was becoming harder to reach. This led to many profitable trades being stopped out by the fixed ATR stop before they could ever reach the distant, moving `BBU` target, thus crippling the average win size and failing to control drawdown.
+
+*   **Lesson Learned:** An exit target must not only be philosophically consistent with the entry but must also be **deterministic at the point of entry**. A moving, volatility-dependent target like the BBU introduces unpredictable risk and is inferior to a fixed target derived from the entry conditions. The potential reward should be a known function of the initial risk, not a variable subject to future market volatility.

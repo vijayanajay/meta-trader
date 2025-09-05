@@ -521,12 +521,52 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 
 ---
 
-### Task 37 — Verify and Update Documentation for LLM Configuration
+### Task 37 — Revert Flawed Symmetrical BB Exit Logic (Task 35)
 
-*   **Rationale:** (Nadh) The user's initial instructions specified that the PRD should be updated to reflect the use of OpenRouter, a specific API key, and the Kimi 2 model. While a manual review suggests these details are already present in `prd.md` and the system uses a `.env` file, this task serves as a final, explicit verification to ensure all documentation is perfectly aligned with the user's requirements and no details were missed. Clean documentation is a feature.
+*   **Rationale:** (Nadh) The exit logic implemented in Task 35, which targets the upper Bollinger Band, has been identified as the primary cause of the system's poor risk-adjusted returns (Sharpe 0.87, MDD -65.13%). It creates an asymmetrical risk/reward profile where the profit target is a moving, volatility-dependent variable, while the stop-loss is fixed at entry. This is an uncontrolled and unnecessarily complex system. (Hinton) The backtest data proves this hypothesis is flawed. We must revert it to establish a clean baseline before testing a more scientifically sound alternative. Prefer deletion over retaining flawed code.
 *   **Items to implement:**
-    1.  **Verify `prd.md`:** Thoroughly re-read `docs/prd.md` to confirm it explicitly mentions `OpenRouter` and the `moonshotai/kimi-k2` model.
-    2.  **Verify `.env` Usage:** Confirm that the architecture (`docs/architecture.md`) and hard rules (`docs/HARD_RULES.md`) mandate the use of a `.env` file for API keys, and that this is the actual implementation.
-    3.  **Update if Necessary:** If any discrepancies are found, update the relevant documents to ensure they are fully aligned.
+    1.  **Configuration:** In `config.ini`, delete the `use_symmetrical_bb_exit` parameter from the `[exit_logic]` section.
+    2.  **Models:** In `core/models.py`, remove the `use_symmetrical_bb_exit: bool` field from the `ExitLogicConfig` Pydantic model.
+    3.  **Orchestrator Logic:** In `praxis_engine/core/orchestrator.py`, within the `_determine_exit` method, completely remove the conditional block that checks for and implements the upper Bollinger Band profit target.
+    4.  **Tests:** In `tests/test_orchestrator.py`, delete the tests that specifically verify the BBU exit logic (`test_run_backtest_symmetrical_bb_exit_triggered` and `test_run_backtest_atr_takes_precedence_over_symmetrical_bb`).
+*   **Tests to cover:**
+    *   The full test suite must pass after these removals, ensuring no regressions were introduced.
+*   **Time estimate:** 2 hours
+*   **Status:** To Do
+
+---
+
+### Task 38 — Implement Symmetrical, Fixed Risk/Reward Profit Target
+
+*   **Rationale:** (Hinton) This task directly addresses the core flaw of an asymmetrical risk profile. By making the profit target a fixed multiple of the risk taken at entry, we create a controlled, scientifically testable exit strategy. (Nadh) This is the most pragmatic solution. It replaces a complex, unpredictable moving target with a simple, deterministic rule. It makes the system's risk management explicit and auditable for every trade. This is a re-test of the concept from the reverted Task 24, but correctly paired with the robust ATR-based stop-loss, which is a valid and necessary experiment.
+*   **Items to implement:**
+    1.  **Configuration:** In `config.ini`, add a new parameter to the `[exit_logic]` section: `reward_risk_ratio = 1.75`.
+    2.  **Models:** In `core/models.py`, add the corresponding `reward_risk_ratio: float` field to the `ExitLogicConfig` Pydantic model.
+    3.  **Orchestrator Logic:** Refactor the `Orchestrator._determine_exit` method in `core/orchestrator.py`.
+        a. After calculating the `stop_loss_price`, immediately calculate the risk: `risk_per_share = entry_price - stop_loss_price`.
+        b. Calculate the fixed profit target: `profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)`.
+        c. Inside the day-by-day forward loop, add a new condition to check if the day's `High` price has crossed the `profit_target_price`.
+        d. If the target is hit, the `exit_price` must be the `profit_target_price` itself (not the day's high) to ensure a conservative and deterministic simulation.
+        e. The order of checks within the loop must be strictly maintained: 1. ATR Stop-Loss, 2. Fixed Profit Target, 3. Max Holding Days Timeout.
+*   **Tests to cover:**
+    *   In `tests/test_orchestrator.py`, create a new integration test with a synthetic DataFrame.
+    *   **Scenario 1:** The synthetic price series must be designed to cross the calculated `profit_target_price` *before* hitting the ATR stop-loss. Assert that the trade exits on the correct day and that the `exit_price` is the `profit_target_price`.
+    *   **Scenario 2:** Create a second test where the price hits the ATR stop-loss *before* reaching the profit target, and assert that the stop-loss exit correctly takes precedence.
+*   **Time estimate:** 4 hours
+*   **Status:** To Do
+
+---
+
+### Task 39 — Add Post-Mortem for Flawed BBU Exit to Project Memory
+
+*   **Rationale:** (Hinton) A failed experiment is only a waste if the learning is not recorded. The catastrophic performance of the "exit at the upper band" logic is a critical data point that falsified a plausible-sounding hypothesis. We must document this finding to ensure this flawed approach is not re-tested. (Nadh) This is about maintaining the project's institutional knowledge and adhering to the "Don't repeat stupid mistakes" principle.
+*   **Items to implement:**
+    1.  **Update `docs/tasks.md`:** Mark **Task 35** as `Done & Reverted`. Add a `Resolution & Learnings` section explaining that the BBU target created an uncontrolled, asymmetrical risk profile and was replaced by the fixed R:R logic in **Task 39**.
+    2.  **Update `docs/failed_experiments.md`:** Create a new entry for the "Symmetrical Exit at Upper Bollinger Band" experiment.
+        a. **Hypothesis:** State the original idea: "Since the entry is at the lower band, a symmetrical exit at the upper band should capture the full reversion cycle."
+        b. **Outcome & Evidence:** State clearly that the backtest **conclusively falsified** this hypothesis. Quote the key evidence from `backtest_summary.md`: Sharpe Ratio of 0.87 and Max Drawdown of -65.13%, with an `Avg. Win` of only +6.35% compared to the baseline's +11.62%.
+        c. **Root Cause Analysis:** Explain the "moving target" problem. The BBU expands with volatility, pushing the profit target further away and creating an unfavorable risk/reward ratio, especially in volatile conditions.
+        d. **Lesson Learned:** An exit must be symmetrical to the *risk taken at entry*, not just conceptually symmetrical to the entry indicator. A fixed profit target based on the initial stop-loss distance provides a more robust and controllable risk management framework.
 *   **Time estimate:** 1 hour
 *   **Status:** To Do
+
