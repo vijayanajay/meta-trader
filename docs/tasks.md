@@ -529,10 +529,6 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Status:** Done
 *   **Resolution:** The services were moved back to the `services/` directory, all import paths were corrected, and the full test suite (`70 passed`) confirmed the change was successful. The architectural integrity of the `core` module is restored.
 
-Of course. Here is the list of tasks to implement options 2 through 5, formatted for `docs/tasks.md` and written with the specified mindset.
-
----
-
 ## Epic 12: Drawdown Diagnostics & Root Cause Analysis
 
 *Goal: (Hinton) The system's `-67.03%` maximum drawdown is not a simple statistic; it is the signature of a critical failure mode. Our objective is to move from knowing *that* it failed to understanding precisely *why* it failed. (Nadh) This is a diagnostic epic. We will not modify the core strategy. We will build simple, pragmatic tools to dissect the `trade_log.csv`—the flight recorder of our backtest—to isolate the exact trades, conditions, and reasons that led to this catastrophic capital bleed. We build the microscope first, then we perform the surgery.*
