@@ -26,6 +26,7 @@ import subprocess
 import datetime
 import sys
 import uuid
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config.ini"
@@ -133,10 +134,16 @@ def run_sensitivity_with_config(tmp_cfg_path: Path) -> Path:
     # Use: python -m praxis_engine.main sensitivity-analysis --config config.tmp.ini
     cmd = [PY_CMD, "-m", "praxis_engine.main", "sensitivity-analysis", "--config", str(tmp_cfg_path)]
     print("Running:", " ".join(cmd))
+    start = time.time()
     proc = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True)
+    duration = time.time() - start
     print(proc.stdout)
     if proc.returncode != 0:
-        print("Command failed:", proc.stderr)
+        print("Command failed:")
+        # print a short tail of stderr to avoid flooding
+        err = proc.stderr or ""
+        tail = "\n".join(err.splitlines()[-20:])
+        print(tail)
         raise SystemExit(proc.returncode)
 
     # Expected output file
@@ -202,16 +209,23 @@ def main():
             print("Failed to create baseline:", e)
             return
 
-    for param in SENSITIVITY_PARAMS:
+    # Progress bookkeeping
+    params = list(SENSITIVITY_PARAMS)
+    total = len(params)
+    completed = 0
+    times = []  # per-param durations
+
+    for idx, param in enumerate(params, start=1):
         out_diff = RESULTS_DIR / f"{param.replace('.', '_')}.diff"
         out_report = RESULTS_DIR / f"{param.replace('.', '_')}_report.md"
 
-        # If a per-param report already exists, skip running sensitivity for this param
         if out_report.exists():
-            print(f"Skipping {param} — report already exists: {out_report.name}")
+            print(f"[{idx}/{total}] Skipping {param} — report already exists: {out_report.name}")
+            completed += 1
             continue
 
-        print(f"Running sensitivity for parameter: {param}")
+        print(f"[{idx}/{total}] Starting sensitivity for parameter: {param}")
+        start_time = time.time()
 
         # Modify config: set sensitivity_analysis.parameter_to_vary to param
         cp = ConfigParser()
@@ -241,19 +255,34 @@ def main():
 
         try:
             report_path = run_sensitivity_with_config(tmp_cfg_path)
+            elapsed = time.time() - start_time
+            times.append(elapsed)
+
             if report_path:
                 # move to canonical name
                 shutil.move(str(report_path), out_report)
                 diff_text = simple_diff(baseline, out_report)
                 out_diff.write_text(diff_text, encoding="utf-8")
-                print(f"Saved report: {out_report} and diff: {out_diff}")
+                print(f"[{idx}/{total}] Completed {param} in {elapsed:.1f}s — saved report and diff")
             else:
-                print(f"No report generated for {param}")
+                print(f"[{idx}/{total}] Completed {param} in {elapsed:.1f}s — no report generated")
         except Exception as e:
-            print(f"Error running sensitivity for {param}: {e}")
+            elapsed = time.time() - start_time
+            times.append(elapsed)
+            print(f"[{idx}/{total}] Error running sensitivity for {param}: {e}")
 
         if tmp_cfg_path.exists():
             tmp_cfg_path.unlink()
+
+        completed += 1
+
+        # Progress summary and ETA
+        avg = sum(times) / len(times) if times else 0
+        remaining = total - completed
+        eta_seconds = remaining * avg
+        eta = str(datetime.timedelta(seconds=int(eta_seconds)))
+        pct = (completed / total) * 100 if total else 100
+        print(f"Progress: {completed}/{total} ({pct:.0f}%) — avg {avg:.1f}s per param — ETA: {eta}")
 
     print("All done. Results in:", RESULTS_DIR)
 
