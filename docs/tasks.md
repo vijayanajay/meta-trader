@@ -628,3 +628,125 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Assert that the final report string contains the "Maximum Drawdown Analysis" header and a table with the correct data for the drawdown trades.
 *   **Time estimate:** 2 hours
 *   **Status:** Done
+
+---
+
+## Epic 13: The Market Weather Station — An Automated Regime Meta-Model
+
+*Goal: (Hinton) To address the primary flaw of the system—its inability to recognize a market-wide trending regime—by replacing the simplistic, single-factor `RegimeGuard` with a more robust, multi-factor classification model. (Nadh) We will build this as a self-contained, automated subsystem. The backtester will now be responsible for ensuring the regime model is trained and available before execution, removing the need for manual intervention or configuration flags. The system becomes self-sufficient.*
+
+---
+
+### Task 49 — Create a Market-Wide Data Service
+
+*   **Rationale:** (Nadh) The meta-model needs market-wide data, not per-stock data. This is a fundamentally different concern from the existing `DataService`. The first, simplest step is to create a new, dedicated service to fetch and cache this data. This adheres to the Single Responsibility Principle and `[H-12]`.
+*   **Items to implement:**
+    1.  **Create New Service:** Create a new file: `praxis_engine/services/market_data_service.py`.
+    2.  **Implement Fetch Logic:** Inside a `MarketDataService` class, create a method `get_market_data(tickers: List[str], start: str, end: str)`. This method will use `yfinance` to download data for market indices like `^NSEI` (Nifty 50) and `^INDIAVIX` (India VIX).
+    3.  **Implement Caching:** Add Parquet-based caching logic, identical to the existing `DataService`, to avoid re-fetching data on every run.
+    4.  **Configuration:** Add a new `[market_data]` section to `config.ini` to specify the index and VIX tickers, and the date range for training data (e.g., `training_start_date = "2010-01-01"`).
+*   **Tests to cover:**
+    *   Create a new test file: `tests/test_market_data_service.py`.
+    *   Write a unit test that mocks `yfinance.download` and verifies that the service correctly fetches, caches, and loads data from the cache.
+*   **Time estimate:** 3 hours
+*   **Status:** To Do
+
+---
+
+### Task 50 — Implement Feature Engineering for Market Regime
+
+*   **Rationale:** (Hinton) Raw market data is not what the model learns from; it learns from engineered features that represent the state of the market. This logic must be pure, deterministic, and testable. (Nadh) We will place this pure logic in the `core/` directory, completely separate from the I/O-bound services.
+*   **Items to implement:**
+    1.  **Create New Module:** Create a new file: `praxis_engine/core/features.py`.
+    2.  **Implement Feature Functions:** Create a function `calculate_market_features(market_data: Dict[str, pd.DataFrame]) -> pd.DataFrame`. This function will take the raw data from `MarketDataService` and compute features such as:
+        *   `nifty_vs_200ma`: The ratio of the Nifty 50 closing price to its 200-day simple moving average.
+        *   `vix_level`: The raw value of the India VIX.
+        *   `vix_roc_10d`: The 10-day rate-of-change of the VIX.
+    3.  The function must return a single, date-indexed DataFrame containing all the calculated features.
+*   **Tests to cover:**
+    *   Create a new test file: `tests/test_features.py`.
+    *   Write unit tests for `calculate_market_features` with a sample input DataFrame and assert that the output features are calculated correctly.
+*   **Time estimate:** 2 hours
+*   **Status:** To Do
+
+---
+
+### Task 51 — Refactor Model Training Logic into a Reusable Function
+
+*   **Rationale:** (Nadh) The training logic must be isolated but also callable from our main application. We will refactor the standalone script into a module with a primary, importable function. This keeps the core engine lean while allowing the CLI to orchestrate the training process when necessary.
+*   **Items to implement:**
+    1.  **Add Dependency:** Add `scikit-learn` and `joblib` to `requirements.txt`.
+    2.  **Create/Refactor Script:** Create `scripts/train_regime_model.py`.
+    3.  **Implement `train_and_save_model` function:**
+        *   Define a function `train_and_save_model(config: Config) -> bool`.
+        *   Inside this function, place all the logic for data loading (`MarketDataService`), feature engineering (`calculate_market_features`), and defining the target variable (`y`).
+        *   Train a simple `LogisticRegression` model.
+        *   Save the trained model to a predictable path defined in the config (e.g., `results/regime_model.pkl`).
+        *   The function should return `True` on success and `False` on failure.
+    4.  **Add CLI Entry Point:** In the same script, add an `if __name__ == "__main__":` block that loads the config and calls `train_and_save_model`. This allows the script to be run manually for debugging or retraining.
+*   **Tests to cover:**
+    *   This is primarily tested by its integration in the following tasks. The manual run capability serves as a functional test.
+*   **Time estimate:** 4 hours
+*   **Status:** To Do
+
+---
+
+### Task 52 — Implement a Resilient, Fallback-Aware Regime Model Service
+
+*   **Rationale:** (Nadh) The backtester must not crash if the model file is missing. The service responsible for using the model must be robust. It should attempt to load the model, and if it fails, it must log a clear warning and fall back to a neutral, non-blocking behavior.
+*   **Items to implement:**
+    1.  **Create New Service:** Create `praxis_engine/services/regime_model_service.py`.
+    2.  **Implement Resilient `__init__`:**
+        *   The `__init__` method will take the model path from the config.
+        *   It will use a `try...except FileNotFoundError` block to load the model with `joblib.load`.
+        *   If the file is found, it stores the model in `self.model`.
+        *   If the file is **not** found, it sets `self.model = None` and logs a clear `log.warning`.
+    3.  **Implement `predict_proba`:**
+        *   The method will check `if self.model is None`.
+        *   If the model is missing, it will return a neutral probability of `1.0` (indicating a "good regime"), ensuring it doesn't block any trades. This makes the model an optional enhancement rather than a hard dependency.
+        *   If the model exists, it will use `self.model.predict_proba()` and return the probability of the "good regime" class.
+*   **Tests to cover:**
+    *   Create `tests/test_regime_model_service.py`.
+    *   Test the service's behavior when the model file *does not* exist. Assert that `self.model` is `None` and that `predict_proba` returns `1.0`.
+    *   Test the service's behavior when a dummy model file *does* exist. Assert that `predict_proba` calls the mock model's method.
+*   **Time estimate:** 3 hours
+*   **Status:** To Do
+
+---
+
+### Task 53 — Automate the "Train-if-Needed" Workflow in the CLI
+
+*   **Rationale:** (Nadh) This is the core of the automation. The `backtest` command itself will now be responsible for ensuring the model exists before starting the parallel workers. This logic belongs in the main process, at the highest level of orchestration, to ensure it runs only once.
+*   **Items to implement:**
+    1.  **Modify `main.py`:** In the `backtest` command function in `praxis_engine/main.py`.
+    2.  **Add Model Path:** Define the expected path to the model file (e.g., `model_path = Path("results/regime_model.pkl")`).
+    3.  **Implement Check-and-Train Logic:**
+        *   **Before** the `multiprocessing.Pool` is created, add the check: `if not model_path.exists():`.
+        *   If the model is missing, `log.info("Regime model not found. Attempting to train a new one...")`.
+        *   Import the training function: `from scripts.train_regime_model import train_and_save_model`.
+        *   Call the function: `success = train_and_save_model(config)`.
+        *   If `success` is `False`, log a critical error and exit gracefully, as the backtest cannot proceed as intended without a model if one was expected.
+    4.  **Configuration:** Remove the `use_regime_model` flag from `config.ini`. The presence of the model file now implicitly controls the behavior.
+*   **Tests to cover:**
+    *   This is an integration test. In `tests/test_workers.py` (or a new CLI test file), create a test for the `backtest` command.
+    *   Mock `Path.exists` to return `False`.
+    *   Patch `scripts.train_regime_model.train_and_save_model`.
+    *   Run the CLI command and assert that the `train_and_save_model` function was called.
+*   **Time estimate:** 2 hours
+*   **Status:** To Do
+
+---
+
+### Task 54 — Integrate the New Regime Model and Validate Performance
+
+*   **Rationale:** (Hinton) The system is now fully integrated. The final step is to run a rigorous backtest to scientifically validate whether this new, automated subsystem has solved the core problem of catastrophic drawdowns.
+*   **Items to implement:**
+    1.  **Refactor `RegimeGuard`:** The guard must now be instantiated with the `RegimeModelService` and use it to get its score. The old `sector_vol` logic should be removed or kept as a fallback if the model service returns a neutral score.
+    2.  **Run Full Backtest:** Execute the `backtest` command. This will trigger the automatic training (if the model file is deleted first) and then run the full backtest using the newly trained model.
+    3.  **Analyze Results:** Compare the new `backtest_summary.md` against the baseline. The primary success metric is a significant reduction in Maximum Drawdown, especially during the 2020 period.
+    4.  **Document:** Update `docs/architecture.md` to reflect the new services and the automated training flow. Write a post-mortem in `docs/memory.md` or `failed_experiments.md` detailing the outcome of this epic.
+*   **Acceptance Criteria (AC):**
+    *   Running `python run.py backtest` with no `regime_model.pkl` present successfully trains and saves a model before executing the backtest.
+    *   The Maximum Drawdown in the final report is significantly reduced compared to the baseline.
+*   **Time estimate:** 2 hours
+*   **Status:** To Do
