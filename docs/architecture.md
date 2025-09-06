@@ -58,7 +58,7 @@ The `praxis_engine` package is organized as follows:
         -   `validation_service.py`: Applies the guardrail logic (Liquidity, Regime, Stat) to a signal.
         -   `execution_simulator.py`: Simulates a trade, applying a realistic cost model (slippage, brokerage, STT).
         -   `report_generator.py`: Generates all user-facing Markdown reports from the backtest results.
-        -   `llm_audit_service.py`: (If used) Handles communication with the external LLM API.
+        -   `llm_audit_service.py`: Handles communication with the external LLM API (OpenRouter) to get a final confidence score from the configured model (e.g., Kimi 2). Uses an API key from a `.env` file.
     -   `utils.py`: Contains small, stateless helper functions used across the codebase.
 
 ---

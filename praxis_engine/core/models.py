@@ -198,11 +198,19 @@ class DrawdownPeriod(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
+class MarketDataConfig(BaseModel):
+    index_ticker: str
+    vix_ticker: str
+    training_start_date: str
+    cache_dir: str
+
+
 class Config(BaseModel):
     """
     Top-level configuration model.
     """
     data: DataConfig
+    market_data: MarketDataConfig
     strategy_params: StrategyParamsConfig
     filters: FiltersConfig
     scoring: ScoringConfig
