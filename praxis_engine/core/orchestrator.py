@@ -22,10 +22,10 @@ from praxis_engine.core.models import (
     Signal,
     ValidationScores,
 )
-from praxis_engine.core.data_service import DataService
+from praxis_engine.services.data_service import DataService
 from praxis_engine.services.signal_engine import SignalEngine
 from praxis_engine.services.validation_service import ValidationService
-from praxis_engine.core.execution_simulator import ExecutionSimulator
+from praxis_engine.services.execution_simulator import ExecutionSimulator
 from praxis_engine.core.logger import get_logger
 from praxis_engine.utils import get_nested_attr, set_nested_attr
 

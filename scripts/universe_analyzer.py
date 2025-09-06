@@ -9,7 +9,7 @@ import sys
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from praxis_engine.core.statistics import hurst_exponent
-from praxis_engine.core.data_service import DataService
+from praxis_engine.services.data_service import DataService
 from praxis_engine.services.config_service import ConfigService
 from praxis_engine.core.logger import setup_file_logger
 

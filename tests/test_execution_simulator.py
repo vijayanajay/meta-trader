@@ -3,7 +3,7 @@ import pytest
 import math
 from unittest.mock import patch
 from praxis_engine.core.models import CostModelConfig, Signal, Trade
-from praxis_engine.core.execution_simulator import ExecutionSimulator
+from praxis_engine.services.execution_simulator import ExecutionSimulator
 
 @pytest.fixture
 def cost_model_config() -> CostModelConfig:
