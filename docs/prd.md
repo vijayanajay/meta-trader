@@ -48,7 +48,10 @@ Praxis is built for the discerning quantitative analyst who understands that in 
 -   **FR5: LLM-Powered Statistical Audit:** For signals that pass all prior filters, the system must query the Kimi 2 model (`moonshotai/kimi-k2`) via the OpenRouter API. The API key must be loaded from a `.env` file. The query will contain only aggregated statistical data from the strategy's historical performance on that stock, not price data. The LLM's role is to provide a final confidence score (0-1) based on this statistical summary.
 -   **FR6: Cost-Aware Execution & Sizing Logic:** The system must calculate trade parameters (entry, stop-loss, position size) based on the signal and a strict risk management model (e.g., risk 0.5% of capital per trade). All calculations must bake in estimated costs.
 -   **FR7: Rigorous Backtesting Framework:** A walk-forward backtesting engine must be built. This engine must simulate trade execution using the full logic chain (FR1-FR6) and apply a realistic cost model including brokerage (e.g., Zerodha's ₹20/trade model), Securities Transaction Tax (STT), and volume-based slippage.
--   **FR8: Weekly Opportunity Report Generation:** The system must produce a clear, tabular report of all valid, high-confidence trading opportunities for the upcoming week, including all relevant parameters and statistical justifications.
+-   **FR8: Backtest and Opportunity Reporting:** The system must produce two key artifacts:
+    -   A detailed, machine-readable `trade_log.csv` file, containing comprehensive data for every simulated trade, including entry/exit conditions and all relevant scores. This log is the primary dataset for analysis.
+    -   A human-readable `backtest_summary.md` report that summarizes the backtest's performance with KPIs, funnel analysis, and trade distribution charts.
+    -   A weekly `opportunities.md` report showing new, high-confidence trading opportunities.
 
 ### Non-Functional Requirements (NFRs)
 

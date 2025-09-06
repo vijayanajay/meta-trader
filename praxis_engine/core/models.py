@@ -187,6 +187,17 @@ class BacktestSummary(BaseModel):
     net_return_pct_std: float
 
 
+class DrawdownPeriod(BaseModel):
+    start_date: pd.Timestamp
+    end_date: pd.Timestamp
+    peak_value: float
+    trough_value: float
+    max_drawdown_pct: float
+    trade_indices: List[int]
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
 class Config(BaseModel):
     """
     Top-level configuration model.
