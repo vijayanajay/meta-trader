@@ -649,7 +649,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Create a new test file: `tests/test_market_data_service.py`.
     *   Write a unit test that mocks `yfinance.download` and verifies that the service correctly fetches, caches, and loads data from the cache.
 *   **Time estimate:** 3 hours
-*   **Status:** To Do
+*   **Status:** Done
+*   **Resolution:** A new `MarketDataService` was created in `praxis_engine/services/` to handle fetching and caching of market-wide data like indices. This service mirrors the caching logic of the existing `DataService` and is fully unit-tested. The configuration for this service was added to `config.ini` and the Pydantic models.
 
 ---
 

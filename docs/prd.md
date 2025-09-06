@@ -37,6 +37,7 @@ Praxis is built for the discerning quantitative analyst who understands that in 
 ### Functional Requirements (High-Level)
 
 -   **FR1: Indian Market Data Pipeline:** The system must fetch and process daily OHLCV data for NSE stocks using `yfinance` as the primary source. It must also fetch corresponding Nifty sectoral index data to calculate sector volatility. The pipeline must handle data errors, adjust for Indian market holidays, and persist the data for analysis.
+-   **FR1.1: Market-Wide Data Pipeline:** The system must be able to fetch and cache market-wide data, such as for the Nifty 50 (`^NSEI`) and India VIX (`^INDIAVIX`) indices, which are essential for building a market regime meta-model.
 -   **FR2: Multi-Frame Signal Generation:** The system must calculate technical indicators (Bollinger Bands, RSI) on three distinct time frames (Daily, Weekly, Monthly) from the daily data. It must generate a preliminary signal only when a specific alignment of these indicators occurs across frames, as defined in the `project_brief.md`.
 -   **FR3: Statistical Guardrail Validation:** Every preliminary signal must be subjected to a battery of statistical tests:
     -   **Mean-Reversion Test:** Augmented Dickey-Fuller (ADF) test to confirm the statistical property of mean-reversion in the stock's recent price action.
