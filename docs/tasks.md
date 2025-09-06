@@ -676,3 +676,15 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 | `config_bb_length` | integer | The `bb_length` from `config.ini` for this run. | Makes the log self-contained for future analysis. |
 | `config_rsi_length` | integer | The `rsi_length` from `config.ini` for this run. | Makes the log self-contained for future analysis. |
 | `config_atr_multiplier` | float | The `atr_stop_loss_multiplier` from `config.ini`. | Makes the log self-contained for future analysis. |
+
+---
+
+### Task 44 — Restore Architectural Purity by Reverting Flawed Service Move
+
+*   **Rationale:** (Nadh/Hinton) A previous refactoring in **Task 38** moved I/O-bound services (`DataService`, `ExecutionSimulator`) into the pure `core/` directory. This was a critical architectural error that directly violated the non-negotiable hard rule `[H-12]`, which mandates that all I/O be confined to `services/`. This task reverts that change to restore the strict separation of concerns, ensuring the core engine remains pure, offline-testable, and aligned with the project's foundational principles.
+*   **Items to implement:**
+    1.  **Move Files:** Move `data_service.py` and `execution_simulator.py` from `praxis_engine/core/` back to `praxis_engine/services/`.
+    2.  **Update Imports:** Update all import statements across the codebase that referenced the incorrect locations.
+    3.  **Verify:** Run the full test suite to ensure the refactoring did not introduce any regressions.
+*   **Status:** Done
+*   **Resolution:** The services were moved back to the `services/` directory, all import paths were corrected, and the full test suite (`70 passed`) confirmed the change was successful. The architectural integrity of the `core` module is restored.

@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
-from praxis_engine.core.data_service import DataService
+from praxis_engine.services.data_service import DataService
 
 
 @pytest.fixture
