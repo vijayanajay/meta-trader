@@ -83,6 +83,7 @@ class ExecutionSimulator:
 
     def simulate_trade(
         self,
+        *,
         stock: str,
         entry_price: float,
         exit_price: float,
@@ -91,6 +92,17 @@ class ExecutionSimulator:
         signal: Signal,
         confidence_score: float,
         entry_volume: float,
+        exit_reason: str,
+        liquidity_score: float,
+        regime_score: float,
+        stat_score: float,
+        composite_score: float,
+        entry_hurst: float,
+        entry_adf_p_value: float,
+        entry_sector_vol: float,
+        config_bb_length: int,
+        config_rsi_length: int,
+        config_atr_multiplier: float,
     ) -> Optional[Trade]:
         """
         Simulates a single trade based on known entry and exit points.
@@ -119,7 +131,10 @@ class ExecutionSimulator:
 
         net_return_pct = (final_exit_price / final_entry_price) - 1.0
 
-        log.info(f"Trade for {stock} on {entry_date}: Entry={entry_price:.2f}, Exit={exit_price:.2f}, Slippage={entry_slippage:.2f}, Net Return={net_return_pct:.2%}")
+        log.info(
+            f"Trade for {stock} on {entry_date.date()}: Entry={entry_price:.2f}, Exit={exit_price:.2f}, "
+            f"Reason: {exit_reason}, Net Return={net_return_pct:.2%}"
+        )
 
         return Trade(
             stock=stock,
@@ -130,4 +145,15 @@ class ExecutionSimulator:
             net_return_pct=net_return_pct,
             confidence_score=confidence_score,
             signal=signal,
+            exit_reason=exit_reason,
+            liquidity_score=liquidity_score,
+            regime_score=regime_score,
+            stat_score=stat_score,
+            composite_score=composite_score,
+            entry_hurst=entry_hurst,
+            entry_adf_p_value=entry_adf_p_value,
+            entry_sector_vol=entry_sector_vol,
+            config_bb_length=config_bb_length,
+            config_rsi_length=config_rsi_length,
+            config_atr_multiplier=config_atr_multiplier,
         )

@@ -90,7 +90,14 @@ class Orchestrator:
                 continue
 
             # LLM audit is removed from the core pipeline. A default confidence of 1.0 is passed.
-            trade = self._simulate_trade_from_signal(full_df, current_index, signal, stock, 1.0)
+            trade = self._simulate_trade_from_signal(
+                df=full_df,
+                signal_index=current_index,
+                signal=signal,
+                stock=stock,
+                confidence=1.0,
+                scores=scores,
+            )
             if trade:
                 trades.append(trade)
                 metrics.trades_executed += 1
@@ -108,17 +115,39 @@ class Orchestrator:
         scores = self.validation_service.validate(df, index, signal)
         return signal, scores
 
-    def _simulate_trade_from_signal(self, df: pd.DataFrame, signal_index: int, signal: Signal, stock: str, confidence: float) -> Optional[Trade]:
+    def _simulate_trade_from_signal(
+        self,
+        *,
+        df: pd.DataFrame,
+        signal_index: int,
+        signal: Signal,
+        stock: str,
+        confidence: float,
+        scores: ValidationScores,
+    ) -> Optional[Trade]:
         """Determines exit and simulates a single trade from a validated signal."""
         entry_index = signal_index + 1
         entry_price = df.iloc[entry_index]["Open"]
         entry_volume = df.iloc[entry_index]["Volume"]
         entry_date = df.index[entry_index]
 
-        exit_date, exit_price = self._determine_exit(entry_index, entry_price, df, df.iloc[0:entry_index])
+        exit_date, exit_price, exit_reason = self._determine_exit(
+            entry_index, entry_price, df, df.iloc[0:entry_index]
+        )
 
         if exit_date is None or exit_price is None:
             return None
+
+        # --- Gather all data for the enriched Trade object ---
+        strat_params = self.config.strategy_params
+        exit_logic = self.config.exit_logic
+
+        hurst_col = f"hurst_{strat_params.hurst_length}"
+        adf_col = "adf_p_value"
+
+        signal_row = df.iloc[signal_index]
+        entry_hurst = signal_row.get(hurst_col, np.nan)
+        entry_adf_p_value = signal_row.get(adf_col, np.nan)
 
         return self.execution_simulator.simulate_trade(
             stock=stock,
@@ -128,19 +157,36 @@ class Orchestrator:
             exit_date=exit_date,
             signal=signal,
             confidence_score=confidence,
-            entry_volume=entry_volume
+            entry_volume=entry_volume,
+            exit_reason=exit_reason,
+            liquidity_score=scores.liquidity_score,
+            regime_score=scores.regime_score,
+            stat_score=scores.stat_score,
+            composite_score=scores.composite_score,
+            entry_hurst=entry_hurst,
+            entry_adf_p_value=entry_adf_p_value,
+            entry_sector_vol=signal.sector_vol,
+            config_bb_length=strat_params.bb_length,
+            config_rsi_length=strat_params.rsi_length,
+            config_atr_multiplier=exit_logic.atr_stop_loss_multiplier,
         )
 
-    def _determine_exit(self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame) -> Tuple[Optional[pd.Timestamp], Optional[float]]:
+    def _determine_exit(
+        self, entry_index: int, entry_price: float, full_df: pd.DataFrame, window_df: pd.DataFrame
+    ) -> Tuple[Optional[pd.Timestamp], Optional[float], str]:
         """
         Determines the exit date and price for a trade based on a hierarchy of exit conditions.
+        Returns the exit date, exit price, and the reason for the exit.
         """
         exit_logic = self.config.exit_logic
-        strat_params = self.config.strategy_params
 
-        # 1. ATR Stop-Loss
+        # 1. ATR Stop-Loss and Profit Target
         atr_col_name = f"ATR_{exit_logic.atr_period}"
-        use_atr = exit_logic.use_atr_exit and atr_col_name in window_df.columns and not pd.isna(window_df.iloc[-1][atr_col_name])
+        use_atr = (
+            exit_logic.use_atr_exit
+            and atr_col_name in window_df.columns
+            and not pd.isna(window_df.iloc[-1][atr_col_name])
+        )
         stop_loss_price = None
         profit_target_price = None
 
@@ -148,7 +194,9 @@ class Orchestrator:
             atr_at_signal = window_df.iloc[-1][atr_col_name]
             stop_loss_price = entry_price - (atr_at_signal * exit_logic.atr_stop_loss_multiplier)
             risk_per_share = entry_price - stop_loss_price
-            profit_target_price = entry_price + (risk_per_share * exit_logic.reward_risk_ratio)
+            profit_target_price = entry_price + (
+                risk_per_share * exit_logic.reward_risk_ratio
+            )
 
         max_hold = exit_logic.max_holding_days
         for j in range(entry_index + 1, min(entry_index + 1 + max_hold, len(full_df))):
@@ -157,17 +205,19 @@ class Orchestrator:
             # Priority 1: Check for ATR Stop-Loss
             if stop_loss_price and current_day["Low"] <= stop_loss_price:
                 log.debug(f"ATR stop-loss triggered on {current_day.name.date()}")
-                return current_day.name, stop_loss_price
+                return current_day.name, stop_loss_price, "ATR_STOP_LOSS"
 
             # Priority 2: Check for Fixed Profit Target
             if profit_target_price and current_day["High"] >= profit_target_price:
                 log.debug(f"Fixed profit target hit on {current_day.name.date()}")
-                return current_day.name, profit_target_price
+                return current_day.name, profit_target_price, "PROFIT_TARGET"
 
         # Priority 3: Max Holding Period Timeout
         timeout_index = min(entry_index + max_hold, len(full_df) - 1)
-        log.debug(f"Max hold period triggered on {full_df.index[timeout_index].date()}")
-        return full_df.index[timeout_index], full_df.iloc[timeout_index]["Close"]
+        exit_date = full_df.index[timeout_index]
+        exit_price = full_df.iloc[timeout_index]["Close"]
+        log.debug(f"Max hold period triggered on {exit_date.date()}")
+        return exit_date, exit_price, "MAX_HOLD_TIMEOUT"
 
     def _calculate_stats_from_returns(self, returns: List[float]) -> Dict[str, float | int]:
         """Calculates performance statistics from a list of returns."""
@@ -221,7 +271,14 @@ class Orchestrator:
                 if validated_signal:
                     signal, scores = validated_signal
                     if scores.composite_score >= self.config.llm.min_composite_score_for_llm:
-                        trade = self._simulate_trade_from_signal(df, i, signal, "HISTORICAL", 1.0)
+                        trade = self._simulate_trade_from_signal(
+                            df=df,
+                            signal_index=i,
+                            signal=signal,
+                            stock="HISTORICAL",
+                            confidence=1.0,
+                            scores=scores,
+                        )
                         if trade:
                             trades_in_flight.append(trade)
         return df

@@ -18,22 +18,23 @@ class ReportGenerator:
 
     def generate_backtest_report(
         self,
-        trades: List[Trade],
+        trades_df: pd.DataFrame,
         metrics: BacktestMetrics,
         start_date: str,
         end_date: str,
         metadata: Optional[RunMetadata] = None,
     ) -> str:
         """
-        Generates a summary report from a list of trades.
+        Generates a summary report from a DataFrame of trades.
         """
-        if not trades:
+        if trades_df.empty:
             return "## Backtest Report\n\nNo trades were executed."
 
-        kpis = self._calculate_kpis(trades, start_date, end_date)
+        kpis = self._calculate_kpis(trades_df, start_date, end_date)
         funnel_table = self._generate_filtering_funnel_table(metrics)
-        rejection_table = self._generate_rejection_analysis_table(metrics.rejections_by_guard)
-
+        rejection_table = self._generate_rejection_analysis_table(
+            metrics.rejections_by_guard
+        )
 
         metadata_section = ""
         if metadata:
@@ -46,15 +47,14 @@ class ReportGenerator:
 | Git Commit Hash | `{metadata.git_commit_hash}` |
 """
 
-        trade_returns_pct = [t.net_return_pct for t in trades]
+        trade_returns_pct = trades_df["net_return_pct"].tolist()
         histogram = generate_ascii_histogram([r * 100 for r in trade_returns_pct])
-
 
         report = f"""
 ## Backtest Report
 {metadata_section}
 **Period:** {start_date} to {end_date}
-**Total Trades:** {len(trades)}
+**Total Trades:** {len(trades_df)}
 
 {funnel_table}
 {rejection_table}
@@ -87,58 +87,53 @@ class ReportGenerator:
 """
         return report
 
-    def _calculate_kpis(self, trades: List[Trade], start_date: str, end_date: str) -> dict[str, float]:
+    def _calculate_kpis(
+        self, trades_df: pd.DataFrame, start_date: str, end_date: str
+    ) -> dict[str, float]:
         """
-        Calculates the key performance indicators for the backtest.
+        Calculates KPIs from a DataFrame of trades using vectorized operations.
         """
-        returns_pct = [trade.net_return_pct for trade in trades]
+        if trades_df.empty:
+            return {k: 0.0 for k in [
+                "net_annualized_return", "sharpe_ratio", "profit_factor",
+                "max_drawdown", "win_rate", "avg_holding_period_days",
+                "avg_win_pct", "avg_loss_pct", "best_trade_pct",
+                "worst_trade_pct", "skewness", "kurtosis"
+            ]}
 
-        # Profit Factor & Win Rate
-        wins = [r for r in returns_pct if r > 0]
-        losses = [r for r in returns_pct if r < 0]
+        returns_pct = trades_df["net_return_pct"]
+        wins = returns_pct[returns_pct > 0]
+        losses = returns_pct[returns_pct < 0]
 
-        profit_factor = sum(wins) / abs(sum(losses)) if losses else float('inf')
-        win_rate = len(wins) / len(trades) if trades else 0
+        total_profit = wins.sum()
+        total_loss = losses.abs().sum()
 
-        # Create a daily equity series to calculate portfolio-level stats
-        trade_dates = [trade.exit_date for trade in trades]
-        trade_returns = pd.Series(returns_pct, index=trade_dates)
+        profit_factor = total_profit / total_loss if total_loss > 0 else float("inf")
+        win_rate = len(wins) / len(trades_df) if not trades_df.empty else 0
 
-        # Create a full date range for the backtest period
-        full_date_range = pd.to_datetime(pd.date_range(start=start_date, end=end_date))
-
-        # Create a daily portfolio return series
-        daily_returns = pd.Series(0.0, index=full_date_range, dtype="float64")
-        # This is a simplification. A real implementation would allocate capital.
-        # For now, we assume each trade uses an equal portion of capital,
-        # so the daily return is the average of returns on that day.
-        daily_returns.update(trade_returns.groupby(trade_returns.index).mean())
+        # Create a daily equity series
+        trades_df["exit_date"] = pd.to_datetime(trades_df["exit_date"])
+        daily_returns = (
+            trades_df.groupby(trades_df["exit_date"].dt.date)["net_return_pct"]
+            .mean()
+            .reindex(pd.date_range(start=start_date, end=end_date, freq="D"), fill_value=0.0)
+        )
 
         equity_curve = (1 + daily_returns).cumprod()
-
-        # Net Annualized Return
-        total_days = (equity_curve.index[-1] - equity_curve.index[0]).days
-        total_return = equity_curve.iloc[-1] - 1
-        annualized_return = (1 + total_return) ** (365.25 / total_days) - 1 if total_days > 0 else 0
-
-        # Sharpe Ratio
-        sharpe_ratio = (daily_returns.mean() / daily_returns.std()) * np.sqrt(252) if daily_returns.std() != 0 else 0
-
-        # Max Drawdown
         running_max = equity_curve.cummax()
         drawdown = (equity_curve - running_max) / running_max
         max_drawdown = drawdown.min()
 
-        # Trade distribution stats
-        holding_periods = [(trade.exit_date - trade.entry_date).days for trade in trades]
-        avg_holding_period = np.mean(holding_periods) if holding_periods else 0
-        avg_win_pct = np.mean(wins) if wins else 0
-        avg_loss_pct = np.mean(losses) if losses else 0
-        best_trade_pct = max(returns_pct) if returns_pct else 0
-        worst_trade_pct = min(returns_pct) if returns_pct else 0
-        skewness = pd.Series(returns_pct).skew() if returns_pct else 0
-        kurtosis = pd.Series(returns_pct).kurt() if returns_pct else 0
-
+        total_days = (equity_curve.index[-1] - equity_curve.index[0]).days
+        total_return = equity_curve.iloc[-1] - 1
+        annualized_return = (
+            ((1 + total_return) ** (365.25 / total_days) - 1) if total_days > 0 else 0
+        )
+        sharpe_ratio = (
+            (daily_returns.mean() / daily_returns.std()) * np.sqrt(252)
+            if daily_returns.std() != 0
+            else 0
+        )
 
         return {
             "net_annualized_return": float(annualized_return),
@@ -146,13 +141,13 @@ class ReportGenerator:
             "profit_factor": float(profit_factor),
             "max_drawdown": float(max_drawdown),
             "win_rate": float(win_rate),
-            "avg_holding_period_days": float(avg_holding_period),
-            "avg_win_pct": float(avg_win_pct),
-            "avg_loss_pct": float(avg_loss_pct),
-            "best_trade_pct": float(best_trade_pct),
-            "worst_trade_pct": float(worst_trade_pct),
-            "skewness": float(skewness),
-            "kurtosis": float(kurtosis),
+            "avg_holding_period_days": float(trades_df["holding_period_days"].mean()),
+            "avg_win_pct": float(wins.mean()),
+            "avg_loss_pct": float(losses.mean()),
+            "best_trade_pct": float(returns_pct.max()),
+            "worst_trade_pct": float(returns_pct.min()),
+            "skewness": float(returns_pct.skew()),
+            "kurtosis": float(returns_pct.kurt()),
         }
 
     def _generate_filtering_funnel_table(self, metrics: BacktestMetrics) -> str:
@@ -165,8 +160,12 @@ class ReportGenerator:
             return "### Filtering Funnel\n\nNo potential signals were generated."
 
         pct_survived_guards = (survived_guards / metrics.potential_signals) * 100
-        pct_survived_llm = (survived_llm / survived_guards) * 100 if survived_guards > 0 else 0
-        pct_executed = (metrics.trades_executed / survived_llm) * 100 if survived_llm > 0 else 0
+        pct_survived_llm = (
+            (survived_llm / survived_guards) * 100 if survived_guards > 0 else 0
+        )
+        pct_executed = (
+            (metrics.trades_executed / survived_llm) * 100 if survived_llm > 0 else 0
+        )
 
         table = f"""
 ### Filtering Funnel
@@ -189,7 +188,9 @@ class ReportGenerator:
         separator = "| --- | --- | --- |\n"
         rows = [
             f"| {guard} | {count} | {(count / total_rejections) * 100:.2f}% |"
-            for guard, count in sorted(rejections.items(), key=lambda item: item[1], reverse=True)
+            for guard, count in sorted(
+                rejections.items(), key=lambda item: item[1], reverse=True
+            )
         ]
 
         table = f"""
@@ -198,9 +199,7 @@ class ReportGenerator:
 """
         return table
 
-    def generate_opportunities_report(
-        self, opportunities: List[Opportunity]
-    ) -> str:
+    def generate_opportunities_report(self, opportunities: List[Opportunity]) -> str:
         """
         Generates a markdown report for new trading opportunities.
         """
@@ -215,16 +214,13 @@ class ReportGenerator:
         ]
 
         return (
-            "## Weekly Opportunities Report\n\n"
-            + header
-            + separator
-            + "\n".join(rows)
+            "## Weekly Opportunities Report\n\n" + header + separator + "\n".join(rows)
         )
 
     def generate_per_stock_report(
         self,
         per_stock_metrics: Dict[str, BacktestMetrics],
-        per_stock_trades: Dict[str, List[Trade]],
+        per_stock_trades: Dict[str, List[Dict]],
     ) -> str:
         """
         Generates a markdown report for the per-stock performance breakdown.
@@ -232,27 +228,20 @@ class ReportGenerator:
         if not per_stock_metrics:
             return "### Per-Stock Performance Breakdown\n\nNo per-stock data available."
 
-        # Show compounded total return per stock (not mean per-trade return).
-        # This aligns with the project's requirement to report reproducible,
-        # economically-meaningful metrics (see HARD_RULES.md).
         header = "| Stock | Compounded Return | Total Trades | Potential Signals | Rejections by Guard | Rejections by LLM |\n"
         separator = "|---|---|---|---|---|---|\n"
         rows = []
         for stock, metrics in per_stock_metrics.items():
-            trades = per_stock_trades.get(stock, [])
-            # Calculate compounded return from time-ordered trades. Each trade.net_return_pct
-            # is expressed as a decimal (e.g., 0.02 for +2%). We compute the product
-            # of (1 + r) across trades to get total compounded multiplier, then
-            # subtract 1 and convert to percentage for display.
-            if trades:
-                # Ensure trades are ordered by exit date to avoid leakage
-                trades_sorted = sorted(trades, key=lambda t: t.exit_date)
-                multiplier = 1.0
-                for tr in trades_sorted:
-                    multiplier *= (1.0 + tr.net_return_pct)
+            trades_list = per_stock_trades.get(stock, [])
+            if trades_list:
+                trades_df = pd.DataFrame(trades_list)
+                trades_df["exit_date"] = pd.to_datetime(trades_df["exit_date"])
+                trades_df = trades_df.sort_values(by="exit_date")
+                multiplier = (1.0 + trades_df["net_return_pct"]).prod()
                 compounded_return = (multiplier - 1.0) * 100.0
             else:
                 compounded_return = 0.0
+
             rejections_by_guard = sum(metrics.rejections_by_guard.values())
             row = f"| {stock} | {compounded_return:.2f}% | {metrics.trades_executed} | {metrics.potential_signals} | {rejections_by_guard} | {metrics.rejections_by_llm} |"
             rows.append(row)

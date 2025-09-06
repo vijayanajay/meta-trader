@@ -104,6 +104,7 @@ class Trade(BaseModel):
     """
     Represents a completed trade with its result.
     """
+
     stock: str
     entry_date: pd.Timestamp
     exit_date: pd.Timestamp
@@ -111,9 +112,26 @@ class Trade(BaseModel):
     exit_price: float
     net_return_pct: float
     confidence_score: float
-    signal: Signal # Keep track of the signal that generated the trade
+    signal: Signal  # Keep track of the signal that generated the trade
+    exit_reason: str
+    liquidity_score: float
+    regime_score: float
+    stat_score: float
+    composite_score: float
+    entry_hurst: float
+    entry_adf_p_value: float
+    entry_sector_vol: float
+    config_bb_length: int
+    config_rsi_length: int
+    config_atr_multiplier: float
 
     model_config = {"arbitrary_types_allowed": True}
+
+    @computed_field
+    @property
+    def holding_period_days(self) -> int:
+        """Calculates the holding period in calendar days."""
+        return (self.exit_date - self.entry_date).days
 
 
 class Opportunity(BaseModel):

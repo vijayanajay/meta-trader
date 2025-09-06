@@ -579,71 +579,25 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 
 ### Task 40 — Extend the `Trade` Model for Deeper Analysis
 
-*   **Rationale:** (Hinton) To diagnose failure, we need to record the state of the system at the time of the decision. The current `Trade` model only records the outcome, not the conditions that led to it. We must enrich it to capture the *why* of the entry and the *how* of the exit. (Nadh) The most direct way to do this is to add fields to the existing Pydantic model. It's the smallest change that provides the required data downstream.
-*   **Items to implement:**
-    1.  In `praxis_engine/core/models.py`, modify the `Trade` model to include the following new fields:
-        *   `exit_reason: str` (e.g., "ATR_STOP_LOSS", "PROFIT_TARGET", "MAX_HOLD_TIMEOUT")
-        *   `liquidity_score: float`
-        *   `regime_score: float`
-        *   `stat_score: float`
-        *   `composite_score: float`
-        *   `entry_hurst: float`
-        *   `entry_adf_p_value: float`
-        *   `entry_sector_vol: float`
-*   **Tests to cover:**
-    *   Update any tests that create `Trade` objects to include the new required fields. This will likely cause initial test failures, which is a good thing—it forces us to update our test fixtures to the new contract.
-*   **Time estimate:** 1 hour
+*   **Status:** Done
 
 ---
 
 ### Task 41 — Refactor `_determine_exit` to Return Exit Reason
 
-*   **Rationale:** (Nadh) The `_determine_exit` function is the only place in the system that knows the precise reason for an exit. Currently, it only returns the date and price, discarding this critical piece of context. This is an information leak. We must refactor it to return the reason alongside the outcome.
-*   **Items to implement:**
-    1.  In `praxis_engine/core/orchestrator.py`, change the return signature of `_determine_exit` from `-> Tuple[Optional[pd.Timestamp], Optional[float]]` to `-> Tuple[Optional[pd.Timestamp], Optional[float], str]`.
-    2.  Inside the method, when an exit condition is met, return the corresponding reason string.
-        *   If `current_day["Low"] <= stop_loss_price`, return `(current_day.name, stop_loss_price, "ATR_STOP_LOSS")`.
-        *   If `current_day["High"] >= profit_target_price`, return `(current_day.name, profit_target_price, "PROFIT_TARGET")`.
-        *   For the final timeout condition, return `(..., ..., "MAX_HOLD_TIMEOUT")`.
-*   **Tests to cover:**
-    *   Update the tests in `tests/test_orchestrator.py` that cover exit logic (`test_run_backtest_atr_exit_triggered`, etc.) to assert that the correct exit reason string is being returned by the (now mocked) `_determine_exit` method.
-*   **Time estimate:** 2 hours
+*   **Status:** Done
 
 ---
 
 ### Task 42 — Update Orchestrator to Create Enriched `Trade` Objects
 
-*   **Rationale:** (Hinton/Nadh) Now that the data is available, we must plumb it through the system. The `Orchestrator` is the central point where the signal scores and the exit reason are both available. This is the logical place to assemble the complete, enriched `Trade` object.
-*   **Items to implement:**
-    1.  In `praxis_engine/core/orchestrator.py`, modify the `_simulate_trade_from_signal` method.
-        a. It will now receive the `ValidationScores` object as an argument.
-        b. It will call the refactored `_determine_exit` and unpack the new three-part tuple: `exit_date, exit_price, exit_reason`.
-    2.  Modify the `run_backtest` loop. When it calls `_simulate_trade_from_signal`, it must now pass the `scores` object.
-    3.  In `_simulate_trade_from_signal`, when calling `self.execution_simulator.simulate_trade`, pass all the new data points (`exit_reason`, scores, etc.) so they can be used to construct the enriched `Trade` object. This will require updating the signature of `simulate_trade` and the `Trade` constructor call within it.
-    4.  We also need the raw inputs to the scores. The most pragmatic place to get these is from the pre-computed dataframe at the `current_index`. Pass these values (`hurst`, `adf`, `sector_vol`) through to the `Trade` object constructor.
-*   **Tests to cover:**
-    *   Update integration tests in `tests/test_orchestrator.py` to assert that the `Trade` objects being created and returned contain the correct, non-null values for the new fields.
-*   **Time estimate:** 2 hours
+*   **Status:** Done
 
 ---
 
 ### Task 43 — Implement CSV Export in `main.py` and Refactor Reporting for Performance
 
-*   **Rationale:** (Nadh) This is the core implementation and a chance for a pragmatic performance win. The current process is inefficient: workers return lists of Pydantic objects, which are aggregated, then passed to the `ReportGenerator`, which iterates over them *again* to calculate KPIs. Now that we need a DataFrame for the CSV, we can make it the central data structure. The workers will return simple lists of dictionaries (faster to pickle and process), which the main process will concatenate into a single DataFrame. This DataFrame will then be passed to both the CSV writer and a refactored `ReportGenerator`, eliminating redundant data conversions and enabling vectorized calculations.
-*   **Items to implement:**
-    1.  **Worker Function:** In `praxis_engine/main.py`, modify `run_backtest_for_stock`. Instead of returning `{"trades": List[Trade], ...}`, it should now return `{"trades": List[Dict], ...}`, where each dictionary is the result of `trade.model_dump()`.
-    2.  **CLI Aggregation:** In the `backtest` command in `main.py`, change the aggregation logic.
-        a. Collect all the trade dictionaries from the worker processes into a single list.
-        b. Convert this list into a `pd.DataFrame`: `trade_df = pd.DataFrame(all_trade_dicts)`.
-        c. Save this DataFrame to a CSV file: `trade_df.to_csv("results/trade_log.csv", index=False)`.
-    3.  **Performance Refactoring:**
-        a. Modify the `ReportGenerator.generate_backtest_report` signature to accept the `trade_df: pd.DataFrame` instead of `trades: List[Trade]`.
-        b. Refactor the `_calculate_kpis` method to work directly on the DataFrame. Replace list comprehensions with faster, vectorized Pandas operations (e.g., `trade_df['net_return_pct'].sum()` instead of `sum([t.net_return_pct for t in trades])`).
-*   **Expected Performance Gain:** For a backtest with thousands of trades, replacing object iteration with vectorized Pandas operations can yield a **5-10x speedup** for the reporting phase. While this phase is not the main bottleneck, it's a "free" optimization that makes the code cleaner and more scalable, a classic Nadh win.
-*   **Tests to cover:**
-    *   Create a new test that runs the `backtest` CLI command (mocking the orchestrator) and asserts that `results/trade_log.csv` is created and is not empty.
-    *   Update `tests/test_report_generator.py` to pass a sample DataFrame to the refactored methods and assert that the calculated KPIs are still correct.
-*   **Time estimate:** 3 hours
+*   **Status:** Done
 
 ---
 

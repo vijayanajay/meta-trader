@@ -34,7 +34,30 @@ def sample_signal() -> Signal:
         sector_vol=0.15
     )
 
-def test_simulate_trade_profit(execution_simulator: ExecutionSimulator, sample_signal: Signal) -> None:
+@pytest.fixture
+def trade_kwargs(sample_signal: Signal) -> dict:
+    """Provides a default set of keyword arguments for simulate_trade."""
+    return {
+        "stock": "TEST.NS",
+        "entry_date": pd.Timestamp("2023-01-01"),
+        "exit_date": pd.Timestamp("2023-01-11"),
+        "signal": sample_signal,
+        "confidence_score": 0.9,
+        "exit_reason": "PROFIT_TARGET",
+        "liquidity_score": 0.8,
+        "regime_score": 0.7,
+        "stat_score": 0.9,
+        "composite_score": 0.504,
+        "entry_hurst": 0.4,
+        "entry_adf_p_value": 0.04,
+        "entry_sector_vol": 0.15,
+        "config_bb_length": 20,
+        "config_rsi_length": 14,
+        "config_atr_multiplier": 2.0,
+    }
+
+
+def test_simulate_trade_profit(execution_simulator: ExecutionSimulator, trade_kwargs: dict) -> None:
     """
     Tests a profitable trade scenario with the new cost model.
     Entry: 100, Exit: 110. This is a low liquidity scenario.
@@ -64,20 +87,17 @@ def test_simulate_trade_profit(execution_simulator: ExecutionSimulator, sample_s
     expected_return = (final_exit_price / final_entry_price) - 1.0
 
     trade = execution_simulator.simulate_trade(
-        stock="TEST.NS",
         entry_price=entry_price,
         exit_price=exit_price,
-        entry_date=pd.Timestamp("2023-01-01"),
-        exit_date=pd.Timestamp("2023-01-11"),
-        signal=sample_signal,
-        confidence_score=0.9,
         entry_volume=daily_volume,
+        **trade_kwargs,
     )
 
     assert trade is not None
     assert trade.net_return_pct == pytest.approx(expected_return, abs=1e-9)
+    assert trade.exit_reason == "PROFIT_TARGET"
 
-def test_simulate_trade_loss(execution_simulator: ExecutionSimulator, sample_signal: Signal) -> None:
+def test_simulate_trade_loss(execution_simulator: ExecutionSimulator, trade_kwargs: dict) -> None:
     """
     Tests a losing trade scenario with the new cost model.
     Entry: 100, Exit: 90. This is a high liquidity scenario.
@@ -107,62 +127,50 @@ def test_simulate_trade_loss(execution_simulator: ExecutionSimulator, sample_sig
     expected_return = (final_exit_price / final_entry_price) - 1.0
 
     trade = execution_simulator.simulate_trade(
-        stock="TEST.NS",
         entry_price=entry_price,
         exit_price=exit_price,
-        entry_date=pd.Timestamp("2023-01-01"),
-        exit_date=pd.Timestamp("2023-01-11"),
-        signal=sample_signal,
-        confidence_score=0.9,
         entry_volume=daily_volume,
+        **trade_kwargs
     )
 
     assert trade is not None
     assert trade.net_return_pct == pytest.approx(expected_return, abs=1e-9)
 
-def test_high_slippage_scenario(execution_simulator: ExecutionSimulator, sample_signal: Signal) -> None:
+def test_high_slippage_scenario(execution_simulator: ExecutionSimulator, trade_kwargs: dict) -> None:
     """
     Tests that slippage is high when the trade size is a large fraction of daily volume.
     """
     entry_price = 100.0
     exit_price = 101.0 # Small profit before costs
-    daily_volume = 2000 # Low daily volume, trade volume is 1000 (50% of daily volume)
+    daily_volume = 2000 # Low daily volume
 
     trade = execution_simulator.simulate_trade(
-        stock="TEST.NS",
         entry_price=entry_price,
         exit_price=exit_price,
-        entry_date=pd.Timestamp("2023-01-01"),
-        exit_date=pd.Timestamp("2023-01-11"),
-        signal=sample_signal,
-        confidence_score=0.9,
-        entry_volume=daily_volume
+        entry_volume=daily_volume,
+        **trade_kwargs,
     )
 
     assert trade is not None
     # The trade should be unprofitable due to high slippage and costs
     assert trade.net_return_pct < 0
 
-def test_zero_volume_scenario(execution_simulator: ExecutionSimulator, sample_signal: Signal) -> None:
+def test_zero_volume_scenario(execution_simulator: ExecutionSimulator, trade_kwargs: dict) -> None:
     """
     Tests that a trade results in a total loss if daily volume is zero.
     """
     trade = execution_simulator.simulate_trade(
-        stock="TEST.NS",
         entry_price=100.0,
         exit_price=110.0,
-        entry_date=pd.Timestamp("2023-01-01"),
-        exit_date=pd.Timestamp("2023-01-11"),
-        signal=sample_signal,
-        confidence_score=0.9,
-        entry_volume=0 # Zero volume
+        entry_volume=0, # Zero volume
+        **trade_kwargs,
     )
 
     assert trade is not None
     # Slippage cost should be equal to price, resulting in ~100% loss
     assert trade.net_return_pct == pytest.approx(-1.0, abs=1e-2)
 
-def test_trade_volume_exceeds_daily_volume(execution_simulator: ExecutionSimulator, sample_signal: Signal) -> None:
+def test_trade_volume_exceeds_daily_volume(execution_simulator: ExecutionSimulator, trade_kwargs: dict) -> None:
     """
     Tests that trade volume is capped at daily_volume in slippage calculation.
     """
@@ -172,14 +180,10 @@ def test_trade_volume_exceeds_daily_volume(execution_simulator: ExecutionSimulat
 
     with patch.object(execution_simulator, '_calculate_slippage', wraps=execution_simulator._calculate_slippage) as spy_slippage:
         execution_simulator.simulate_trade(
-            stock="TEST.NS",
             entry_price=entry_price,
             exit_price=exit_price,
-            entry_date=pd.Timestamp("2023-01-01"),
-            exit_date=pd.Timestamp("2023-01-11"),
-            signal=sample_signal,
-            confidence_score=0.9,
-            entry_volume=daily_volume
+            entry_volume=daily_volume,
+            **trade_kwargs,
         )
         assert spy_slippage.call_count == 2
         # Check that the function was called with the correct arguments
@@ -188,7 +192,7 @@ def test_trade_volume_exceeds_daily_volume(execution_simulator: ExecutionSimulat
 
 
 class TestCalculateNetReturn:
-    def test_calculate_net_return_logic(self, execution_simulator: ExecutionSimulator) -> None:
+    def test_calculate_net_return_logic(self, execution_simulator: ExecutionSimulator, trade_kwargs: dict) -> None:
         """
         Tests the public helper method `calculate_net_return` directly.
         """
@@ -198,14 +202,10 @@ class TestCalculateNetReturn:
 
         # This should match the manual calculation in `test_simulate_trade_profit`
         trade = execution_simulator.simulate_trade(
-            stock="TEST.NS",
             entry_price=entry_price,
             exit_price=exit_price,
-            entry_date=pd.Timestamp("2023-01-01"),
-            exit_date=pd.Timestamp("2023-01-11"),
-            signal=Signal(entry_price=100, stop_loss=95, exit_target_days=10, frames_aligned=["d"], sector_vol=0.15),
-            confidence_score=0.9,
-            entry_volume=daily_volume
+            entry_volume=daily_volume,
+            **trade_kwargs,
         )
         assert trade is not None
         expected_return = trade.net_return_pct
@@ -217,18 +217,14 @@ class TestCalculateNetReturn:
         )
         assert calculated_return == pytest.approx(expected_return)
 
-    def test_zero_entry_price(self, execution_simulator: ExecutionSimulator, sample_signal: Signal) -> None:
+    def test_zero_entry_price(self, execution_simulator: ExecutionSimulator, trade_kwargs: dict) -> None:
         """
         Tests that a trade with zero entry price returns None.
         """
         trade = execution_simulator.simulate_trade(
-            stock="TEST.NS",
             entry_price=0.0,
             exit_price=10.0,
-            entry_date=pd.Timestamp("2023-01-01"),
-            exit_date=pd.Timestamp("2023-01-11"),
-            signal=sample_signal,
-            confidence_score=0.9,
-            entry_volume=10000
+            entry_volume=10000,
+            **trade_kwargs,
         )
         assert trade is None

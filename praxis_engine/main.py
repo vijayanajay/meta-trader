@@ -28,10 +28,9 @@ def run_backtest_for_stock(payload: Tuple[str, str]) -> Dict[str, Any]:
     """
     Top-level helper function to run a backtest for a single stock.
     Designed to be picklable for multiprocessing.
+    Returns trade data as a list of dicts for performance.
     """
     stock, config_path = payload
-    # Each process needs its own instances of services.
-    # Logging is inherited from the parent process.
     config: Config = load_config(config_path)
     orchestrator = Orchestrator(config)
 
@@ -40,7 +39,9 @@ def run_backtest_for_stock(payload: Tuple[str, str]) -> Dict[str, Any]:
         start_date=config.data.start_date,
         end_date=config.data.end_date,
     )
-    result["stock"] = stock  # Add stock name for result identification
+    # Convert Trade objects to dicts for faster pickling
+    result["trades"] = [trade.model_dump() for trade in result["trades"]]
+    result["stock"] = stock
     return result
 
 
@@ -73,8 +74,8 @@ def backtest(
     logger.info("File logging configured. Starting backtest...")
 
     config: Config = load_config(config_path)
-    all_trades: List[Trade] = []
-    per_stock_trades: Dict[str, List[Trade]] = {}
+    all_trades_dicts: List[Dict] = []
+    per_stock_trades: Dict[str, List[Dict]] = {}
     aggregated_metrics = BacktestMetrics()
     per_stock_metrics: Dict[str, BacktestMetrics] = {}
     report_generator = ReportGenerator()
@@ -108,7 +109,7 @@ def backtest(
 
                 per_stock_trades[stock] = result["trades"]
                 per_stock_metrics[stock] = result["metrics"]
-                all_trades.extend(result["trades"])
+                all_trades_dicts.extend(result["trades"])
                 metrics = result["metrics"]
                 # Aggregate metrics
                 aggregated_metrics.potential_signals += metrics.potential_signals
@@ -118,17 +119,43 @@ def backtest(
                     aggregated_metrics.rejections_by_guard[guard] = (
                         aggregated_metrics.rejections_by_guard.get(guard, 0) + count
                     )
-
                 pbar.update(1)
 
-    if not all_trades:
+    if not all_trades_dicts:
         logger.info("Backtest complete. No trades were executed.")
         return
+
+    # --- Create and export the master trade log DataFrame ---
+    import pandas as pd
+
+    trade_df = pd.DataFrame(all_trades_dicts)
+
+    # Reorder columns to match the specification in tasks.md for the trade_log.csv
+    trade_log_columns = [
+        "stock", "entry_date", "exit_date", "holding_period_days", "entry_price",
+        "exit_price", "net_return_pct", "exit_reason", "composite_score",
+        "liquidity_score", "regime_score", "stat_score", "entry_hurst",
+        "entry_adf_p_value", "entry_sector_vol", "config_bb_length",
+        "config_rsi_length", "config_atr_multiplier"
+    ]
+    # Ensure all specified columns exist, fill missing with None or NaN
+    for col in trade_log_columns:
+        if col not in trade_df.columns:
+            trade_df[col] = np.nan
+    trade_df = trade_df[trade_log_columns]
+
+
+    results_dir = Path("results")
+    results_dir.mkdir(exist_ok=True)
+    trade_log_path = results_dir / "trade_log.csv"
+    trade_df.to_csv(trade_log_path, index=False, encoding='utf-8')
+    logger.info(f"Trade log saved to {trade_log_path}")
+    # ---------------------------------------------------------
 
     logger.info("\n========== Overall Backtest Summary ==========")
     logger.debug(f"Aggregated metrics for report: {aggregated_metrics}")
     final_report = report_generator.generate_backtest_report(
-        trades=all_trades,
+        trades_df=trade_df,
         metrics=aggregated_metrics,
         start_date=config.data.start_date,
         end_date=config.data.end_date,
@@ -143,8 +170,6 @@ def backtest(
     final_report += "\n" + per_stock_report
     logger.debug(f"Final report string to be written:\n{final_report}")
 
-    results_dir = Path("results")
-    results_dir.mkdir(exist_ok=True)
     report_path = results_dir / "backtest_summary.md"
     report_path.write_text(final_report, encoding='utf-8')
 
