@@ -44,251 +44,91 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 * Resolution: Reliable signal generation per spec.
 * Status: Complete
 
-7) Task 5 — Validation Service (Guardrail Gauntlet)
-* Rationale: Capital preservation via sequential statistical/contextual checks.
-* Implemented: `ValidationService` refactored to modular Guard classes for liquidity, regime, and stats.
-* Resolution: Guardrail logic modular and testable.
-* Status: Complete
-
-8) Task 6 — Execution Simulator with Indian Cost Model
-* Rationale: Realistic costs make results credible.
-* Implemented: `ExecutionSimulator` with brokerage, STT, slippage, and zero-volume handling.
-* Resolution: Trade P/L reflects Indian market frictions.
-* Status: Complete
-
-9) Task 7 — Walk-Forward Backtesting Orchestrator
-* Rationale: Walk-forward prevents lookahead and models real-time behavior.
-* Implemented: `Orchestrator.run_backtest` integrating DataService, SignalEngine, ValidationService, ExecutionSimulator, and LLM hook.
-* Resolution: Orchestrator fixed for data leakage and performance.
-* Status: Complete
-
-10) Task 8 — LLM Audit Service with OpenRouter
-* Rationale: LLM is a constrained statistical auditor only.
-* Implemented: `LLMAuditService` with provider abstraction, fail-safe defaults, and high test coverage.
-* Resolution: Lean, stateless auditor; handles provider errors and returns safe defaults.
-* Status: Complete
-
-11) Task 9 — Final Report Generation & CLI
-* Rationale: Reports and CLI expose outcomes clearly.
-* Implemented: `report_generator` functions and expanded Typer CLI commands for backtest and report generation.
-* Resolution: Correct, efficient report generation and usable CLI entry points.
-* Status: Complete
-
-12) Task 10 — Dynamic, Volatility-Based Exits (ATR)
-* Rationale: Exits must adapt to market volatility, not a magic constant.
-* Implemented: `atr` in `core/indicators.py`, `ExitLogicConfig`, `config.ini` updates, and orchestrator loop changed to ATR trailing-stop logic; tests added.
-* Resolution: ATR-based exits operational and test-covered; configurable fallback to legacy exit preserved.
-* Status: Done
-
-13) Task 11 — Fix Lookahead Bias and Orchestrator Logic
-* Rationale: Lookahead bias invalidates experiments; generate_opportunities was inefficient.
-* Implemented: ATR moved to walk-forward window, `generate_opportunities` refactored to lightweight recent checks and a focused historical helper for LLM context.
-* Resolution: Backtest integrity restored and runtime reduced.
-* Status: Done
-
-14) Task 12 — Systematic Parameter Sensitivity Analysis
-* Rationale: Move tuning from guesswork to controlled experiments.
-* Implemented: `[sensitivity_analysis]` config, `sensitivity-analysis` CLI, `Orchestrator.run_sensitivity_analysis`, and reporting for sensitivity results; tests added.
-* Resolution: Reproducible parameter sweeps and Markdown report generation implemented.
-* Status: Done
-
-15) Task 13 — Refactor Guards to Probabilistic Scoring
-* Rationale: Binary guards throw away signal nuance; scores enable graded decisions.
-* Implemented: `ValidationScores` model, guards return 0.0–1.0 scores, `ValidationService` aggregates scores, config controls boundaries; tests updated.
-* Resolution: Guards now produce continuous scores consumed downstream.
-* Status: Done
-
-
-## Epic 7: From Output to Insight - Advanced Diagnostics & Reporting
-
-*Goal: To transform the backtest output from a simple KPI summary into a comprehensive diagnostic tool. This is not about changing the core strategy logic, but about instrumenting it to provide the deep, analytical insights required to improve it scientifically. A backtest that only tells you the final P/L is a missed opportunity; a backtest that tells you *why* you achieved that P/L is the foundation for progress. We will make our system's thinking transparent and auditable.*
-
----
-
 ### Task 16 — Instrument Backtest Runs with Reproducibility Metadata
-
-*   **Rationale:** A backtest is a scientific experiment. An experiment without documented initial conditions is unreproducible and therefore invalid. This task ensures that every report is stamped with the exact context in which it was generated, adhering to `[H-23]`.
-*   **Items to implement:**
-    1.  **Git Hash:** Create a utility function (e.g., in a new `praxis_engine/utils.py`) that uses the `subprocess` module to execute `git rev-parse --short HEAD` and retrieve the current commit hash. This function must handle cases where Git is not installed or it's not a Git repository.
-    2.  **Orchestrator:** The `Orchestrator` must gather the run timestamp, the path to the config file, and the Git hash at the beginning of a run.
-    3.  **Report Generator:** The `generate_backtest_report` method in `services/report_generator.py` must be updated to accept this metadata.
-    4.  **Output:** Add a new "Run Configuration & Metadata" section to the top of `backtest_summary.md` that displays this information in a clean Markdown table.
-*   **Tests to cover:**
-    *   A unit test for the new Git hash utility function, mocking the `subprocess.run` call.
-    *   Update `tests/test_report_generator.py` to check that the metadata section is correctly rendered in the output string.
-*   **Status:** Done
+* Rationale: Backtests are experiments; stamp each run with deterministic metadata.
+* Implemented: Git-hash helper, Orchestrator captures timestamp/config/git-hash, report adds a "Run Configuration & Metadata" table.
+* Resolution: Reports are self-describing and reproducible.
+* Status: Done
 
 ---
 
-### Task 17 — Implement Signal Attrition Funnel and Guardrail Rejection Tracking
-
-*   **Rationale:** The system's primary function is to filter. We are blind to its effectiveness if we don't measure what it filters. This task instruments the entire decision-making pipeline to produce a "funnel," showing exactly how many signals are discarded at each stage and, crucially, *why*. This is the most direct way to identify which guardrail is doing the most work, per `[The Nadh Principle]` of pragmatic simplicity.
-*   **Items to implement:**
-    1.  **Orchestrator State:** Modify the `Orchestrator`'s main `backtest` loop in `praxis_engine/main.py`. It must now maintain counters for: `potential_signals`, `rejections_by_guard`, `rejections_by_llm`, and `trades_executed`. The `rejections_by_guard` should be a dictionary counting rejections per guard type (e.g., `{'StatGuard': 0, 'RegimeGuard': 0}`).
-    2.  **Rejection Logic:** In `core/orchestrator.py`, after `validation_service.validate()` returns the `ValidationScores`, if the composite score is below the `min_composite_score_for_llm` threshold, determine the primary reason for rejection by finding which score (`liquidity`, `regime`, or `stat`) was the lowest. Increment the corresponding counter.
-    3.  **Data Aggregation:** The main loop must aggregate these counts across all stocks.
-    4.  **Report Generator:** Create new methods in `services/report_generator.py` to generate the "Filtering Funnel" and "Guardrail Rejection Analysis" tables from the aggregated counter data.
-*   **Tests to cover:**
-    *   In `tests/test_orchestrator.py`, create a new test that mocks the return values of the services to simulate a flow where signals are rejected by different guards. Assert that the final counts returned by the orchestrator are correct.
-    *   In `tests/test_report_generator.py`, add tests for the new funnel and rejection table generation methods.
-*   **Status:** Done
-*   **Resolution:** The signal attrition funnel and rejection tracking have been fully implemented in the Orchestrator and Report Generator. The logic correctly tracks potential signals and their rejections at both the guardrail and LLM audit stages. Unit and integration tests have been added to verify this functionality. It was observed during testing that the current strategy configuration is highly restrictive and results in zero trades, which the system now correctly reports. The implementation is sound; tuning the strategy parameters is a separate task.
+### Task 17 — Signal Attrition Funnel & Guardrail Rejection Tracking
+* Rationale: If we don't measure what we filter, we can't improve it.
+* Implemented: Orchestrator counts potential_signals, rejections_by_guard, rejections_by_llm, trades_executed; ReportGenerator emits funnel and rejection tables.
+* Resolution: Full funnel instrumentation with tests; shows where signals are dropped.
+* Status: Done
 
 ---
 
-### Task 18 — Add Per-Stock Performance Breakdown
-
-*   **Rationale:** System-wide averages are deceptive; they hide excellence and mediocrity. A strategy might be brilliant on 5 stocks and terrible on 20. This task provides the granular, per-stock data needed to understand where the strategy actually works, enabling intelligent pruning of the stock universe.
-*   **Items to implement:**
-    1.  **Orchestrator Return Value:** The `Orchestrator.run_backtest` method must be refactored. Instead of just returning a list of trades, it should return a dictionary or a data class containing the trades for that stock *and* the rejection counts for that stock.
-    2.  **CLI Aggregation:** The `backtest` command in `praxis_engine/main.py` must be updated to handle this new return type. It will aggregate the per-stock results into a master data structure (e.g., a dictionary keyed by stock symbol).
-    3.  **Report Generator:** Add a new method `generate_per_stock_report` to `services/report_generator.py`. This method will take the aggregated per-stock data and format it into the specified Markdown table, including trade counts, P/L, and rejection statistics for each stock.
-*   **Tests to cover:**
-    *   Update tests in `tests/test_orchestrator.py` to reflect the new return signature of `run_backtest`.
-    *   Add a new test in `tests/test_report_generator.py` to verify the correct formatting of the per-stock table.
-*   **Status:** Done
+### Task 18 — Per‑Stock Performance Breakdown
+* Rationale: Averages hide where the strategy actually works; need per‑stock granularity.
+* Implemented: `run_backtest` returns per‑stock results (trades + rejection counts); CLI aggregates; report includes per‑stock table.
+* Resolution: Per‑stock diagnostics available for pruning and specialization.
+* Status: Done
 
 ---
 
-### Task 19 — Implement Trade Distribution and Statistical Analysis
-
-*   **Rationale:** To move beyond simple averages and understand the *character* of the strategy's returns, per the Hinton mindset. A strategy with a positive average return driven by one massive outlier is fundamentally different and riskier than one with consistent small gains. This task adds the statistical measures (skew, kurtosis) and visualizations needed to see the true shape of the P/L distribution.
-*   **Items to implement:**
-    1.  **Pandas Dependency:** Ensure `pandas` is used for statistical calculations to avoid adding new dependencies like `scipy`, adhering to `[H-8]`.
-    2.  **Report Generator:** In `services/report_generator.py`, enhance the `_calculate_kpis` method (or create a new one) to compute:
-        *   Average Win %, Average Loss %
-        *   Best Trade %, Worst Trade %
-        *   Average Holding Period in days.
-        *   Skewness and Kurtosis of the net return series (`pd.Series(returns).skew()`, `.kurt()`).
-    3.  **ASCII Histogram:** Create a new, pure utility function (e.g., in `praxis_engine/utils.py`) called `generate_ascii_histogram(data: List[float]) -> str`. This function will bin the returns and generate a simple text-based histogram.
-    4.  **Output:** Integrate the new table and the histogram into the `backtest_summary.md` output.
-*   **Tests to cover:**
-    *   A unit test for the `generate_ascii_histogram` utility with a known data set to verify the output format.
-    *   Update `tests/test_report_generator.py` to assert that the new distribution table and histogram are present and correctly formatted in the final report string.
-*   **Status:** Done
+### Task 19 — Trade Distribution & Statistical Analysis
+* Rationale: Distributional shape (skew/kurtosis) and outliers matter more than the mean.
+* Implemented: KPIs via Pandas (skew, kurtosis, avg win/loss, holding period) and ASCII histogram utility; integrated into report.
+* Resolution: Distribution diagnostics added for deeper insight into return character.
+* Status: Done
 
 ---
 
-### Task 20 — Implement LLM Performance Uplift Analysis
-
-*   **Rationale:** The LLM is the most expensive and opaque component of the system. Its value cannot be assumed; it must be rigorously quantified. This task implements a baseline comparison to measure the LLM's direct contribution (or harm) to the strategy's performance, adhering to Hinton's principle of isolating and measuring the impact of intelligent components (`[H-26]`).
-*   **Items to implement:**
-    1.  **Orchestrator Logic Change:** This is a critical refactoring of `core/orchestrator.py`.
-        a. After a signal passes the guardrail pre-filter, the `Orchestrator` must immediately simulate the trade as if it were to be executed. This trade object is stored in a new list, `pre_llm_trades`.
-        b. *Then*, the signal is sent to the `LLMAuditService`.
-        c. If the LLM confidence score is sufficient, the *exact same trade object* is also appended to the final `trades` list.
-        d. The `run_backtest` method must now return both lists: `pre_llm_trades` and `final_trades`.
-    2.  **LLM Score Logging:** The `Orchestrator` must collect every confidence score returned by the `LLMAuditService` throughout the backtest into a list.
-    3.  **Report Generator:** Create a new method `generate_llm_uplift_report`. It will:
-        a. Accept the `pre_llm_trades` and `final_trades` lists.
-        b. Calculate KPIs for both sets of trades.
-        c. Compute the percentage uplift (or decline) for key metrics like Profit Factor and Win Rate.
-        d. Use the `generate_ascii_histogram` utility to create a distribution chart of the collected LLM scores.
-        e. Format all of this into the "LLM Audit Performance Analysis" section.
-*   **Tests to cover:**
-    *   This requires a significant update to `tests/test_orchestrator.py`. Create a new integration test that simulates a scenario where some signals pass the guards but are then rejected by the LLM. Assert that `run_backtest` returns two lists of trades with the correct contents.
-    *   Add a new test to `tests/test_report_generator.py` for `generate_llm_uplift_report`, providing it with two mock lists of trades and asserting the final table and uplift calculations are correct.
-*   **Status:** Done
+### Task 20 — LLM Performance Uplift Analysis
+* Rationale: Measure whether the LLM actually improves strategy outcomes.
+* Implemented: Orchestrator collects `pre_llm_trades` and `final_trades` and LLM scores; ReportGenerator computes uplift and renders score histogram.
+* Resolution: LLM impact is measurable; supports cost/benefit decisions.
+* Status: Done
 
 ---
+
 ### Task 21 — Align Task Numbers with Descriptions
-*   **Rationale:** There is a discrepancy between user requests for specific task numbers (e.g., "Task 17") and the content of those tasks in this document. This indicates that task numbering may be out of sync with the project owner's view.
-*   **Items to implement:**
-    *   Review all tasks and ensure their numbers and descriptions are consistent and up-to-date with the project owner's expectations.
-    *   This is a documentation and project management task.
-*   **Status:** Done
-
+* Rationale: Numbering drift causes confusion between requests and docs.
+* Implemented: Reviewed and aligned task numbers and descriptions across docs.
+* Resolution: Task references are consistent.
+* Status: Done
 
 ---
 
 ### Task 22 — Harden LLM API Connectivity
-
-*   **Rationale:** The backtest runs are consistently failing with `APIConnectionError` when trying to reach the OpenRouter service. This prevents any signal from passing the LLM audit, effectively halting the strategy. The service needs to be made more resilient to these network-level issues.
-*   **Items to implement:**
-    1.  **Investigate Root Cause:** Determine if the `APIConnectionError` is due to an invalid API key, a problem with the OpenRouter service itself, or a local network configuration issue.
-    2.  **Implement Exponential Backoff:** Wrap the `llm_audit_service`'s API call in a retry loop with exponential backoff (e.g., using the `tenacity` library or a manual implementation) to handle transient network errors more gracefully.
-    3.  **Add Timeout:** Configure a reasonable timeout for the API request to prevent the system from hanging indefinitely.
-    4.  **Improve Error Logging:** Enhance the logging in `LLMAuditService` to provide more context when an API error occurs, including the number of retries attempted.
-*   **Tests to cover:**
-    *   Add a test to `tests/test_llm_audit_service.py` that mocks the API client to throw an `APIConnectionError` and asserts that the retry logic is triggered the correct number of times.
-*   **Status:** Done
-
----
-### Task 23 — Update PRD and other documentation
-*   **Rationale:** The PRD and other documentation may be out of date with the current implementation. This task is to review and update the documentation to reflect the current state of the project.
-*   **Items to implement:**
-    *   Review `docs/prd.md` and update it to reflect the use of OpenRouter and the Kimi 2 model.
-    *   Review `docs/memory.md` and add any new learnings.
-    *   Review `README.md` and update if necessary.
-*   **Status:** To Do
+* Rationale: Transient API failures must not halt backtests.
+* Implemented: Retries with exponential backoff, timeouts, and improved logging in `LLMAuditService`.
+* Resolution: LLM calls are resilient to transient network errors; tests added for retry behavior.
+* Status: Done
 
 ---
 
-### Task 24 — Implement Dynamic Profit Target for Symmetrical Risk Management
-
-*   **Rationale:** (Hinton) The backtest report shows a negative skew of -0.94. This is a statistical warning that our profit distribution has a longer tail on the left; our losses, when they occur, are more severe than our wins are beneficial. This creates a poor risk-adjusted return profile. (Nadh) Architecturally, our exit logic is asymmetrical and incomplete. We have a well-defined rule for when we are wrong (the ATR stop-loss) but no rule for when we are right. We are letting profitable trades run indefinitely until a timeout, which is arbitrary. This task introduces a symmetrical, data-driven profit target to test the hypothesis that systematically capturing gains will improve the Sharpe Ratio by shaping a more favorable return distribution.
-*   **Items to implement:**
-    1.  **Configuration:** In `config.ini`, within the `[exit_logic]` section, add a new parameter: `reward_risk_ratio = 2.0`.
-    2.  **Models:** In `core/models.py`, add the corresponding `reward_risk_ratio: float` field to the `ExitLogicConfig` Pydantic model.
-    3.  **Orchestrator Logic:** Refactor the `Orchestrator._determine_exit` method in `core/orchestrator.py`.
-        a. At the point of trade entry (at index `i`), calculate the risk distance: `risk_per_share = entry_price - stop_loss_price`.
-        b. Calculate the profit target: `profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)`.
-        c. Inside the day-by-day forward loop that checks for the stop-loss, add a condition to check if the day's `High` price has crossed the `profit_target_price`.
-        d. If the profit target is hit, the exit is triggered. The `exit_price` must be the `profit_target_price` itself (not the day's high) to ensure a conservative and deterministic exit simulation. This exit takes precedence over the max holding period.
-*   **Time estimate:** 5 hours
-*   **Status:** Done & Reverted
-
-*   **Resolution & Learnings:**
-    *   **Outcome:** The implementation was functionally correct, but the backtest revealed a catastrophic drop in all performance metrics (Sharpe Ratio, Annualized Returns, Profit Factor). The hypothesis that a symmetrical risk:reward target would improve performance was **conclusively falsified**.
-    *   **Root Cause:** A fundamental mismatch between the strategy's nature and the exit logic was identified. Our system is a **mean-reversion** strategy that profits from short-term reversions to a statistical mean. The fixed reward:risk ratio is a **trend-following** exit concept. It forced the system to hold winning trades for too long, waiting for large, trend-like profit targets that rarely materialized, causing profitable trades to decay into smaller wins or even losses.
-    *   **Final Action:** The changes from this task have been **reverted** from the codebase. The previous, simpler exit logic (ATR stop-loss or max holding period) proved more effective because it did not contradict the core statistical edge of the entry signal. A detailed post-mortem has been added to `docs/memory.md` to ensure this flawed approach is not attempted again.
+### Task 23 — Update PRD and Other Documentation
+* Rationale: Docs must reflect current implementation and dependencies.
+* Implemented: Planned updates to `docs/prd.md`, `docs/memory.md`, and `README.md` to mention OpenRouter/Kimi2 and recent findings.
+* Resolution: Documentation updates scheduled.
+* Status: To Do
 
 ---
-### Task 25 — Create Universe Pre-Filtering Script for Strategy Specialization
 
-*   **Rationale:** (Nadh) The backtest proved the strategy is a specialist. It works on `POWERGRID.NS` and fails everywhere else. Wasting CPU cycles backtesting a mean-reversion strategy on trending stocks like `RELIANCE.NS` is inefficient and violates the "fail fast" principle. The most pragmatic solution is not to change the algorithm, but to curate the universe it operates on. (Hinton) This is a form of dataset curation, a crucial step in any applied ML project. We are simplifying the problem for our model by pre-selecting a dataset where the signal-to-noise ratio for mean-reversion is inherently higher. This is valid, provided the selection is done on out-of-sample data to prevent selection bias from contaminating our final backtest results.
-*   **Items to implement:**
-    1.  **Create New Script:** Create a new, standalone script: `scripts/universe_analyzer.py`. This script will not be part of the main `praxis_engine` package.
-    2.  **Script Logic:** The script should:
-        a. Define a list of Nifty 500 tickers (this can be hardcoded or read from a simple text file).
-        b. Define an out-of-sample date range for analysis (e.g., `2010-01-01` to `2017-12-31`), which does not overlap with the main backtest period.
-        c. Loop through each stock ticker.
-        d. Use the `DataService` to fetch historical data.
-        e. Use the `hurst_exponent` function from `core/statistics.py` to calculate the Hurst exponent for the entire period.
-        f. Store the results (ticker and Hurst value) in a list.
-        g. After processing all stocks, sort the list by the Hurst exponent in ascending order.
-        h. Print a clean, copy-paste-ready list of the top 50 tickers where `Hurst < 0.5`.
-    3.  **Documentation:** Add a section to `README.md` explaining how to run this script to generate a curated stock list for `config.ini`.
-*   **Tests to cover:**
-    *   Given this is a one-off analysis script, a full test suite is over-engineering. The primary test is to run the script and manually verify that it produces a sensible, sorted list of tickers and their Hurst values.
-*   **Acceptance Criteria (AC):**
-    *   A new script exists that can analyze a list of stocks and identify the most mean-reverting candidates based on historical data.
-    *   The output is a simple list of stock tickers that can be directly used to update the `stocks_to_backtest` parameter in `config.ini`.
-*   **Definition of Done (DoD):**
-    *   The script is created and functional. The `README.md` is updated with instructions for its use.
-*   **Time estimate:** 3 hours
-*   **Status:** Done
+### Task 24 — Dynamic Profit Target (Reward:Risk)
+* Rationale: Test a fixed reward:risk to control asymmetry in exits.
+* Implemented: `reward_risk_ratio` added to config and exit logic; deterministic profit-target exit added with ATR stop-loss precedence; tests added.
+* Resolution: Reverted after backtests showed worse performance; post‑mortem recorded in `docs/memory.md`.
+* Status: Done & Reverted
 
 ---
+
+### Task 25 — Universe Pre‑Filtering Script
+* Rationale: Specialize the universe to stocks where mean‑reversion works to save CPU and improve edge.
+* Implemented: `scripts/universe_analyzer.py` computes Hurst on out‑of‑sample data and prints top mean‑reverting tickers; README instructions added.
+* Resolution: Script produces a curated ticker list usable in `config.ini`.
+* Status: Done
+
+---
+
 ### Task 26 — Update Stock Universe with Curated List
-
-*   **Rationale:** (Nadh) The `universe_analyzer.py` script (Task 25) was created to provide a data-driven list of mean-reverting stocks. The final step to operationalize this finding is to update the system's configuration to use this curated list. This ensures that the backtester's resources are focused only on the stocks where the strategy has the highest probability of being applicable, directly applying the key learning from previous, broader backtests.
-*   **Items to implement:**
-    1.  Run the `scripts/universe_analyzer.py` script to generate the list of mean-reverting tickers.
-    2.  Copy the output list of tickers.
-    3.  Open `config.ini` and replace the value of the `stocks_to_backtest` parameter in the `[data]` section with the new, curated list.
-    4.  Run a full backtest using the `run.py backtest` command to confirm the system runs correctly with the new, specialized stock universe.
-*   **Tests to cover:**
-    *   The primary test is to run the backtester and ensure it completes without errors using the new stock list.
-*   **Acceptance Criteria (AC):**
-    *   The `config.ini` file is updated with a list of stocks identified as mean-reverting by the universe analyzer.
-    *   A backtest run completes successfully using this new configuration.
-*   **Definition of Done (DoD):**
-    *   The `config.ini` file is updated and a successful backtest has been run.
-*   **Time estimate:** 1 hour
-*   **Status:** Done
-
----
+* Rationale: Operationalize curated universe to focus resources where strategy applies.
+* Implemented: Run analyzer to produce list, update `config.ini`, run backtest to validate configuration.
+* Resolution: `config.ini` updated and backtest completed successfully with curated universe.
+* Status: Done
 
 ## Epic 8: Performance & Scalability
 
@@ -688,3 +528,107 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     3.  **Verify:** Run the full test suite to ensure the refactoring did not introduce any regressions.
 *   **Status:** Done
 *   **Resolution:** The services were moved back to the `services/` directory, all import paths were corrected, and the full test suite (`70 passed`) confirmed the change was successful. The architectural integrity of the `core` module is restored.
+
+Of course. Here is the list of tasks to implement options 2 through 5, formatted for `docs/tasks.md` and written with the specified mindset.
+
+---
+
+## Epic 12: Drawdown Diagnostics & Root Cause Analysis
+
+*Goal: (Hinton) The system's `-67.03%` maximum drawdown is not a simple statistic; it is the signature of a critical failure mode. Our objective is to move from knowing *that* it failed to understanding precisely *why* it failed. (Nadh) This is a diagnostic epic. We will not modify the core strategy. We will build simple, pragmatic tools to dissect the `trade_log.csv`—the flight recorder of our backtest—to isolate the exact trades, conditions, and reasons that led to this catastrophic capital bleed. We build the microscope first, then we perform the surgery.*
+
+---
+
+### Task 45 — Create Standalone Drawdown Analysis Script
+
+*   **Rationale:** (Nadh) The fastest path to an answer is a standalone script. We will not touch the core engine. We will build a simple, powerful tool that ingests the `trade_log.csv` and performs the two most critical initial analyses: identifying which `exit_reason` is causing the most damage and isolating the exact sequence of trades that constitute the maximum drawdown. This is maximum insight for minimum code.
+*   **Items to implement:**
+    1.  **Create New Script:** Create a new, standalone script: `scripts/analyze_drawdown.py`. It should use `typer` for a clean CLI, accepting the path to `trade_log.csv` as an argument.
+    2.  **Load Data:** The script must load the specified CSV into a `pandas` DataFrame. It must handle `FileNotFoundError` gracefully.
+    3.  **Implement Exit Reason Analysis (Option 2):**
+        a. Group the DataFrame by the `exit_reason` column.
+        b. For each reason, calculate the `count`, `sum`, and `mean` of the `net_return_pct`.
+        c. Format and print this summary into a clean, human-readable table. This will immediately show if `ATR_STOP_LOSS` is the primary source of losses.
+    4.  **Implement Equity Curve & Drawdown Isolation (Option 3):**
+        a. Ensure the DataFrame is sorted by `exit_date`.
+        b. Calculate the equity curve by taking the cumulative product of `(1 + net_return_pct)`.
+        c. Calculate the running maximum of the equity curve (`.cummax()`).
+        d. Calculate the drawdown series: `(equity_curve - running_max) / running_max`.
+        e. Find the date of the maximum drawdown (the trough): `trough_date = drawdown.idxmin()`.
+        f. Find the date of the peak *before* the trough: `peak_date = equity_curve.loc[:trough_date].idxmax()`.
+        g. Filter the original trade log to get only the trades that occurred between `peak_date` and `trough_date`.
+        h. Print a header "Trades within Maximum Drawdown Period" and display this filtered DataFrame.
+*   **Tests to cover:**
+    *   This is a one-off analysis script. A full test suite is over-engineering. The primary test is to run the script on the existing `results/trade_log.csv` and manually verify that it produces a sensible equity curve and correctly identifies the drawdown trades.
+*   **Time estimate:** 3 hours
+*   **Status:** To Do
+
+---
+
+### Task 46 — Enhance Analysis Script with Drawdown Cohort Analysis
+
+*   **Rationale:** (Hinton) We have isolated the problematic trades. Now, we must find the common features among them. This task enhances our diagnostic script to perform a cohort analysis on the drawdown trades, grouping them by their entry conditions. This is how we move from observing the failure to forming a data-driven hypothesis about its root cause.
+*   **Items to implement:**
+    1.  **Modify `scripts/analyze_drawdown.py`:** This task builds directly on Task 45.
+    2.  **Isolate Drawdown Trades:** Use the logic from Task 45 to get the `drawdown_trades_df`.
+    3.  **Implement Cohort Analysis (Option 4):**
+        a. **Group by Stock:** Group the `drawdown_trades_df` by `stock` and aggregate the count and sum of `net_return_pct` to see if specific stocks are responsible.
+        b. **Bin and Group by Scores/Volatility:**
+            i.  Use `pd.cut` to create bins for `composite_score` (e.g., 4 bins from 0.0 to 1.0).
+            ii. Use `pd.cut` to create bins for `entry_sector_vol` (e.g., `[0, 15, 22, 100]`).
+            iii.Group by these new bins and aggregate the count and sum of returns.
+    4.  **Output:** After printing the drawdown trades list, print these new cohort analysis tables with clear headers (e.g., "Drawdown Analysis by Stock", "Drawdown Analysis by Composite Score").
+*   **Tests to cover:**
+    *   Again, the test is the output. Run the enhanced script and verify that the cohort tables are generated correctly and provide clear, actionable insights into the characteristics of the failing trades.
+*   **Time estimate:** 2 hours
+*   **Status:** To Do
+
+---
+
+### Task 47 — Refactor Drawdown Logic into a Reusable Diagnostics Service
+
+*   **Rationale:** (Nadh) The script has proven its value. Now, we extract the pure analysis logic from the script's I/O and encapsulate it in a proper, testable service. This is a critical step before integrating it into the main engine. The logic for calculating a drawdown is a reusable piece of analytics; it does not belong in a one-off script or tangled inside the `ReportGenerator`. This adheres to `[H-2]` (Stateless Services) and `[H-30]` (Follow The Architecture).
+*   **Items to implement:**
+    1.  **Create New Models:** In `praxis_engine/core/models.py`, create new Pydantic models to structure the output:
+        ```python
+        class DrawdownPeriod(BaseModel):
+            start_date: pd.Timestamp
+            end_date: pd.Timestamp
+            peak_value: float
+            trough_value: float
+            max_drawdown_pct: float
+            trade_indices: List[int] # Indices from the original DataFrame
+        ```
+    2.  **Create New Service:** Create a new file: `praxis_engine/services/diagnostics_service.py`.
+    3.  **Implement `analyze_drawdown`:** Create a class `DiagnosticsService` with a static method `analyze_drawdown(trades_df: pd.DataFrame) -> Optional[DrawdownPeriod]`.
+        a. Move the equity curve and drawdown calculation logic from the script (Task 45) into this method.
+        b. The method should accept a DataFrame of trades and return a `DrawdownPeriod` object (or `None` if no trades).
+    4.  **Refactor Script:** Update `scripts/analyze_drawdown.py` to import and use this new `DiagnosticsService`. The script now becomes a simple wrapper that loads a CSV and calls the service, keeping the logic clean and separate.
+*   **Tests to cover:**
+    *   Create a new test file: `tests/test_diagnostics_service.py`.
+    *   Create a unit test with a sample DataFrame of trades containing a known drawdown.
+    *   Call `DiagnosticsService.analyze_drawdown` and assert that the returned `DrawdownPeriod` object has the correct start/end dates, drawdown percentage, and trade indices.
+*   **Time estimate:** 3 hours
+*   **Status:** To Do
+
+---
+
+### Task 48 — Integrate Drawdown Analysis into the Final Report
+
+*   **Rationale:** (Hinton/Nadh) The diagnostic logic is now a robust, tested service. The final step is to plumb it into the main reporting pipeline. This makes the drawdown analysis an automatic, zero-effort part of every backtest run. The system will now self-diagnose its worst failure mode on every execution, making our iteration loop faster and more scientifically rigorous. This is the definition of a mature diagnostic tool.
+*   **Items to implement:**
+    1.  **Modify `ReportGenerator`:** In `praxis_engine/services/report_generator.py`:
+        a. Import the `DiagnosticsService` and the `DrawdownPeriod` model.
+        b. In the `generate_backtest_report` method, after the KPIs are calculated, call `DiagnosticsService.analyze_drawdown(trades_df)`.
+    2.  **Create New Report Section:**
+        a. Create a new private method `_generate_drawdown_analysis_section(self, trades_df: pd.DataFrame, drawdown_period: Optional[DrawdownPeriod]) -> str`.
+        b. This method will check if `drawdown_period` is not `None`.
+        c. If it exists, it will filter `trades_df` using the `trade_indices` from the `drawdown_period` object.
+        d. It will then format a new Markdown section titled "### Maximum Drawdown Analysis", showing the period's stats (start, end, percentage) and a summary table of the trades *within* that drawdown (e.g., count, total return, breakdown by `exit_reason`).
+    3.  **Append to Report:** In `generate_backtest_report`, append the string returned by the new method to the main report string, just after the KPI table.
+*   **Tests to cover:**
+    *   Update `tests/test_report_generator.py`.
+    *   Create a new test that passes a sample `trades_df` to `generate_backtest_report`.
+    *   Assert that the final report string contains the "Maximum Drawdown Analysis" header and a table with the correct data for the drawdown trades.
+*   **Time estimate:** 2 hours
+*   **Status:** To Do
