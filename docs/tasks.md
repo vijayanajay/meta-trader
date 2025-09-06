@@ -668,7 +668,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Create a new test file: `tests/test_features.py`.
     *   Write unit tests for `calculate_market_features` with a sample input DataFrame and assert that the output features are calculated correctly.
 *   **Time estimate:** 2 hours
-*   **Status:** To Do
+*   **Status:** Done
+*   **Resolution:** A new module `praxis_engine/core/features.py` was created with the `calculate_market_features` function. The function correctly calculates `nifty_vs_200ma`, `vix_level`, and `vix_roc_10d` from the provided market data. Comprehensive unit tests were added in `tests/test_features.py` to validate the correctness of the calculations and error handling.
 
 ---
 
@@ -688,7 +689,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   This is primarily tested by its integration in the following tasks. The manual run capability serves as a functional test.
 *   **Time estimate:** 4 hours
-*   **Status:** To Do
+*   **Status:** In Progress
+*   **Resolution:** A stub script `scripts/train_regime_model.py` has been created. It correctly loads the configuration, fetches market data using the `MarketDataService`, and calculates the required features using `calculate_market_features`. The actual model training and saving logic is yet to be implemented.
 
 ---
 

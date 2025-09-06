@@ -32,6 +32,12 @@ start_date = "2022-01-01"
 end_date = "2023-01-01"
 sector_map = {"TEST.NS": "^TESTINDEX"}
 
+[market_data]
+index_ticker = "^NSEI"
+vix_ticker = "^INDIAVIX"
+training_start_date = "2010-01-01"
+cache_dir = "test_cache/market"
+
 [strategy_params]
 bb_length = 20
 bb_std = 2.0
