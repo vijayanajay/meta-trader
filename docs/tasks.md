@@ -1,184 +1,673 @@
-Of course. Here is a comprehensive architecture document for the "Praxis" project, written from the perspective and with the mindset of Kailash Nadh, ensuring every requirement from the provided documents is meticulously addressed.
+# **"Praxis" Engine — Task Breakdown**
+
+This document provides a detailed, sequential list of tasks required to build the "Praxis" Mean-Reversion Engine. Each task is designed as a small, logical unit of work, mapping directly to the requirements in the `prd.md` and `architecture.md`. We build methodically, test rigorously, and earn complexity. We do not build for a hypothetical future.
 
 ---
 
-# **Architecture Document: "Praxis" Mean-Reversion Engine**
+## Concise Summary (Kailash Nadh style) — Tasks 1–15
 
-## 1. Introduction & Philosophy
+Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was implemented, the resolution, and the current status. The tone is direct and focused on engineering trade-offs and outcomes.
 
-This document outlines the technical architecture for "Praxis," a quantitative trading system for the Indian markets. It is not a blueprint for a money-printing machine. It is a design for a robust, deterministic filtering engine. The architecture is rooted in two non-negotiable truths about building systems for the real world, especially the chaotic Indian market.
+1) Task 1 — Project Scaffolding & Configuration
+* Rationale: Start clean; configuration must be type-safe and reproducible.
+* Implemented: Project layout, `.gitignore`, `pyproject.toml`, `config.ini`, `services/config_service.py`, `core/models.py`, and a `Typer` CLI stub.
+* Resolution: Foundations in place; CLI loads config successfully.
+* Status: Complete
 
-1.  **Pragmatic Simplicity (The Nadh Principle):** Complexity is the primary vector for failure. This system will be built from simple, discrete, and brutally testable components. We are not building a general-purpose AI; we are building a specialized machine that applies a sequence of deterministic statistical checks. The LLM is a pluggable component—a calculator for a specific, non-linear function—not the brain. Over-engineering is a luxury we cannot afford.
+2) Task 1.1 — Fix Typer CLI Invocation
+* Rationale: CLI must be reliable for developer workflows.
+* Implemented: Fixed Typer invocation so module call works (`python -m praxis_engine.main verify-config`).
+* Resolution: CLI is now usable from module mode.
+* Status: Complete
 
-2.  **The Edge is in the Filter (The Real-World Principle):** The core purpose of this system is not to find trades, but to find reasons *not* to trade. Profitability in quantitative trading, particularly mean-reversion, comes from surviving periods where the strategy does not work. Therefore, the architecture must be obsessed with the integrity of its filters: market regime, liquidity, statistical validity, and costs. Every component is designed to be a "guardrail" that protects capital.
+3) Task 1.2 — Solidify Project Dependencies
+* Rationale: Reproducible environments are mandatory.
+* Implemented: `requirements.txt` created and README updated with install instructions.
+* Resolution: Single-step environment setup available.
+* Status: Done
 
-The result is a system designed to be run locally, that is secure by design, resilient to failure, and focused entirely on identifying a small number of high-probability opportunities that have survived a gauntlet of rigorous, reality-based checks.
+4) Task 2 — Data Service for Indian Markets
+* Rationale: Reliable, cached, India-aware data is non-negotiable.
+* Implemented: `DataService` with cache logic, sector index merge, rolling sector vol calculation, parquet caching.
+* Resolution: Fast, reproducible data fetches with correct sector context.
+* Status: Complete
 
-## 2. Architectural Principles
+5) Task 3 — Core Statistical & Indicator Library
+* Rationale: Indicators must be pure and testable.
+* Implemented: `bbands`, `rsi`, `adf_test`, `hurst_exponent` in `core` modules.
+* Resolution: Mathematical primitives validated and tested.
+* Status: Complete
 
-*   **Modularity & Single Responsibility:** Each component does one thing and does it well. The `DataService` knows nothing of statistics; the `ValidationService` knows nothing of backtesting. This separation is paramount for testing, maintenance, and future replacement of any single part without collapsing the whole structure.
-*   **Determinism & Reproducibility:** A backtest is a scientific experiment. For a given set of stocks, configuration, and data vintage, a run must be 100% reproducible. This is achieved through versioned data caching and deterministic logic. There is no room for randomness.
-*   **Stateless Orchestration:** The main application logic is a stateless orchestrator. All state (the results of a backtest, for instance) is explicitly managed and persisted. The system can be stopped and restarted without data loss, but it does not maintain a persistent "state" during a run.
-*   **Constrained Interfaces:** All external inputs, especially from the LLM, are treated as data, never as code. The LLM's role is strictly defined by a "contract": it receives a structured set of statistics and returns a single floating-point number. This eliminates an entire class of security and reliability problems from the outset.
-*   **Realism First (The Cost Principle):** The system is architecturally aware of real-world trading frictions. Costs (brokerage, STT, slippage) are not an afterthought to be applied to a report; they are fundamental parameters integrated into the core logic of the `ExecutionSimulator` and backtesting loop. Gross returns are a vanity metric and will not be tracked.
+6) Task 4 — Multi-Frame Signal Engine
+* Rationale: Multi-timeframe alignment is the source of edge.
+* Implemented: `Signal` model and `SignalEngine.generate_signal` implementing PRD rules.
+* Resolution: Reliable signal generation per spec.
+* Status: Complete
 
-## 3. System Overview (C4 Model - Level 2)
+7) Task 5 — Validation Service (Guardrail Gauntlet)
+* Rationale: Capital preservation via sequential statistical/contextual checks.
+* Implemented: `ValidationService` refactored to modular Guard classes for liquidity, regime, and stats.
+* Resolution: Guardrail logic modular and testable.
+* Status: Complete
 
-The system is a sequential filtering pipeline orchestrated by a central `Orchestrator`. It is designed to run in two modes: `backtest` and `generate-report`. The diagram below illustrates the `backtest` flow for a single time step.
+8) Task 6 — Execution Simulator with Indian Cost Model
+* Rationale: Realistic costs make results credible.
+* Implemented: `ExecutionSimulator` with brokerage, STT, slippage, and zero-volume handling.
+* Resolution: Trade P/L reflects Indian market frictions.
+* Status: Complete
 
-```mermaid
-graph TD
-    subgraph PraxisEngine [Praxis Engine (Local Python Application)]
-        direction LR
-        Orchestrator(Orchestrator)
-        load_config(load_config function)
-        DataService(Data Service)
-        SignalEngine(Signal Engine)
-        ValidationService(Validation Service)
-        ExecutionSimulator(Execution Simulator)
-        ReportGenerator(Report Generator)
+9) Task 7 — Walk-Forward Backtesting Orchestrator
+* Rationale: Walk-forward prevents lookahead and models real-time behavior.
+* Implemented: `Orchestrator.run_backtest` integrating DataService, SignalEngine, ValidationService, ExecutionSimulator, and LLM hook.
+* Resolution: Orchestrator fixed for data leakage and performance.
+* Status: Complete
 
-        Orchestrator -- "Reads Config" --> load_config
-        Orchestrator -- "1. Get Historical Data Window" --> DataService
-        Orchestrator -- "2. Generate Preliminary Signal" --> SignalEngine
-        Orchestrator -- "3. Validate Signal with Guards" --> ValidationService
-        Orchestrator -- "4. Simulate Trade & Costs" --> ExecutionSimulator
-        Orchestrator -- "5. Aggregate & Report Results" --> ReportGenerator
-    end
+10) Task 8 — LLM Audit Service with OpenRouter
+* Rationale: LLM is a constrained statistical auditor only.
+* Implemented: `LLMAuditService` with provider abstraction, fail-safe defaults, and high test coverage.
+* Resolution: Lean, stateless auditor; handles provider errors and returns safe defaults.
+* Status: Complete
 
-    subgraph "Offline Analysis"
-        direction LR
-        LLMAuditService(LLM Audit Service)
-        User[Quant Analyst] -- "python scripts/audit_opportunities.py" --> LLMAuditService
-        LLMAuditService -- "Sends Stats, Gets Score" --> OpenRouterAPI[OpenRouter API]
-    end
+11) Task 9 — Final Report Generation & CLI
+* Rationale: Reports and CLI expose outcomes clearly.
+* Implemented: `report_generator` functions and expanded Typer CLI commands for backtest and report generation.
+* Resolution: Correct, efficient report generation and usable CLI entry points.
+* Status: Complete
+
+12) Task 10 — Dynamic, Volatility-Based Exits (ATR)
+* Rationale: Exits must adapt to market volatility, not a magic constant.
+* Implemented: `atr` in `core/indicators.py`, `ExitLogicConfig`, `config.ini` updates, and orchestrator loop changed to ATR trailing-stop logic; tests added.
+* Resolution: ATR-based exits operational and test-covered; configurable fallback to legacy exit preserved.
+* Status: Done
+
+13) Task 11 — Fix Lookahead Bias and Orchestrator Logic
+* Rationale: Lookahead bias invalidates experiments; generate_opportunities was inefficient.
+* Implemented: ATR moved to walk-forward window, `generate_opportunities` refactored to lightweight recent checks and a focused historical helper for LLM context.
+* Resolution: Backtest integrity restored and runtime reduced.
+* Status: Done
+
+14) Task 12 — Systematic Parameter Sensitivity Analysis
+* Rationale: Move tuning from guesswork to controlled experiments.
+* Implemented: `[sensitivity_analysis]` config, `sensitivity-analysis` CLI, `Orchestrator.run_sensitivity_analysis`, and reporting for sensitivity results; tests added.
+* Resolution: Reproducible parameter sweeps and Markdown report generation implemented.
+* Status: Done
+
+15) Task 13 — Refactor Guards to Probabilistic Scoring
+* Rationale: Binary guards throw away signal nuance; scores enable graded decisions.
+* Implemented: `ValidationScores` model, guards return 0.0–1.0 scores, `ValidationService` aggregates scores, config controls boundaries; tests updated.
+* Resolution: Guards now produce continuous scores consumed downstream.
+* Status: Done
 
 
-    User[Quant Analyst (CLI User)] -- "python main.py backtest" --> Orchestrator
-    load_config -- "Reads config.ini" --> LocalFS[(Local Filesystem)]
-    DataService -- "Fetches OHLCV Data" --> yfinance[yfinance API]
-    DataService -- "Caches data.parquet" --> LocalFS
-    ReportGenerator -- "Writes backtest_summary.md" --> LocalFS
-```
+## Epic 7: From Output to Insight - Advanced Diagnostics & Reporting
 
-## 4. Component Breakdown
+*Goal: To transform the backtest output from a simple KPI summary into a comprehensive diagnostic tool. This is not about changing the core strategy logic, but about instrumenting it to provide the deep, analytical insights required to improve it scientifically. A backtest that only tells you the final P/L is a missed opportunity; a backtest that tells you *why* you achieved that P/L is the foundation for progress. We will make our system's thinking transparent and auditable.*
 
-This table maps the PRD's functional requirements directly to architectural components.
+---
 
-| Component | Responsibility | Inputs | Outputs | PRD Mapping | Implementation Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Orchestrator** | The brain. Manages the primary application modes (`backtest`, `generate-report`). In `backtest` mode, it runs the walk-forward loop. In `generate-report` mode, it runs a point-in-time check on the latest data. | CLI arguments (`mode`, `config_path`). | `Trade` or `Opportunity` objects; report files to the filesystem. | FR7, FR8 | Its core responsibilities are the `run_backtest` walk-forward loop and the efficient `generate_opportunities` point-in-time check. |
-| **Config Service** | Parses and validates `config.ini`, providing a typed configuration object (Pydantic model) to the system. | `config.ini` file path. | A `Config` data object. | NFR (Maintainability) | All thresholds (volatility, liquidity, Hurst, etc.) and parameters (lookback periods) are defined here. |
- | **Data Service** | Fetches, cleans, caches, and prepares market data. Handles Indian market specifics. | Stock symbol, sector map, date range. | A `pandas` DataFrame with OHLCV, volume, and `sector_vol` columns. | **FR1** | Uses `yfinance` for equities and sector indices. Caches data in Parquet format keyed by stock and date range. Includes logic to handle Indian market holidays. |
-| **Signal Engine** | Generates preliminary mean-reversion signals based on multi-frame indicator alignment. | A `pandas` DataFrame window. | A `Signal` object (or `None`) containing entry/stop-loss targets. | **FR2** | Resamples the daily data to create weekly and monthly views. Calculates BBands and RSI on all three frames and applies the alignment logic from `project_brief.md`. |
-| **Validation Service** | The core of the filtering philosophy. Applies a cascade of statistical and contextual "guardrails" to a preliminary signal. | A `Signal` object, a `pandas` DataFrame window. | A `ValidationResult` object with boolean flags for each passed guard. | **FR3, FR4** | This is a container for smaller, single-purpose "Guard" modules: `StatGuard` (ADF, Hurst), `RegimeGuard` (Sector Volatility), `LiquidityGuard` (Turnover), `HistoryGuard` (Historical Efficacy). |
-| **LLM Audit Service** | Performs the final statistical audit by querying a local LLM. Adheres to the strict "no price data" rule. | A `pandas` DataFrame window, a `Signal` object, `ValidationResult`. | A confidence score (float between 0.0 and 1.0). | **FR5** | Constructs the prompt using only statistical aggregates (win rate, profit factor, sample size, current volatility) derived from the historical data window. Uses the `ollama` library to interact with a local Llama 3 instance. |
-| **Execution Simulator** | Calculates position size and simulates the trade, applying a realistic cost model. | A `Signal` object, confidence score, current price. | A `Trade` object with net return, costs incurred, etc. | **FR6** | Contains the detailed cost model (brokerage, STT, volume-based slippage). Implements the risk management logic (e.g., risk 0.5% of capital per trade). |
-| **Report Generator** | Aggregates results from the backtest or generates the weekly opportunity report. | A list of `Trade` objects (for backtest) or a list of valid opportunities. | A formatted Markdown file (`.md`). | **FR8** | For backtesting, calculates all KPIs from the PRD (Net Return, Sharpe, Profit Factor, Max Drawdown). For weekly reports, creates the specified table. |
+### Task 16 — Instrument Backtest Runs with Reproducibility Metadata
 
-## 5. Data Flow & The Filtering Cascade
+*   **Rationale:** A backtest is a scientific experiment. An experiment without documented initial conditions is unreproducible and therefore invalid. This task ensures that every report is stamped with the exact context in which it was generated, adhering to `[H-23]`.
+*   **Items to implement:**
+    1.  **Git Hash:** Create a utility function (e.g., in a new `praxis_engine/utils.py`) that uses the `subprocess` module to execute `git rev-parse --short HEAD` and retrieve the current commit hash. This function must handle cases where Git is not installed or it's not a Git repository.
+    2.  **Orchestrator:** The `Orchestrator` must gather the run timestamp, the path to the config file, and the Git hash at the beginning of a run.
+    3.  **Report Generator:** The `generate_backtest_report` method in `services/report_generator.py` must be updated to accept this metadata.
+    4.  **Output:** Add a new "Run Configuration & Metadata" section to the top of `backtest_summary.md` that displays this information in a clean Markdown table.
+*   **Tests to cover:**
+    *   A unit test for the new Git hash utility function, mocking the `subprocess.run` call.
+    *   Update `tests/test_report_generator.py` to check that the metadata section is correctly rendered in the output string.
+*   **Status:** Done
 
-This flow primarily describes the `backtest` mode. The `generate-report` mode follows a similar, but much more efficient, path: it calls the dedicated `Orchestrator.generate_opportunities` method, which fetches only a limited recent data window (e.g., 365 days) and runs the entire validation pipeline on only the single most recent data point. It does not perform a walk-forward loop.
+---
 
-1.  **Initialization:** The `Orchestrator` is invoked. It loads the configuration via `ConfigService`, which includes the list of Nifty 500 stocks and all system parameters.
+### Task 17 — Implement Signal Attrition Funnel and Guardrail Rejection Tracking
 
-2.  **Outer Loop (Per-Stock):** The `Orchestrator` iterates through each stock symbol.
-    a. **Data Fetching:** It calls `DataService.get_full_data(stock)`. The service fetches data from `yfinance` if not present in the local Parquet cache, then returns the complete historical DataFrame.
+*   **Rationale:** The system's primary function is to filter. We are blind to its effectiveness if we don't measure what it filters. This task instruments the entire decision-making pipeline to produce a "funnel," showing exactly how many signals are discarded at each stage and, crucially, *why*. This is the most direct way to identify which guardrail is doing the most work, per `[The Nadh Principle]` of pragmatic simplicity.
+*   **Items to implement:**
+    1.  **Orchestrator State:** Modify the `Orchestrator`'s main `backtest` loop in `praxis_engine/main.py`. It must now maintain counters for: `potential_signals`, `rejections_by_guard`, `rejections_by_llm`, and `trades_executed`. The `rejections_by_guard` should be a dictionary counting rejections per guard type (e.g., `{'StatGuard': 0, 'RegimeGuard': 0}`).
+    2.  **Rejection Logic:** In `core/orchestrator.py`, after `validation_service.validate()` returns the `ValidationScores`, if the composite score is below the `min_composite_score_for_llm` threshold, determine the primary reason for rejection by finding which score (`liquidity`, `regime`, or `stat`) was the lowest. Increment the corresponding counter.
+    3.  **Data Aggregation:** The main loop must aggregate these counts across all stocks.
+    4.  **Report Generator:** Create new methods in `services/report_generator.py` to generate the "Filtering Funnel" and "Guardrail Rejection Analysis" tables from the aggregated counter data.
+*   **Tests to cover:**
+    *   In `tests/test_orchestrator.py`, create a new test that mocks the return values of the services to simulate a flow where signals are rejected by different guards. Assert that the final counts returned by the orchestrator are correct.
+    *   In `tests/test_report_generator.py`, add tests for the new funnel and rejection table generation methods.
+*   **Status:** Done
+*   **Resolution:** The signal attrition funnel and rejection tracking have been fully implemented in the Orchestrator and Report Generator. The logic correctly tracks potential signals and their rejections at both the guardrail and LLM audit stages. Unit and integration tests have been added to verify this functionality. It was observed during testing that the current strategy configuration is highly restrictive and results in zero trades, which the system now correctly reports. The implementation is sound; tuning the strategy parameters is a separate task.
 
-3.  **Inner Loop (Walk-Forward):** The `Orchestrator` iterates through the time series for the stock, from a minimum history size (e.g., 200 days) to the end. For each day `i`:
-    a. **Create Data Window:** A DataFrame `window = df.iloc[0:i]` is created. This represents all information known up to that day.
-    b. **Phase 1: Signal Generation:** The `window` is passed to the `SignalEngine`.
-        *   *If no multi-frame alignment is found*, it returns `None`. The loop continues to day `i+1`.
-        *   *If alignment is found*, it returns a `Signal` object.
-    c. **Phase 2: Guardrail Validation:** The `Signal` and `window` are passed to the `ValidationService`. It executes its guards sequentially:
-        *   `LiquidityGuard`: Checks if 5-day avg turnover > ₹5 Crore. **If fails, reject signal.**
-        *   `RegimeGuard`: Checks if sector volatility < 22%. **If fails, reject signal.**
-        *   `StatGuard`: Checks if ADF p-value < 0.05 AND Hurst < 0.45. **If fails, reject signal.**
-        *   *If any guard fails*, the reason is logged, and the loop continues to day `i+1`.
-    d. **Phase 3: LLM Audit:** If all guards pass, the `window` and `Signal` are passed to the `LLMAuditService`.
-        *   It calculates the historical performance statistics of the *exact same setup* within the `window`.
-        *   It constructs the prompt and queries the local LLM.
-        *   It receives a confidence score. If the score is below the configured threshold (e.g., 0.7), the signal is rejected, and the loop continues to `i+1`.
-    e. **Phase 4: Execution Simulation:** If the LLM confidence is sufficient, the `Signal` is passed to the `ExecutionSimulator`.
-        *   It calculates the position size based on the risk model.
-        *   It simulates the trade entry at `df['Open'].iloc[i]`.
-        *   It determines the exit (e.g., 20 days later or hitting the stop-loss).
-        *   It calculates the **net return** after applying the full cost model (brokerage, STT, slippage).
-        *   A `Trade` object containing all this information is created and appended to a results list.
+---
 
-4.  **Final Aggregation:** After the inner and outer loops complete, the full list of all simulated `Trade` objects is passed to the `ReportGenerator`. It calculates the final system-wide KPIs and writes the `backtest_summary.md` file.
+### Task 18 — Add Per-Stock Performance Breakdown
 
-## 6. The LLM Contract: The Statistical Auditor
+*   **Rationale:** System-wide averages are deceptive; they hide excellence and mediocrity. A strategy might be brilliant on 5 stocks and terrible on 20. This task provides the granular, per-stock data needed to understand where the strategy actually works, enabling intelligent pruning of the stock universe.
+*   **Items to implement:**
+    1.  **Orchestrator Return Value:** The `Orchestrator.run_backtest` method must be refactored. Instead of just returning a list of trades, it should return a dictionary or a data class containing the trades for that stock *and* the rejection counts for that stock.
+    2.  **CLI Aggregation:** The `backtest` command in `praxis_engine/main.py` must be updated to handle this new return type. It will aggregate the per-stock results into a master data structure (e.g., a dictionary keyed by stock symbol).
+    3.  **Report Generator:** Add a new method `generate_per_stock_report` to `services/report_generator.py`. This method will take the aggregated per-stock data and format it into the specified Markdown table, including trade counts, P/L, and rejection statistics for each stock.
+*   **Tests to cover:**
+    *   Update tests in `tests/test_orchestrator.py` to reflect the new return signature of `run_backtest`.
+    *   Add a new test in `tests/test_report_generator.py` to verify the correct formatting of the per-stock table.
+*   **Status:** Done
 
-The interface with the LLM is rigidly defined to prevent misuse. The LLM is a stateless function that maps a set of statistical features to a confidence score.
+---
 
-**Input to LLM (via structured prompt):** A JSON-like block of text containing only statistical aggregates calculated from the historical data window.
+### Task 19 — Implement Trade Distribution and Statistical Analysis
 
-```
-- Historical Win Rate (>1.77% net return in 20 days): 28.1%
-- Historical Profit Factor: 1.62
-- Historical Sample Size (number of past signals): 21
-- Current Sector Volatility (annualized): 14.5%
-- Current Hurst Exponent: 0.41
-```
+*   **Rationale:** To move beyond simple averages and understand the *character* of the strategy's returns, per the Hinton mindset. A strategy with a positive average return driven by one massive outlier is fundamentally different and riskier than one with consistent small gains. This task adds the statistical measures (skew, kurtosis) and visualizations needed to see the true shape of the P/L distribution.
+*   **Items to implement:**
+    1.  **Pandas Dependency:** Ensure `pandas` is used for statistical calculations to avoid adding new dependencies like `scipy`, adhering to `[H-8]`.
+    2.  **Report Generator:** In `services/report_generator.py`, enhance the `_calculate_kpis` method (or create a new one) to compute:
+        *   Average Win %, Average Loss %
+        *   Best Trade %, Worst Trade %
+        *   Average Holding Period in days.
+        *   Skewness and Kurtosis of the net return series (`pd.Series(returns).skew()`, `.kurt()`).
+    3.  **ASCII Histogram:** Create a new, pure utility function (e.g., in `praxis_engine/utils.py`) called `generate_ascii_histogram(data: List[float]) -> str`. This function will bin the returns and generate a simple text-based histogram.
+    4.  **Output:** Integrate the new table and the histogram into the `backtest_summary.md` output.
+*   **Tests to cover:**
+    *   A unit test for the `generate_ascii_histogram` utility with a known data set to verify the output format.
+    *   Update `tests/test_report_generator.py` to assert that the new distribution table and histogram are present and correctly formatted in the final report string.
+*   **Status:** Done
 
-**Output from LLM:** A single floating-point number, stripped of any text, between 0.0 and 1.0.
+---
 
-The `LLMAuditService` is responsible for parsing this response. If the output is not a valid float, it is treated as a score of 0.0, and the failure is logged. This ensures system stability even with a misbehaving model.
+### Task 20 — Implement LLM Performance Uplift Analysis
 
-## 7. The Cost & Slippage Model
+*   **Rationale:** The LLM is the most expensive and opaque component of the system. Its value cannot be assumed; it must be rigorously quantified. This task implements a baseline comparison to measure the LLM's direct contribution (or harm) to the strategy's performance, adhering to Hinton's principle of isolating and measuring the impact of intelligent components (`[H-26]`).
+*   **Items to implement:**
+    1.  **Orchestrator Logic Change:** This is a critical refactoring of `core/orchestrator.py`.
+        a. After a signal passes the guardrail pre-filter, the `Orchestrator` must immediately simulate the trade as if it were to be executed. This trade object is stored in a new list, `pre_llm_trades`.
+        b. *Then*, the signal is sent to the `LLMAuditService`.
+        c. If the LLM confidence score is sufficient, the *exact same trade object* is also appended to the final `trades` list.
+        d. The `run_backtest` method must now return both lists: `pre_llm_trades` and `final_trades`.
+    2.  **LLM Score Logging:** The `Orchestrator` must collect every confidence score returned by the `LLMAuditService` throughout the backtest into a list.
+    3.  **Report Generator:** Create a new method `generate_llm_uplift_report`. It will:
+        a. Accept the `pre_llm_trades` and `final_trades` lists.
+        b. Calculate KPIs for both sets of trades.
+        c. Compute the percentage uplift (or decline) for key metrics like Profit Factor and Win Rate.
+        d. Use the `generate_ascii_histogram` utility to create a distribution chart of the collected LLM scores.
+        e. Format all of this into the "LLM Audit Performance Analysis" section.
+*   **Tests to cover:**
+    *   This requires a significant update to `tests/test_orchestrator.py`. Create a new integration test that simulates a scenario where some signals pass the guards but are then rejected by the LLM. Assert that `run_backtest` returns two lists of trades with the correct contents.
+    *   Add a new test to `tests/test_report_generator.py` for `generate_llm_uplift_report`, providing it with two mock lists of trades and asserting the final table and uplift calculations are correct.
+*   **Status:** Done
 
-This is not an afterthought; it is a core component (`ExecutionSimulator`) and must be implemented precisely as specified in the PRD.
+---
+### Task 21 — Align Task Numbers with Descriptions
+*   **Rationale:** There is a discrepancy between user requests for specific task numbers (e.g., "Task 17") and the content of those tasks in this document. This indicates that task numbering may be out of sync with the project owner's view.
+*   **Items to implement:**
+    *   Review all tasks and ensure their numbers and descriptions are consistent and up-to-date with the project owner's expectations.
+    *   This is a documentation and project management task.
+*   **Status:** Done
 
-*   **Brokerage:** A function that calculates `max(0.0003 * trade_value, 20)` for both entry and exit.
-*   **Securities Transaction Tax (STT):** A fixed percentage (e.g., 0.025%) applied to the trade value.
-*   **Slippage:** A function that takes the stock's recent average volume as input and returns a slippage percentage. This will be modeled as a tiered function:
-    *   `if avg_volume > 1,000,000: return 0.001` (0.1%)
-    *   `else: return 0.005` (0.5%)
-    This slippage is added to the entry price and subtracted from the exit price.
 
-## 8. Error Handling & Resilience
+---
 
--   **API Failures (`nsepy`/`yfinance`):** The `DataService` will implement a retry mechanism with exponential backoff for transient network errors. If data for a stock cannot be fetched after 3 retries, it will be logged as a failure for that stock and the orchestrator will move to the next one.
--   **Statistical Calculation Errors:** Any exceptions within the `ValidationService` (e.g., from `statsmodels`) will be caught, logged, and treated as a failed validation. The signal will be rejected.
--   **LLM Failures:** If the local Ollama server is down or the `LLMAuditService` fails to get a valid float response after 2 retries, it will return a confidence score of 0.0, effectively rejecting the signal and allowing the system to continue running.
--   **Configuration Errors:** On startup, the `ConfigService` will validate the `config.ini` file using Pydantic. If critical values are missing or malformed, the application will exit with a clear error message.
+### Task 22 — Harden LLM API Connectivity
 
-## 9. Directory Structure
+*   **Rationale:** The backtest runs are consistently failing with `APIConnectionError` when trying to reach the OpenRouter service. This prevents any signal from passing the LLM audit, effectively halting the strategy. The service needs to be made more resilient to these network-level issues.
+*   **Items to implement:**
+    1.  **Investigate Root Cause:** Determine if the `APIConnectionError` is due to an invalid API key, a problem with the OpenRouter service itself, or a local network configuration issue.
+    2.  **Implement Exponential Backoff:** Wrap the `llm_audit_service`'s API call in a retry loop with exponential backoff (e.g., using the `tenacity` library or a manual implementation) to handle transient network errors more gracefully.
+    3.  **Add Timeout:** Configure a reasonable timeout for the API request to prevent the system from hanging indefinitely.
+    4.  **Improve Error Logging:** Enhance the logging in `LLMAuditService` to provide more context when an API error occurs, including the number of retries attempted.
+*   **Tests to cover:**
+    *   Add a test to `tests/test_llm_audit_service.py` that mocks the API client to throw an `APIConnectionError` and asserts that the retry logic is triggered the correct number of times.
+*   **Status:** Done
 
-This structure promotes clean separation of concerns and maps directly to the components described above.
+---
+### Task 23 — Update PRD and other documentation
+*   **Rationale:** The PRD and other documentation may be out of date with the current implementation. This task is to review and update the documentation to reflect the current state of the project.
+*   **Items to implement:**
+    *   Review `docs/prd.md` and update it to reflect the use of OpenRouter and the Kimi 2 model.
+    *   Review `docs/memory.md` and add any new learnings.
+    *   Review `README.md` and update if necessary.
+*   **Status:** To Do
 
-```
-praxis_engine/
-├── main.py                 # CLI entry point (using Typer/Click)
-├── config.ini              # Central configuration file
-├── core/
-│   ├── py.typed
-│   ├── __init__.py
-│   ├── orchestrator.py     # Main backtest/report generation loops
-│   ├── models.py           # Pydantic models for Config, Signal, Trade, etc.
-│   ├── data_service.py     # MOVED: Fetches, caches, and prepares data
-│   ├── execution_simulator.py # MOVED: Cost model and trade simulation
-│   └── guards/             # Sub-package for validation logic
-│       ├── py.typed
-│       ├── __init__.py
-│       ├── ...
-│
-├── services/
-│   ├── py.typed
-│   ├── __init__.py
-│   ├── config_service.py   # Loads and parses config.ini
-│   ├── signal_engine.py    # Multi-frame signal generation
-│   ├── validation_service.py # Orchestrates all guards
-│   ├── llm_audit_service.py# Offline auditor for generated opportunities
-│   └── report_generator.py # Creates final Markdown reports
-├── prompts/
-│   └── statistical_auditor.txt # Jinja2 template for the LLM prompt
-├── data_cache/             # Local CSV cache (ignored by git)
-│   └── HDFCBANK_2010-01-01_2023-12-31.CSV
-├── results/                # Output directory for all reports (ignored by git)
-│   └── backtest_summary_2024-05-21.md
-├── .env                    # Not strictly needed for MVP, but good practice
-├── requirements.txt
-└── pyproject.toml
-```
+---
+
+### Task 24 — Implement Dynamic Profit Target for Symmetrical Risk Management
+
+*   **Rationale:** (Hinton) The backtest report shows a negative skew of -0.94. This is a statistical warning that our profit distribution has a longer tail on the left; our losses, when they occur, are more severe than our wins are beneficial. This creates a poor risk-adjusted return profile. (Nadh) Architecturally, our exit logic is asymmetrical and incomplete. We have a well-defined rule for when we are wrong (the ATR stop-loss) but no rule for when we are right. We are letting profitable trades run indefinitely until a timeout, which is arbitrary. This task introduces a symmetrical, data-driven profit target to test the hypothesis that systematically capturing gains will improve the Sharpe Ratio by shaping a more favorable return distribution.
+*   **Items to implement:**
+    1.  **Configuration:** In `config.ini`, within the `[exit_logic]` section, add a new parameter: `reward_risk_ratio = 2.0`.
+    2.  **Models:** In `core/models.py`, add the corresponding `reward_risk_ratio: float` field to the `ExitLogicConfig` Pydantic model.
+    3.  **Orchestrator Logic:** Refactor the `Orchestrator._determine_exit` method in `core/orchestrator.py`.
+        a. At the point of trade entry (at index `i`), calculate the risk distance: `risk_per_share = entry_price - stop_loss_price`.
+        b. Calculate the profit target: `profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)`.
+        c. Inside the day-by-day forward loop that checks for the stop-loss, add a condition to check if the day's `High` price has crossed the `profit_target_price`.
+        d. If the profit target is hit, the exit is triggered. The `exit_price` must be the `profit_target_price` itself (not the day's high) to ensure a conservative and deterministic exit simulation. This exit takes precedence over the max holding period.
+*   **Time estimate:** 5 hours
+*   **Status:** Done & Reverted
+
+*   **Resolution & Learnings:**
+    *   **Outcome:** The implementation was functionally correct, but the backtest revealed a catastrophic drop in all performance metrics (Sharpe Ratio, Annualized Returns, Profit Factor). The hypothesis that a symmetrical risk:reward target would improve performance was **conclusively falsified**.
+    *   **Root Cause:** A fundamental mismatch between the strategy's nature and the exit logic was identified. Our system is a **mean-reversion** strategy that profits from short-term reversions to a statistical mean. The fixed reward:risk ratio is a **trend-following** exit concept. It forced the system to hold winning trades for too long, waiting for large, trend-like profit targets that rarely materialized, causing profitable trades to decay into smaller wins or even losses.
+    *   **Final Action:** The changes from this task have been **reverted** from the codebase. The previous, simpler exit logic (ATR stop-loss or max holding period) proved more effective because it did not contradict the core statistical edge of the entry signal. A detailed post-mortem has been added to `docs/memory.md` to ensure this flawed approach is not attempted again.
+
+---
+### Task 25 — Create Universe Pre-Filtering Script for Strategy Specialization
+
+*   **Rationale:** (Nadh) The backtest proved the strategy is a specialist. It works on `POWERGRID.NS` and fails everywhere else. Wasting CPU cycles backtesting a mean-reversion strategy on trending stocks like `RELIANCE.NS` is inefficient and violates the "fail fast" principle. The most pragmatic solution is not to change the algorithm, but to curate the universe it operates on. (Hinton) This is a form of dataset curation, a crucial step in any applied ML project. We are simplifying the problem for our model by pre-selecting a dataset where the signal-to-noise ratio for mean-reversion is inherently higher. This is valid, provided the selection is done on out-of-sample data to prevent selection bias from contaminating our final backtest results.
+*   **Items to implement:**
+    1.  **Create New Script:** Create a new, standalone script: `scripts/universe_analyzer.py`. This script will not be part of the main `praxis_engine` package.
+    2.  **Script Logic:** The script should:
+        a. Define a list of Nifty 500 tickers (this can be hardcoded or read from a simple text file).
+        b. Define an out-of-sample date range for analysis (e.g., `2010-01-01` to `2017-12-31`), which does not overlap with the main backtest period.
+        c. Loop through each stock ticker.
+        d. Use the `DataService` to fetch historical data.
+        e. Use the `hurst_exponent` function from `core/statistics.py` to calculate the Hurst exponent for the entire period.
+        f. Store the results (ticker and Hurst value) in a list.
+        g. After processing all stocks, sort the list by the Hurst exponent in ascending order.
+        h. Print a clean, copy-paste-ready list of the top 50 tickers where `Hurst < 0.5`.
+    3.  **Documentation:** Add a section to `README.md` explaining how to run this script to generate a curated stock list for `config.ini`.
+*   **Tests to cover:**
+    *   Given this is a one-off analysis script, a full test suite is over-engineering. The primary test is to run the script and manually verify that it produces a sensible, sorted list of tickers and their Hurst values.
+*   **Acceptance Criteria (AC):**
+    *   A new script exists that can analyze a list of stocks and identify the most mean-reverting candidates based on historical data.
+    *   The output is a simple list of stock tickers that can be directly used to update the `stocks_to_backtest` parameter in `config.ini`.
+*   **Definition of Done (DoD):**
+    *   The script is created and functional. The `README.md` is updated with instructions for its use.
+*   **Time estimate:** 3 hours
+*   **Status:** Done
+
+---
+### Task 26 — Update Stock Universe with Curated List
+
+*   **Rationale:** (Nadh) The `universe_analyzer.py` script (Task 25) was created to provide a data-driven list of mean-reverting stocks. The final step to operationalize this finding is to update the system's configuration to use this curated list. This ensures that the backtester's resources are focused only on the stocks where the strategy has the highest probability of being applicable, directly applying the key learning from previous, broader backtests.
+*   **Items to implement:**
+    1.  Run the `scripts/universe_analyzer.py` script to generate the list of mean-reverting tickers.
+    2.  Copy the output list of tickers.
+    3.  Open `config.ini` and replace the value of the `stocks_to_backtest` parameter in the `[data]` section with the new, curated list.
+    4.  Run a full backtest using the `run.py backtest` command to confirm the system runs correctly with the new, specialized stock universe.
+*   **Tests to cover:**
+    *   The primary test is to run the backtester and ensure it completes without errors using the new stock list.
+*   **Acceptance Criteria (AC):**
+    *   The `config.ini` file is updated with a list of stocks identified as mean-reverting by the universe analyzer.
+    *   A backtest run completes successfully using this new configuration.
+*   **Definition of Done (DoD):**
+    *   The `config.ini` file is updated and a successful backtest has been run.
+*   **Time estimate:** 1 hour
+*   **Status:** Done
+
+---
+
+## Epic 8: Performance & Scalability
+
+*Goal: To transform the backtesting engine from a slow, single-threaded research tool into a high-performance system capable of rapidly analyzing hundreds of stocks. This epic addresses the critical performance bottlenecks identified in the initial implementation, making large-scale analysis and sensitivity testing feasible.*
+
+---
+
+### Task 27 — Parallelize Per-Stock Backtests with Multiprocessing
+
+*   **Rationale:** (Nadh) The current single-threaded backtest is the most significant bottleneck for analyzing a large universe. The problem is "embarrassingly parallel," as each stock's backtest is independent. Leveraging all available CPU cores is the most pragmatic, highest return-on-investment change to achieve a near-linear speedup for the entire run without altering the core strategy logic.
+*   **Items to implement:**
+    1.  Modify the `backtest` command in `praxis_engine/main.py`.
+    2.  Import Python's `multiprocessing.Pool`.
+    3.  Create a top-level helper function that can be pickled by `multiprocessing`. This function will accept a stock ticker, create a new `Orchestrator` instance, and run the backtest for that single stock.
+    4.  Replace the main `for` loop over the stock list with a call to `pool.imap_unordered` to distribute the work across all available CPU cores.
+    5.  Integrate `tqdm` with the multiprocessing pool to ensure the progress bar continues to function correctly.
+    6.  Collect the results from all parallel processes and run the existing aggregation and report generation logic.
+*   **Tests to cover:**
+    *   This is primarily a functional test. The key validation is to run a backtest on a small, fixed set of stocks (e.g., 4-8) both before and after the change on a multi-core machine.
+    *   **Assertion 1:** The parallel version must complete significantly faster.
+    *   **Assertion 2:** The final generated `backtest_summary.md` must be numerically identical to the one from the single-threaded run.
+*   **Acceptance Criteria (AC):**
+    *   The `backtest` command utilizes multiple CPU cores during execution.
+    *   A full backtest on the configured universe completes in a fraction of the original time.
+    *   The final aggregated report is identical to the one produced by a single-threaded run, ensuring correctness.
+*   **Definition of Done (DoD):**
+    *   The `main.py` backtest command is refactored to use `multiprocessing.Pool`. The system correctly utilizes parallel processing, and the results are verified to be correct.
+*   **Time estimate:** 4 hours
+*   **Status:** Done & Reverted
+*   **Resolution & Learnings:** The BBU target created an uncontrolled, asymmetrical risk profile and was replaced by the fixed R:R logic in **Task 38**.
+
+---
+
+### Task 28 — Accelerate Numerical Hotspots with Numba JIT
+
+*   **Rationale:** (Hinton/Nadh) Profiling reveals that specific, pure-Python numerical functions, like the Hurst exponent calculation, are computational hotspots within each backtest. While vectorization is preferred, some algorithms are inherently loopy. Instead of a costly rewrite in C, we can use Numba to Just-In-Time (JIT) compile these critical Python functions into highly optimized machine code. This is a targeted, surgical optimization that provides C-like speed for the parts of the code that need it most.
+*   **Items to implement:**
+    1.  Add `numba` to the project's `requirements.txt`.
+    2.  **Profile:** Use a profiler (e.g., `cProfile`) to confirm the primary numerical bottlenecks during a single-stock run. The `hurst_exponent` function in `core/statistics.py` is the primary suspect.
+    3.  **Refactor for Numba:**
+        a. In `core/statistics.py`, import `numba`.
+        b. Decorate the `hurst_exponent` function (or another identified bottleneck) with `@numba.jit(nopython=True)`.
+        c. Modify the function to work with NumPy arrays instead of Pandas Series. The calling code must be updated to pass `series.to_numpy()`.
+        d. Ensure all code inside the decorated function is compatible with Numba's `nopython` mode, refactoring to basic loops or supported NumPy functions if necessary.
+*   **Tests to cover:**
+    *   The existing unit tests for `hurst_exponent` in `tests/test_statistics.py` must continue to pass, verifying the numerical correctness of the JIT-compiled version.
+    *   (Optional but recommended) Add a benchmark test using `pytest-benchmark` to formally measure and assert the performance gain of the Numba-fied function against the original.
+*   **Acceptance Criteria (AC):**
+    *   At least one identified computational bottleneck is successfully accelerated with the `@numba.jit` decorator.
+    *   The backtest produces identical numerical results (within a small tolerance for floating-point differences).
+    *   The overall runtime for a single stock backtest is measurably reduced due to the optimization.
+*   **Definition of Done (DoD):**
+    *   The `numba` dependency is added. The target function is refactored, decorated, and fully tested for both correctness and performance improvement.
+*   **Time estimate:** 6 hours
+*   **Status:** Done
+
+---
+
+### Task 29 — Pre-calculate All Indicators to Eliminate O(N^2) Loop Inefficiency
+
+*   **Rationale:** (Nadh) A performance profile of the backtester reveals a classic and entirely avoidable `O(N^2)` inefficiency. The main walk-forward loop recalculates all technical indicators (BBands, RSI, ATR) over an expanding data window on *every single iteration*. This is computationally wasteful. On day 1000, we are re-doing the work of day 999 plus one extra day. The pragmatic solution is to perform one, single, vectorized `O(N)` calculation for all indicators before the loop begins. This is the lowest-hanging fruit for performance optimization.
+*   **Items to implement:**
+    1.  **Orchestrator Refactoring:** In `praxis_engine/core/orchestrator.py`, within the `run_backtest` method, before the main `for` loop:
+        a. Call all necessary indicator functions (`bbands`, `rsi`, `atr` from `core/indicators.py`) on the `full_df`.
+        b. This will generate several `pd.Series` or `pd.DataFrame` objects containing the indicator values for the entire backtest period.
+        c. Use `pd.concat` to merge these new indicator columns into the `full_df`.
+    2.  **Signal Engine Signature Change:** Modify the `generate_signal` method in `praxis_engine/services/signal_engine.py`.
+        a. Its signature must change from `generate_signal(self, df_daily: pd.DataFrame)` to `generate_signal(self, full_df_with_indicators: pd.DataFrame, current_index: int)`.
+        b. All internal logic that calculates indicators must be removed.
+        c. The logic must be rewritten to perform simple lookups on the provided dataframe at the `current_index` (e.g., `latest_daily = full_df_with_indicators.iloc[current_index]`).
+    3.  **Validation Service Signature Change:** The same refactoring pattern must be applied to the guards that perform calculations (specifically `StatGuard`).
+        a. The `validate` methods in the guards should now accept the `full_df_with_indicators` and `current_index`.
+        b. The `StatGuard` must be updated to look up pre-calculated Hurst and ADF values. This will require pre-calculating these statistics using a `rolling().apply()` method in the `Orchestrator` to ensure point-in-time correctness.
+    4.  **Orchestrator Loop Update:** The main loop in `run_backtest` must be updated to call the refactored services with the new signatures, passing the complete dataframe and the current loop index `i`.
+*   **Tests to cover:**
+    *   **Correctness Test (Critical):** Run a full backtest on a single, deterministic stock (e.g., `POWERGRID.NS` from 2018-2020) *before* the changes. Save the resulting list of `Trade` objects. After implementing the changes, run the exact same backtest. The new list of `Trade` objects must be numerically identical to the saved list. This proves the refactoring did not alter the strategy's logic.
+    *   **Performance Benchmark:** Add a simple timer (`time.time()`) around the `run_backtest` call for a single stock. Assert that the execution time after the refactoring is at least 5x faster than before.
+    *   Update unit tests for `SignalEngine` and `ValidationService` to reflect their new method signatures.
+*   **Acceptance Criteria (AC):**
+    *   The backtester produces numerically identical trade results to the pre-refactoring version.
+    *   The runtime for a single-stock backtest over a 10-year period is significantly reduced.
+*   **Definition of Done (DoD):**
+    *   All indicator calculations are moved out of the main loop. All relevant services are refactored to use lookups instead of calculations. All existing tests pass, and new correctness and performance tests are added.
+*   **Time estimate:** 8 hours
+*   **Status:** Done
+*   **Resolution:** The O(N^2) inefficiency has been eliminated. The `Orchestrator` now calls a `precompute_indicators` function once per stock. The `SignalEngine`, `ValidationService`, and `StatGuard` have been fully refactored to remove all on-the-fly calculation logic and legacy code paths. They now exclusively use efficient O(1) lookups on the pre-computed dataframe, adhering to the architecture. This completes the performance refactoring outlined in this task.
+
+---
+
+## Epic 9: Intelligent Exit Logic Refinement
+
+*Goal: To address the core flaw of the passive exit strategy by introducing a profit-taking mechanism that is philosophically consistent with the mean-reversion entry signal. This epic aims to drastically reduce drawdown and improve the Sharpe Ratio by closing trades once their statistical edge has been realized, rather than holding them and re-introducing market risk.*
+
+---
+
+### Task 30 — Implement Mean-Reversion Profit Target Exit (Exit at Middle Bollinger Band)
+
+*   **Rationale:** (Hinton) The current exit logic is asymmetrical. We have a rule for when we are wrong (ATR stop-loss) but no rule for when we are right, leading to profit decay and catastrophic drawdowns. The strategy's entire premise is reversion to the mean. Therefore, the most scientifically sound exit is the moment this reversion occurs. (Nadh) This is the most pragmatic and simplest effective change. It replaces an arbitrary timeout with a data-driven, dynamic target (the mean) that is already being calculated. This aligns the exit with the entry thesis, completing the strategy's logical loop with minimal code complexity.
+*   **Items to implement:**
+    1.  **Configuration:** In `config.ini`, add a new boolean parameter to the `[exit_logic]` section: `use_mean_reversion_exit = True`.
+    2.  **Models:** In `core/models.py`, add the corresponding `use_mean_reversion_exit: bool` field to the `ExitLogicConfig` Pydantic model.
+    3.  **Orchestrator Logic:** Modify the `Orchestrator._determine_exit` method in `core/orchestrator.py`.
+        a. Inside the day-by-day forward loop that checks for the stop-loss, add a new profit-taking condition that only runs if `use_mean_reversion_exit` is true.
+        b. This condition must check if the day's `High` price has crossed above the pre-computed middle Bollinger Band (`BBM`). The column name (e.g., `BBM_15_2.0`) should be constructed dynamically using parameters from the config.
+        c. If the target is hit, the exit is triggered. The `exit_price` should be the `BBM` value for that day to ensure a conservative and deterministic simulation.
+        d. The order of checks within the loop must be: 1. ATR Stop-Loss, 2. Mean-Reversion Profit Target, 3. Max Holding Days Timeout.
+*   **Tests to cover:**
+    *   In `tests/test_orchestrator.py`, create a new integration test with a synthetic DataFrame where a trade is initiated.
+    *   The synthetic price series should be designed to cross the `BBM` on a specific day *before* hitting the ATR stop-loss or the `max_holding_days` timeout.
+    *   Assert that the trade exits on the correct day and that the `exit_price` passed to the `ExecutionSimulator` is the `BBM` value for that day.
+    *   Create a second test where the price hits the ATR stop-loss *before* reaching the `BBM`, and assert that the stop-loss exit correctly takes precedence.
+*   **Acceptance Criteria (AC):**
+    *   The backtester can be configured via `config.ini` to use the new mean-reversion exit logic.
+    *   When enabled, trades correctly exit upon the price touching the middle Bollinger Band, and this exit takes precedence over the max holding period timeout.
+*   **Definition of Done (DoD):**
+    *   All new code is implemented, the `config.ini` is updated, and new integration tests are written and passing.
+*   **Time estimate:** 4 hours
+*   **Status:** Done & Reverted
+*   **Resolution & Learnings:** The implementation was functionally correct, but the "exit at the mean" hypothesis was scientifically flawed for this strategy. Backtests showed that exiting at the mean (`BBM`) systematically cut off the most profitable part of the reversion, collapsing the average win rate and destroying the strategy's edge. The hypothesis was **conclusively falsified**. This flawed logic was replaced by the symmetrical exit logic in **Task 35**, which targets the upper Bollinger Band, allowing the reversion to complete its cycle.
+
+---
+
+## Epic 10: Architectural Refactoring & Performance Alignment
+
+*Goal: To correct the architectural flaws in the `sensitivity_analysis` implementation. The current serial, stateful approach in the `Orchestrator` is a performance bottleneck and an architectural inconsistency. This epic refactors the feature to align with the high-performance, parallel, and stateless patterns established in the primary `backtest` command, making it a genuinely useful tool for rapid, large-scale experimentation.*
+
+---
+
+### Task 31 — Refactor Sensitivity Analysis Orchestration from Orchestrator to CLI
+
+*   **Rationale:** (Nadh) The current implementation makes the `Orchestrator` stateful by having it modify its own configuration inside a loop. This is a code smell and violates `[H-2]`. The responsibility for orchestrating a multi-run experiment belongs in the CLI entry point (`main.py`), not in the core engine. This task moves the "looping" logic to the correct layer of abstraction.
+*   **Items to implement:**
+    1.  **Create New Top-Level Helper:** In `praxis_engine/main.py`, create a new top-level function `run_backtest_for_stock_with_config(payload: Tuple[str, Config])`. This function will be picklable by `multiprocessing`. It will accept a stock ticker and a complete `Config` object, instantiate a *new* `Orchestrator`, and run a single backtest.
+    2.  **Move Parameter Loop to CLI:** In `praxis_engine/main.py`, refactor the `sensitivity_analysis` command function. It will now contain the primary loop that iterates through the parameter values defined in `config.ini`.
+    3.  **Isolate Configurations:** Inside this loop, for each parameter value, create a `copy.deepcopy()` of the base configuration object. This ensures that each parallel run receives a clean, isolated configuration, preventing any state leakage.
+    4.  **Modify Config Copy:** Use the `_set_nested_attr` helper to modify the parameter value in the copied config object.
+    5.  **Aggregation Logic:** The `_aggregate_trades` method is a helper within the `Orchestrator`. The CLI function will need to call it. The most pragmatic solution is to instantiate a temporary, stateless `Orchestrator` at the end of each parameter loop *only* to call this aggregation helper.
+*   **Tests to cover:**
+    *   This is a structural refactoring. The primary validation will be in the subsequent tasks. The key is that the system remains logically functional after this move.
+*   **Time estimate:** 3 hours
+*   **Status:** Done
+*   **Resolution:** The stateful `run_sensitivity_analysis` loop was moved from the `Orchestrator` to the `sensitivity_analysis` command in `main.py`. The logic is now stateless, creating isolated config objects for each run. Helper functions were moved from the Orchestrator to `utils.py` and `main.py` to support this.
+
+---
+
+### Task 32 — Parallelize Sensitivity Analysis Stock Runs
+
+*   **Rationale:** (Nadh/Hinton) The most critical flaw is the serial execution of per-stock backtests within the sensitivity analysis. This is an "embarrassingly parallel" problem that we have already solved correctly in the `backtest` command. Failing to apply the same solution here is an architectural failure that makes the feature too slow to be scientifically useful. This task implements the required parallelization.
+*   **Items to implement:**
+    1.  **Integrate `multiprocessing.Pool`:** In the refactored `sensitivity_analysis` command in `main.py`, within the main parameter loop, use `multiprocessing.Pool`.
+    2.  **Distribute Work:** For each parameter value, create a list of payloads `zip(stock_list, repeat(run_config))` and pass it to `pool.imap_unordered`, using the new `run_backtest_for_stock_with_config` helper.
+    3.  **Progress Bar:** Integrate `tqdm` to provide a progress bar for the parallel execution of stocks *within* each parameter step, giving the user clear feedback on the progress.
+*   **Tests to cover:**
+    *   This is primarily a functional and performance test. The correctness will be verified in Task 36.
+*   **Time estimate:** 2 hours
+*   **Status:** Done
+*   **Resolution:** The per-stock backtest loop within the sensitivity analysis was parallelized using `multiprocessing.Pool` and the `imap_unordered` pattern, mirroring the implementation of the main `backtest` command.
+
+---
+
+### Task 33 — Deprecate and Remove `Orchestrator.run_sensitivity_analysis`
+
+*   **Rationale:** (Nadh) Prefer deletion over abstraction. The logic for running the sensitivity analysis now lives entirely in `praxis_engine/main.py`. The old method in the `Orchestrator` is now redundant, stateful, and inefficient. It must be removed to prevent confusion and to enforce the new, correct architecture. Every line is a liability.
+*   **Items to implement:**
+    1.  **Delete Method:** In `praxis_engine/core/orchestrator.py`, delete the entire `run_sensitivity_analysis` method.
+    2.  **Delete Test:** In `tests/test_orchestrator_analysis.py`, delete the test file or the specific tests that cover the now-removed method.
+*   **Tests to cover:**
+    *   The test suite must continue to pass after the deletion, proving that no other part of the system depended on this method.
+*   **Time estimate:** 1 hour
+*   **Status:** Done
+*   **Resolution:** The `run_sensitivity_analysis` method was deleted from `praxis_engine/core/orchestrator.py` and the corresponding test file `tests/test_orchestrator_analysis.py` was also deleted.
+
+---
+
+### Task 34 — Add Correctness and Performance Verification for Sensitivity Analysis
+
+*   **Rationale:** (Hinton) A refactoring of this magnitude requires rigorous verification. We must prove two things: 1) The new, parallel implementation produces numerically identical results to the old, serial one, ensuring the scientific integrity of the experiment is preserved. 2) The new implementation is significantly faster, justifying the refactoring effort.
+*   **Items to implement:**
+    1.  **Correctness Test:**
+        a. Before implementing the changes, run a sensitivity analysis on a small, fixed set of parameters and 2-4 stocks (e.g., `POWERGRID.NS`, `ITC.NS`).
+        b. Save the generated `sensitivity_analysis_report.md` as a baseline (e.g., `sensitivity_analysis_report_baseline.md`).
+        c. After implementing Tasks 33-35, run the exact same analysis.
+        d. The newly generated report must be a character-for-character match with the baseline file. This is the ground truth.
+    2.  **Performance Benchmark:**
+        a. On a multi-core machine, time the execution of the baseline run from step 1a.
+        b. Time the execution of the new, parallel implementation from step 1c.
+        c. The new implementation must be demonstrably faster (e.g., at least 2x faster on a 4-core machine for 4 stocks).
+*   **Tests to cover:**
+    *   This task *is* the test. The acceptance criteria are the successful completion of the correctness and performance checks.
+*   **Time estimate:** 2 hours
+*   **Status:** Done
+*   **Resolution:** A baseline was established by running the old implementation on 4 stocks (runtime: 5m 26s). The new, parallelized implementation was run on the same configuration, and the resulting report was identical. The new runtime was 3m 3s, confirming a significant performance improvement.
+
+---
+
+### Task 35 — Refactor Exit Logic to Target Upper Bollinger Band
+
+*   **Rationale:** (Hinton) The current exit logic implemented in Task 30 is the primary cause of the strategy's failure. It is scientifically incoherent, as it exits a mean-reversion trade at the mean itself, systematically cutting off the most profitable part of the reversion. This is proven by the backtest data, which shows the average win collapsing from a profitable 11.62% to a disastrous 3.19%. (Nadh) This task replaces the flawed logic with a simple, robust, and symmetrical exit. The entry is a bet on reversion *from* the lower band; the exit should logically target the *upper* band. This aligns the exit with the entry thesis, completes the strategy's logical loop, and does so with minimal code complexity by reusing an already calculated indicator.
+*   **Items to implement:**
+    1.  **Configuration:** In `config.ini`, within the `[exit_logic]` section, rename the `use_mean_reversion_exit` parameter to `use_symmetrical_bb_exit` and ensure it is set to `True`.
+    2.  **Models:** In `core/models.py`, update the `ExitLogicConfig` Pantic model to reflect this name change, removing `use_mean_reversion_exit` and adding `use_symmetrical_bb_exit: bool`.
+    3.  **Orchestrator Logic:** Modify the `Orchestrator._determine_exit` method in `praxis_engine/core/orchestrator.py`.
+        a. Remove the logic that targets the middle Bollinger Band (`BBM`).
+        b. Implement a new profit-taking condition that runs if `use_symmetrical_bb_exit` is true.
+        c. This condition must check if the day's `High` price has crossed *above* the pre-computed **upper** Bollinger Band (`BBU`). The column name (e.g., `BBU_15_2.0`) must be constructed dynamically from the config parameters.
+        d. If the target is hit, the `exit_price` must be the `BBU` value for that day to ensure a conservative and deterministic simulation.
+        e. The order of checks within the loop must be strictly maintained: 1. ATR Stop-Loss, 2. Symmetrical BB Profit Target, 3. Max Holding Days Timeout.
+*   **Tests to cover:**
+    *   In `tests/test_orchestrator.py`, create a new integration test with a synthetic DataFrame.
+    *   **Scenario 1:** The synthetic price series must be designed to cross the `BBU` on a specific day *before* hitting the ATR stop-loss or the `max_holding_days` timeout. Assert that the trade exits on the correct day and that the `exit_price` is the `BBU` value for that day.
+    *   **Scenario 2:** Create a second test where the price hits the ATR stop-loss *before* reaching the `BBU`, and assert that the stop-loss exit correctly takes precedence.
+*   **Time estimate:** 4 hours
+*   **Status:** Done
+
+---
+
+### Task 36 — Add Post-Mortem for Flawed Exit Logic to Project Memory
+
+*   **Rationale:** (Hinton) A failed experiment is only a waste if nothing is learned. The catastrophic performance drop caused by the "exit at the mean" logic is a critical data point. We must document this finding to ensure this flawed hypothesis is not re-tested in the future. (Nadh) The old code and configuration represent a liability. Now that the logic is replaced, we must remove the obsolete artifacts and record the reason in `docs/memory.md`. This keeps the codebase clean and the project's institutional knowledge sharp.
+*   **Items to implement:**
+    1.  **Update `docs/tasks.md`:** Mark the original **Task 30** as `Done & Reverted`. Add a `Resolution & Learnings` section explaining that the implementation was functionally correct but strategically flawed, leading to its replacement by the logic in **Task 35**.
+    2.  **Update `docs/memory.md`:** Create a new section titled "Task 30 & 35 Learnings: The Importance of Symmetrical Exits".
+        a. Briefly describe the "exit at the mean" hypothesis from Task 30.
+        b. State clearly that the backtest **falsified** this hypothesis.
+        c. Include the key evidence: the collapse of the average win from `11.62%` to `3.19%` while the average loss remained stable, destroying the risk/reward profile.
+        d. Conclude with the primary lesson: "A strategy's exit logic must be philosophically and mathematically consistent with its entry signal's statistical premise. For mean reversion, this means allowing the reversion to complete its cycle."
+*   **Tests to cover:**
+    *   The full test suite must continue to pass after any related code cleanup, ensuring no regressions were introduced.
+*   **Time estimate:** 1 hour
+*   **Status:** Done
+
+---
+
+### Task 37 — Revert Flawed Symmetrical BB Exit Logic (Task 35)
+
+*   **Rationale:** (Nadh) The exit logic implemented in Task 35, which targets the upper Bollinger Band, has been identified as the primary cause of the system's poor risk-adjusted returns (Sharpe 0.87, MDD -65.13%). It creates an asymmetrical risk/reward profile where the profit target is a moving, volatility-dependent variable, while the stop-loss is fixed at entry. This is an uncontrolled and unnecessarily complex system. (Hinton) The backtest data proves this hypothesis is flawed. We must revert it to establish a clean baseline before testing a more scientifically sound alternative. Prefer deletion over retaining flawed code.
+*   **Items to implement:**
+    1.  **Configuration:** In `config.ini`, delete the `use_symmetrical_bb_exit` parameter from the `[exit_logic]` section.
+    2.  **Models:** In `core/models.py`, remove the `use_symmetrical_bb_exit: bool` field from the `ExitLogicConfig` Pydantic model.
+    3.  **Orchestrator Logic:** In `praxis_engine/core/orchestrator.py`, within the `_determine_exit` method, completely remove the conditional block that checks for and implements the upper Bollinger Band profit target.
+    4.  **Tests:** In `tests/test_orchestrator.py`, delete the tests that specifically verify the BBU exit logic (`test_run_backtest_symmetrical_bb_exit_triggered` and `test_run_backtest_atr_takes_precedence_over_symmetrical_bb`).
+*   **Tests to cover:**
+    *   The full test suite must pass after these removals, ensuring no regressions were introduced.
+*   **Time estimate:** 2 hours
+*   **Status:** Done
+
+---
+
+### Task 38 — Implement Symmetrical, Fixed Risk/Reward Profit Target
+
+*   **Rationale:** (Hinton) This task directly addresses the core flaw of an asymmetrical risk profile. By making the profit target a fixed multiple of the risk taken at entry, we create a controlled, scientifically testable exit strategy. (Nadh) This is the most pragmatic solution. It replaces a complex, unpredictable moving target with a simple, deterministic rule. It makes the system's risk management explicit and auditable for every trade. This is a re-test of the concept from the reverted Task 24, but correctly paired with the robust ATR-based stop-loss, which is a valid and necessary experiment.
+*   **Items to implement:**
+    1.  **Configuration:** In `config.ini`, add a new parameter to the `[exit_logic]` section: `reward_risk_ratio = 1.75`.
+    2.  **Models:** In `core/models.py`, add the corresponding `reward_risk_ratio: float` field to the `ExitLogicConfig` Pydantic model.
+    3.  **Orchestrator Logic:** Refactor the `Orchestrator._determine_exit` method in `core/orchestrator.py`.
+        a. After calculating the `stop_loss_price`, immediately calculate the risk: `risk_per_share = entry_price - stop_loss_price`.
+        b. Calculate the fixed profit target: `profit_target_price = entry_price + (risk_per_share * self.config.exit_logic.reward_risk_ratio)`.
+        c. Inside the day-by-day forward loop, add a new condition to check if the day's `High` price has crossed the `profit_target_price`.
+        d. If the target is hit, the `exit_price` must be the `profit_target_price` itself (not the day's high) to ensure a conservative and deterministic simulation.
+        e. The order of checks within the loop must be strictly maintained: 1. ATR Stop-Loss, 2. Fixed Profit Target, 3. Max Holding Days Timeout.
+*   **Tests to cover:**
+    *   In `tests/test_orchestrator.py`, create a new integration test with a synthetic DataFrame.
+    *   **Scenario 1:** The synthetic price series must be designed to cross the calculated `profit_target_price` *before* hitting the ATR stop-loss. Assert that the trade exits on the correct day and that the `exit_price` is the `profit_target_price`.
+    *   **Scenario 2:** Create a second test where the price hits the ATR stop-loss *before* reaching the profit target, and assert that the stop-loss exit correctly takes precedence.
+*   **Time estimate:** 4 hours
+*   **Status:** Done
+
+---
+
+### Task 39 — Add Post-Mortem for Flawed BBU Exit to Project Memory
+
+*   **Rationale:** (Hinton) A failed experiment is only a waste if the learning is not recorded. The catastrophic performance of the "exit at the upper band" logic is a critical data point that falsified a plausible-sounding hypothesis. We must document this finding to ensure this flawed approach is not re-tested. (Nadh) This is about maintaining the project's institutional knowledge and adhering to the "Don't repeat stupid mistakes" principle.
+*   **Items to implement:**
+    1.  **Update `docs/tasks.md`:** Mark **Task 35** as `Done & Reverted`. Add a `Resolution & Learnings` section explaining that the BBU target created an uncontrolled, asymmetrical risk profile and was replaced by the fixed R:R logic in **Task 39**.
+    2.  **Update `docs/failed_experiments.md`:** Create a new entry for the "Symmetrical Exit at Upper Bollinger Band" experiment.
+        a. **Hypothesis:** State the original idea: "Since the entry is at the lower band, a symmetrical exit at the upper band should capture the full reversion cycle."
+        b. **Outcome & Evidence:** State clearly that the backtest **conclusively falsified** this hypothesis. Quote the key evidence from `backtest_summary.md`: Sharpe Ratio of 0.87 and Max Drawdown of -65.13%, with an `Avg. Win` of only +6.35% compared to the baseline's +11.62%.
+        c. **Root Cause Analysis:** Explain the "moving target" problem. The BBU expands with volatility, pushing the profit target further away and creating an unfavorable risk/reward ratio, especially in volatile conditions.
+        d. **Lesson Learned:** An exit must be symmetrical to the *risk taken at entry*, not just conceptually symmetrical to the entry indicator. A fixed profit target based on the initial stop-loss distance provides a more robust and controllable risk management framework.
+*   **Time estimate:** 1 hour
+*   **Status:** Done
+
+## Epic 11: From Data to Diagnosis — The Trade Log
+
+*Goal: To instrument the backtesting engine to produce a detailed, machine-readable log of every simulated trade. This log is not just for debugging; it is the primary dataset for understanding the root causes of system performance, particularly catastrophic drawdowns. We will achieve this by creating an enriched `Trade` model and a CSV export pipeline that is fully compatible with our parallel architecture, while simultaneously using this opportunity to refactor and accelerate our reporting logic.*
+
+---
+
+### Task 40 — Extend the `Trade` Model for Deeper Analysis
+
+*   **Rationale:** (Hinton) To diagnose failure, we need to record the state of the system at the time of the decision. The current `Trade` model only records the outcome, not the conditions that led to it. We must enrich it to capture the *why* of the entry and the *how* of the exit. (Nadh) The most direct way to do this is to add fields to the existing Pydantic model. It's the smallest change that provides the required data downstream.
+*   **Items to implement:**
+    1.  In `praxis_engine/core/models.py`, modify the `Trade` model to include the following new fields:
+        *   `exit_reason: str` (e.g., "ATR_STOP_LOSS", "PROFIT_TARGET", "MAX_HOLD_TIMEOUT")
+        *   `liquidity_score: float`
+        *   `regime_score: float`
+        *   `stat_score: float`
+        *   `composite_score: float`
+        *   `entry_hurst: float`
+        *   `entry_adf_p_value: float`
+        *   `entry_sector_vol: float`
+*   **Tests to cover:**
+    *   Update any tests that create `Trade` objects to include the new required fields. This will likely cause initial test failures, which is a good thing—it forces us to update our test fixtures to the new contract.
+*   **Time estimate:** 1 hour
+
+---
+
+### Task 41 — Refactor `_determine_exit` to Return Exit Reason
+
+*   **Rationale:** (Nadh) The `_determine_exit` function is the only place in the system that knows the precise reason for an exit. Currently, it only returns the date and price, discarding this critical piece of context. This is an information leak. We must refactor it to return the reason alongside the outcome.
+*   **Items to implement:**
+    1.  In `praxis_engine/core/orchestrator.py`, change the return signature of `_determine_exit` from `-> Tuple[Optional[pd.Timestamp], Optional[float]]` to `-> Tuple[Optional[pd.Timestamp], Optional[float], str]`.
+    2.  Inside the method, when an exit condition is met, return the corresponding reason string.
+        *   If `current_day["Low"] <= stop_loss_price`, return `(current_day.name, stop_loss_price, "ATR_STOP_LOSS")`.
+        *   If `current_day["High"] >= profit_target_price`, return `(current_day.name, profit_target_price, "PROFIT_TARGET")`.
+        *   For the final timeout condition, return `(..., ..., "MAX_HOLD_TIMEOUT")`.
+*   **Tests to cover:**
+    *   Update the tests in `tests/test_orchestrator.py` that cover exit logic (`test_run_backtest_atr_exit_triggered`, etc.) to assert that the correct exit reason string is being returned by the (now mocked) `_determine_exit` method.
+*   **Time estimate:** 2 hours
+
+---
+
+### Task 42 — Update Orchestrator to Create Enriched `Trade` Objects
+
+*   **Rationale:** (Hinton/Nadh) Now that the data is available, we must plumb it through the system. The `Orchestrator` is the central point where the signal scores and the exit reason are both available. This is the logical place to assemble the complete, enriched `Trade` object.
+*   **Items to implement:**
+    1.  In `praxis_engine/core/orchestrator.py`, modify the `_simulate_trade_from_signal` method.
+        a. It will now receive the `ValidationScores` object as an argument.
+        b. It will call the refactored `_determine_exit` and unpack the new three-part tuple: `exit_date, exit_price, exit_reason`.
+    2.  Modify the `run_backtest` loop. When it calls `_simulate_trade_from_signal`, it must now pass the `scores` object.
+    3.  In `_simulate_trade_from_signal`, when calling `self.execution_simulator.simulate_trade`, pass all the new data points (`exit_reason`, scores, etc.) so they can be used to construct the enriched `Trade` object. This will require updating the signature of `simulate_trade` and the `Trade` constructor call within it.
+    4.  We also need the raw inputs to the scores. The most pragmatic place to get these is from the pre-computed dataframe at the `current_index`. Pass these values (`hurst`, `adf`, `sector_vol`) through to the `Trade` object constructor.
+*   **Tests to cover:**
+    *   Update integration tests in `tests/test_orchestrator.py` to assert that the `Trade` objects being created and returned contain the correct, non-null values for the new fields.
+*   **Time estimate:** 2 hours
+
+---
+
+### Task 43 — Implement CSV Export in `main.py` and Refactor Reporting for Performance
+
+*   **Rationale:** (Nadh) This is the core implementation and a chance for a pragmatic performance win. The current process is inefficient: workers return lists of Pydantic objects, which are aggregated, then passed to the `ReportGenerator`, which iterates over them *again* to calculate KPIs. Now that we need a DataFrame for the CSV, we can make it the central data structure. The workers will return simple lists of dictionaries (faster to pickle and process), which the main process will concatenate into a single DataFrame. This DataFrame will then be passed to both the CSV writer and a refactored `ReportGenerator`, eliminating redundant data conversions and enabling vectorized calculations.
+*   **Items to implement:**
+    1.  **Worker Function:** In `praxis_engine/main.py`, modify `run_backtest_for_stock`. Instead of returning `{"trades": List[Trade], ...}`, it should now return `{"trades": List[Dict], ...}`, where each dictionary is the result of `trade.model_dump()`.
+    2.  **CLI Aggregation:** In the `backtest` command in `main.py`, change the aggregation logic.
+        a. Collect all the trade dictionaries from the worker processes into a single list.
+        b. Convert this list into a `pd.DataFrame`: `trade_df = pd.DataFrame(all_trade_dicts)`.
+        c. Save this DataFrame to a CSV file: `trade_df.to_csv("results/trade_log.csv", index=False)`.
+    3.  **Performance Refactoring:**
+        a. Modify the `ReportGenerator.generate_backtest_report` signature to accept the `trade_df: pd.DataFrame` instead of `trades: List[Trade]`.
+        b. Refactor the `_calculate_kpis` method to work directly on the DataFrame. Replace list comprehensions with faster, vectorized Pandas operations (e.g., `trade_df['net_return_pct'].sum()` instead of `sum([t.net_return_pct for t in trades])`).
+*   **Expected Performance Gain:** For a backtest with thousands of trades, replacing object iteration with vectorized Pandas operations can yield a **5-10x speedup** for the reporting phase. While this phase is not the main bottleneck, it's a "free" optimization that makes the code cleaner and more scalable, a classic Nadh win.
+*   **Tests to cover:**
+    *   Create a new test that runs the `backtest` CLI command (mocking the orchestrator) and asserts that `results/trade_log.csv` is created and is not empty.
+    *   Update `tests/test_report_generator.py` to pass a sample DataFrame to the refactored methods and assert that the calculated KPIs are still correct.
+*   **Time estimate:** 3 hours
+
+---
+
+### The `trade_log.csv` Column Specification
+
+**(Hinton):** The CSV is our ground truth dataset for future analysis. Its schema must be explicit and comprehensive.
+
+| Column Name | Data Type | Description | Rationale |
+| :--- | :--- | :--- | :--- |
+| `stock` | string | The stock ticker (e.g., "POWERGRID.NS"). | Basic trade identification. |
+| `entry_date` | datetime | The timestamp of the trade entry. | For time-series analysis. |
+| `exit_date` | datetime | The timestamp of the trade exit. | For time-series analysis. |
+| `holding_period_days` | integer | The number of calendar days the trade was held. | To analyze the character of returns. |
+| `entry_price` | float | The simulated entry price (including slippage & costs). | Core performance metric. |
+| `exit_price` | float | The simulated exit price (including slippage & costs). | Core performance metric. |
+| `net_return_pct` | float | The net percentage return of the trade after all costs. | The ultimate success metric for the trade. |
+| `exit_reason` | string | The rule that triggered the exit ("ATR_STOP_LOSS", "PROFIT_TARGET", "MAX_HOLD_TIMEOUT"). | **The most critical new column for drawdown analysis.** |
+| `composite_score` | float | The final composite score (product of all guard scores) at entry. | Quantifies the quality of the signal at entry. |
+| `liquidity_score` | float | The liquidity guard score (0.0-1.0) at entry. | To analyze if low-liquidity signals are problematic. |
+| `regime_score` | float | The regime guard score (0.0-1.0) at entry. | To analyze if trades taken in marginal regimes are failing. |
+| `stat_score` | float | The statistical guard score (0.0-1.0) at entry. | To analyze if statistically weaker signals are failing. |
+| `entry_hurst` | float | The raw Hurst exponent value at the time of entry. | Raw data for deeper analysis of the `StatGuard`. |
+| `entry_adf_p_value` | float | The raw ADF p-value at the time of entry. | Raw data for deeper analysis of the `StatGuard`. |
+| `entry_sector_vol` | float | The raw sector volatility (%) at the time of entry. | Raw data for deeper analysis of the `RegimeGuard`. |
+| `config_bb_length` | integer | The `bb_length` from `config.ini` for this run. | Makes the log self-contained for future analysis. |
+| `config_rsi_length` | integer | The `rsi_length` from `config.ini` for this run. | Makes the log self-contained for future analysis. |
+| `config_atr_multiplier` | float | The `atr_stop_loss_multiplier` from `config.ini`. | Makes the log self-contained for future analysis. |
