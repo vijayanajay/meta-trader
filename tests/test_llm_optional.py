@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import datetime
-from praxis_engine.core.models import Config, DataConfig, StrategyParamsConfig, FiltersConfig, ScoringConfig, SignalLogicConfig, LLMConfig, CostModelConfig, ExitLogicConfig
+from praxis_engine.core.models import Config, DataConfig, StrategyParamsConfig, FiltersConfig, ScoringConfig, SignalLogicConfig, LLMConfig, CostModelConfig, ExitLogicConfig, MarketDataConfig
 from praxis_engine.core.orchestrator import Orchestrator
 
 
@@ -73,8 +73,16 @@ def make_minimal_config(tmp_cache_dir: str) -> Config:
         reward_risk_ratio=1.75,
     )
 
+    market_data = MarketDataConfig(
+        index_ticker="^NSEI",
+        vix_ticker="^INDIAVIX",
+        training_start_date="2010-01-01",
+        cache_dir=tmp_cache_dir,
+    )
+
     return Config(
         data=data,
+        market_data=market_data,
         strategy_params=strategy_params,
         filters=filters,
         scoring=scoring,

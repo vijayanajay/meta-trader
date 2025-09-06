@@ -5,7 +5,7 @@ indices and volatility measures.
 import pandas as pd
 import yfinance as yf
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Dict
 
 from praxis_engine.core.logger import get_logger
 
@@ -24,45 +24,45 @@ class MarketDataService:
     # impure
     def get_market_data(
         self, tickers: List[str], start: str, end: str
-    ) -> Optional[pd.DataFrame]:
+    ) -> Dict[str, pd.DataFrame]:
         """
-        Fetches data for a given list of market tickers, with caching.
+        Fetches data for a given list of market tickers, with per-ticker caching.
 
         Args:
             tickers: A list of market tickers (e.g., ['^NSEI', '^INDIAVIX']).
             start: The start date for the data.
             end: The end date for the data.
+
+        Returns:
+            A dictionary where keys are tickers and values are their OHLCV DataFrames.
+            Returns an empty dictionary if all tickers fail.
         """
-        # Sanitize tickers for filename
-        safe_tickers = "_".join(t.replace("^", "") for t in tickers)
-        cache_file = self.cache_dir / f"{safe_tickers}_{start}_{end}.parquet"
+        all_data: Dict[str, pd.DataFrame] = {}
+        for ticker in tickers:
+            safe_ticker = ticker.replace("^", "").replace("/", "_")
+            cache_file = self.cache_dir / f"{safe_ticker}_{start}_{end}.parquet"
 
-        if cache_file.exists():
-            log.info(f"Loading market data for {tickers} from cache.")
-            return pd.read_parquet(cache_file)
-
-        try:
-            log.info(f"Fetching fresh market data for {tickers}.")
-            df = yf.download(tickers, start=start, end=end, progress=False, auto_adjust=False)
-
-            if df.empty:
-                log.warning(f"No market data returned from yfinance for {tickers}.")
-                return None
-
-            # For single ticker, yfinance returns a simple column structure.
-            # For multiple tickers, it returns a MultiIndex. We want to handle both.
-            if isinstance(df.columns, pd.MultiIndex):
-                # We only care about the 'Close' prices for market data.
-                df = df['Close']
-                df.columns = [f"{t.replace('^', '')}_close" for t in tickers]
+            if cache_file.exists():
+                log.info(f"Loading market data for {ticker} from cache: {cache_file}")
+                df = pd.read_parquet(cache_file)
             else:
-                # If single ticker, rename columns for consistency
-                df.rename(columns={'Close': f"{tickers[0].replace('^', '')}_close"}, inplace=True)
+                try:
+                    log.info(f"Fetching fresh market data for {ticker}.")
+                    df = yf.download(
+                        ticker, start=start, end=end, progress=False, auto_adjust=False
+                    )
 
+                    if df.empty:
+                        log.warning(f"No market data returned from yfinance for {ticker}.")
+                        continue
 
-            log.info(f"Saving market data for {tickers} to cache.")
-            df.to_parquet(cache_file)
-            return df
-        except Exception as e:
-            log.error(f"Error fetching market data for {tickers}: {e}")
-            return None
+                    log.info(f"Saving market data for {ticker} to cache: {cache_file}")
+                    df.to_parquet(cache_file)
+
+                except Exception as e:
+                    log.error(f"Error fetching market data for {ticker}: {e}")
+                    continue
+
+            all_data[ticker] = df
+
+        return all_data

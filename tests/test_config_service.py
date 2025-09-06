@@ -18,6 +18,12 @@ end_date = "2023-01-01"
 sector_map = {"TEST.NS": "^TESTINDEX"}
 workers = 4
 
+[market_data]
+index_ticker = "^NSEI"
+vix_ticker = "^INDIAVIX"
+training_start_date = "2010-01-01"
+cache_dir = "test_cache/market"
+
 [strategy_params]
 bb_length = 10
 bb_std = 1.5
@@ -101,6 +107,12 @@ start_date = "2022-01-01"
 end_date = "2023-01-01"
 sector_map = {"TEST.NS": "^TESTINDEX"}
 
+[market_data]
+index_ticker = "^NSEI"
+vix_ticker = "^INDIAVIX"
+training_start_date = "2010-01-01"
+cache_dir = "test_cache/market"
+
 [strategy_params]
 bb_length = 10
 bb_std = 1.5
@@ -178,6 +190,12 @@ stocks_to_backtest = ["TEST.NS"]
 start_date = "2022-01-01"
 end_date = "2023-01-01"
 sector_map = {"TEST.NS": "^TESTINDEX"}
+
+[market_data]
+index_ticker = "^NSEI"
+vix_ticker = "^INDIAVIX"
+training_start_date = "2010-01-01"
+cache_dir = "test_cache/market"
 
 [strategy_params]
 bb_length = 10
