@@ -31,6 +31,11 @@ from praxis_engine.utils import get_nested_attr, set_nested_attr
 
 log = get_logger(__name__)
 
+from praxis_engine.services.market_data_service import MarketDataService
+from praxis_engine.services.regime_model_service import RegimeModelService
+from praxis_engine.core.features import calculate_market_features
+
+
 class Orchestrator:
     """
     Orchestrates the services to run a backtest.
@@ -39,9 +44,31 @@ class Orchestrator:
     def __init__(self, config: Config):
         self.config = config
         self.data_service = DataService(config.data.cache_dir)
+        self.market_data_service = MarketDataService(config.market_data.cache_dir)
+        self.regime_model_service = RegimeModelService() # Uses default path
         self.signal_engine = SignalEngine(config.strategy_params, config.signal_logic)
-        self.validation_service = ValidationService(config.scoring, config.strategy_params)
+        self.validation_service = ValidationService(
+            scoring_config=config.scoring,
+            strategy_params=config.strategy_params,
+            regime_model_service=self.regime_model_service
+        )
         self.execution_simulator = ExecutionSimulator(config.cost_model)
+
+    def _get_market_features(self, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
+        """Fetches market data and calculates features."""
+        market_tickers = [self.config.market_data.index_ticker, self.config.market_data.vix_ticker]
+        market_data = self.market_data_service.get_market_data(
+            tickers=market_tickers, start=start_date, end=end_date
+        )
+        if not market_data:
+            log.error("Could not fetch market data for feature calculation.")
+            return None
+
+        return calculate_market_features(
+            market_data=market_data,
+            nifty_ticker=self.config.market_data.index_ticker,
+            vix_ticker=self.config.market_data.vix_ticker,
+        )
 
     def run_backtest(self, stock: str, start_date: str, end_date: str) -> Dict[str, Any]:
         """
@@ -55,6 +82,15 @@ class Orchestrator:
         if full_df is None or full_df.empty:
             log.warning(f"No data found for {stock}. Skipping backtest.")
             return {"trades": [], "metrics": metrics}
+
+        # --- Pre-computation ---
+        market_features_df = self._get_market_features(start_date, end_date)
+        if market_features_df is None:
+            # Continue without market features; RegimeGuard will use fallback
+            log.warning("Proceeding with backtest but RegimeGuard will be disabled.")
+        else:
+            # Join market features into the main dataframe
+            full_df = full_df.join(market_features_df, how="left")
 
         trades: List[Trade] = []
         min_history_days = self.config.strategy_params.min_history_days

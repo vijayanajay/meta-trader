@@ -4,117 +4,117 @@
 ### Run Configuration & Metadata
 | Parameter | Value |
 | --- | --- |
-| Run Timestamp | 2025-09-07 01:12:38 UTC |
+| Run Timestamp | 2025-09-06 21:36:31 UTC |
 | Config File | `config.ini` |
-| Git Commit Hash | `7b18df5` |
+| Git Commit Hash | `43b3fce` |
 
 **Period:** 2018-01-01 to 2025-08-25
-**Total Trades:** 530
+**Total Trades:** 290
 
 
 ### Filtering Funnel
 | Stage | Count | % of Previous Stage |
 | --- | --- | --- |
-| Potential Signals | 601 | 100.00% |
-| Survived Guardrails | 530 | 88.19% |
-| Survived LLM Audit | 530 | 100.00% |
-| Trades Executed | 530 | 100.00% |
+| Potential Signals | 380 | 100.00% |
+| Survived Guardrails | 290 | 76.32% |
+| Survived LLM Audit | 290 | 100.00% |
+| Trades Executed | 290 | 100.00% |
 
 
 ### Guardrail Rejection Analysis
 | Guardrail | Rejection Count | % of Total Guard Rejections |
 | --- | --- | --- |
-| StatGuard | 71 | 100.00% |
+| StatGuard | 47 | 52.22% |\n| RegimeGuard | 43 | 47.78% |
 
 
 ### Key Performance Indicators
 | Metric | Value |
 | --- | --- |
-| Net Annualized Return | 160.39% |
-| Sharpe Ratio | 1.64 |
-| Profit Factor | 1.41 |
-| Maximum Drawdown | -67.03% |
-| Win Rate | 48.49% |
+| Net Annualized Return | 56.00% |
+| Sharpe Ratio | 1.03 |
+| Profit Factor | 1.49 |
+| Maximum Drawdown | -55.69% |
+| Win Rate | 50.00% |
 
 ### Trade Distribution Analysis
 | Metric | Value |
 | --- | --- |
-| Avg. Holding Period | 27.21 days |
-| Avg. Win | 9.08% |
-| Avg. Loss | -6.05% |
-| Best Trade | 28.21% |
-| Worst Trade | -16.47% |
-| Skewness | 0.36 |
-| Kurtosis | -0.89 |
+| Avg. Holding Period | 28.52 days |
+| Avg. Win | 8.75% |
+| Avg. Loss | -5.86% |
+| Best Trade | 21.01% |
+| Worst Trade | -13.82% |
+| Skewness | 0.31 |
+| Kurtosis | -1.30 |
 
 ### Net Return (%) Distribution
 ```
- -16.47 - -12.00  | █ (11)
- -12.00 - -7.54   | ████ (33)
-  -7.54 - -3.07   | ██████████████████████████████ (213)
-  -3.07 - 1.40    | ███ (27)
-   1.40 - 5.87    | ██████ (45)
-   5.87 - 10.34   | ████████████████ (120)
-  10.34 - 14.80   | ███████ (54)
-  14.80 - 19.27   | ██ (19)
-  19.27 - 23.74   |  (6)
-  23.74 - 28.21   |  (2)
+ -13.82 - -10.33  |  (2)
+ -10.33 - -6.85   | ███████ (28)
+  -6.85 - -3.37   | ██████████████████████████████ (109)
+  -3.37 - 0.11    | █ (6)
+   0.11 - 3.60    | █████ (19)
+   3.60 - 7.08    | ██████ (23)
+   7.08 - 10.56   | ████████████████ (60)
+  10.56 - 14.04   | ████████ (31)
+  14.04 - 17.52   | ██ (8)
+  17.52 - 21.01   | █ (4)
 ```
 
 
 ### Maximum Drawdown Analysis
 | Metric | Value |
 | --- | --- |
-| Max Drawdown | -98.91% |
-| Period | 2020-02-14 to 2020-03-23 |
-| Peak Equity | 11.54 |
-| Trough Equity | 0.13 |
-| Trade Count | 50 |
+| Max Drawdown | -75.76% |
+| Period | 2024-02-07 to 2025-02-28 |
+| Peak Equity | 67.16 |
+| Trough Equity | 16.28 |
+| Trade Count | 63 |
 
 **Exit Reasons During Drawdown:**
-- **ATR_STOP_LOSS:** 49
-- **PROFIT_TARGET:** 1
-- **MAX_HOLD_TIMEOUT:** 0
+- **ATR_STOP_LOSS:** 44
+- **PROFIT_TARGET:** 16
+- **MAX_HOLD_TIMEOUT:** 3
 
 ### Per-Stock Performance Breakdown
 
 | Stock | Compounded Return | Total Trades | Potential Signals | Rejections by Guard | Rejections by LLM |
 |---|---|---|---|---|---|
 | DMART.NS | 0.00% | 0 | 0 | 0 | 0 |
-| NESTLEIND.NS | 112.46% | 21 | 23 | 2 | 0 |
+| NESTLEIND.NS | 80.27% | 18 | 23 | 5 | 0 |
 | HCLTECH.NS | 0.00% | 0 | 0 | 0 | 0 |
-| ADANIPORTS.NS | -13.16% | 27 | 32 | 5 | 0 |
-| COALINDIA.NS | -9.26% | 29 | 38 | 9 | 0 |
-| POWERGRID.NS | 181.12% | 25 | 26 | 1 | 0 |
-| TCS.NS | 12.54% | 34 | 36 | 2 | 0 |
-| PIDILITIND.NS | 15.15% | 13 | 13 | 0 | 0 |
-| AXISBANK.NS | -26.59% | 27 | 28 | 1 | 0 |
-| ICICIBANK.NS | 55.10% | 20 | 23 | 3 | 0 |
+| ADANIPORTS.NS | 17.66% | 22 | 32 | 10 | 0 |
+| POWERGRID.NS | 0.00% | 0 | 0 | 0 | 0 |
+| COALINDIA.NS | -9.84% | 26 | 38 | 12 | 0 |
+| TCS.NS | 0.00% | 0 | 0 | 0 | 0 |
+| PIDILITIND.NS | 0.00% | 0 | 0 | 0 | 0 |
+| AXISBANK.NS | 0.00% | 0 | 0 | 0 | 0 |
+| ICICIBANK.NS | 76.91% | 16 | 23 | 7 | 0 |
 | EICHERMOT.NS | 0.00% | 0 | 0 | 0 | 0 |
-| KOTAKBANK.NS | 41.77% | 22 | 26 | 4 | 0 |
+| KOTAKBANK.NS | 0.00% | 0 | 0 | 0 | 0 |
 | ONGC.NS | 36.57% | 33 | 36 | 3 | 0 |
 | M&M.NS | 0.00% | 0 | 0 | 0 | 0 |
+| ITC.NS | 0.00% | 0 | 0 | 0 | 0 |
 | BAJAJ-AUTO.NS | 0.00% | 0 | 0 | 0 | 0 |
-| ITC.NS | 27.07% | 19 | 21 | 2 | 0 |
-| HEROMOTOCO.NS | 23.37% | 27 | 32 | 5 | 0 |
-| INFY.NS | 44.70% | 31 | 33 | 2 | 0 |
-| HDFCBANK.NS | -18.10% | 16 | 21 | 5 | 0 |
-| NTPC.NS | -8.77% | 31 | 34 | 3 | 0 |
+| HEROMOTOCO.NS | 12.11% | 25 | 32 | 7 | 0 |
+| INFY.NS | 65.38% | 26 | 33 | 7 | 0 |
+| HDFCBANK.NS | 0.00% | 0 | 0 | 0 | 0 |
+| NTPC.NS | -5.73% | 24 | 34 | 10 | 0 |
 | JSWSTEEL.NS | 0.00% | 0 | 0 | 0 | 0 |
 | INDUSINDBK.NS | 0.00% | 0 | 0 | 0 | 0 |
 | TATAMOTORS.NS | 0.00% | 0 | 0 | 0 | 0 |
 | CIPLA.NS | 0.00% | 0 | 0 | 0 | 0 |
 | SUNPHARMA.NS | 0.00% | 0 | 0 | 0 | 0 |
-| HINDUNILVR.NS | 44.92% | 19 | 25 | 6 | 0 |
+| HINDUNILVR.NS | 0.00% | 0 | 0 | 0 | 0 |
 | ADANIPOWER.NS | 0.00% | 0 | 0 | 0 | 0 |
-| BHARTIARTL.NS | 96.42% | 17 | 17 | 0 | 0 |
-| SBIN.NS | 97.98% | 19 | 20 | 1 | 0 |
+| BHARTIARTL.NS | 86.89% | 14 | 17 | 3 | 0 |
+| SBIN.NS | 96.73% | 15 | 20 | 5 | 0 |
 | TITAN.NS | 0.00% | 0 | 0 | 0 | 0 |
-| WIPRO.NS | -16.29% | 37 | 43 | 6 | 0 |
-| RELIANCE.NS | 37.32% | 28 | 28 | 0 | 0 |
+| WIPRO.NS | -7.20% | 31 | 43 | 12 | 0 |
+| RELIANCE.NS | 34.58% | 25 | 28 | 3 | 0 |
 | DLF.NS | -28.32% | 15 | 21 | 6 | 0 |
 | BAJAJFINSV.NS | 0.00% | 0 | 0 | 0 | 0 |
+| BAJFINANCE.NS | 0.00% | 0 | 0 | 0 | 0 |
 | ULTRACEMCO.NS | 0.00% | 0 | 0 | 0 | 0 |
-| BAJFINANCE.NS | 37.63% | 20 | 25 | 5 | 0 |
-| ASIANPAINT.NS | 0.00% | 0 | 0 | 0 | 0 |
 | IOC.NS | 0.00% | 0 | 0 | 0 | 0 |
+| ASIANPAINT.NS | 0.00% | 0 | 0 | 0 | 0 |

@@ -50,15 +50,19 @@ The `praxis_engine` package is organized as follows:
         -   `orchestrator.py`: The main walk-forward loop logic. Integrates all services to run a backtest for a single stock.
         -   `indicators.py`: Pure functions for calculating technical indicators (e.g., RSI, Bollinger Bands).
         -   `statistics.py`: Pure functions for statistical tests (e.g., Hurst Exponent, ADF).
+        -   `features.py`: Pure functions for engineering market-wide features for the regime model.
         -   `logger.py`: Centralized logging configuration.
     -   `services/`: Contains modules that handle external interactions (I/O).
         -   `config_service.py`: Loads and validates the `config.ini` file into Pydantic models.
-        -   `data_service.py`: Handles fetching data from `yfinance` and managing the local Parquet cache.
+        -   `data_service.py`: Handles fetching per-stock data from `yfinance` and managing the local Parquet cache.
+        -   `market_data_service.py`: Handles fetching market-wide data (indices, VIX) for the regime model.
         -   `signal_engine.py`: Encapsulates the logic for identifying a preliminary trade signal based on indicator alignment.
         -   `validation_service.py`: Applies the guardrail logic (Liquidity, Regime, Stat) to a signal.
         -   `execution_simulator.py`: Simulates a trade, applying a realistic cost model (slippage, brokerage, STT).
         -   `report_generator.py`: Generates all user-facing Markdown reports from the backtest results.
-        -   `llm_audit_service.py`: Handles communication with the external LLM API (OpenRouter) to get a final confidence score from the configured model (e.g., Kimi 2). Uses an API key from a `.env` file.
+        -   `diagnostics_service.py`: Provides tools for analyzing backtest results, such as drawdown analysis.
+        -   `llm_audit_service.py`: Handles communication with the external LLM API (OpenRouter) to get a final confidence score.
+        -   `regime_model_service.py`: **(Planned)** A resilient service to load and serve the trained regime model.
     -   `utils.py`: Contains small, stateless helper functions used across the codebase.
 
 ---

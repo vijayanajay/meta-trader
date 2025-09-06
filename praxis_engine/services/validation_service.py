@@ -21,18 +21,26 @@ class GuardProtocol(Protocol):
         ...
 
 
+from praxis_engine.services.regime_model_service import RegimeModelService
+
+
 class ValidationService:
     """
     Orchestrates a series of guards to score a signal.
     """
 
-    def __init__(self, scoring: ScoringConfig, params: StrategyParamsConfig):
+    def __init__(
+        self,
+        scoring_config: ScoringConfig,
+        strategy_params: StrategyParamsConfig,
+        regime_model_service: RegimeModelService,
+    ):
         """
         Initializes the validation service with all required guards.
         """
-        self.liquidity_guard = LiquidityGuard(scoring, params)
-        self.regime_guard = RegimeGuard(scoring)
-        self.stat_guard = StatGuard(scoring, params)
+        self.liquidity_guard = LiquidityGuard(scoring_config, strategy_params)
+        self.regime_guard = RegimeGuard(scoring_config, regime_model_service)
+        self.stat_guard = StatGuard(scoring_config, strategy_params)
 
 
     def validate(self, full_df: pd.DataFrame, current_index: int, signal: Signal) -> ValidationScores:
