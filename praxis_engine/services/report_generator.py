@@ -5,9 +5,17 @@ from typing import List, Optional, Dict
 import pandas as pd
 import numpy as np
 
-from praxis_engine.core.models import BacktestMetrics, BacktestSummary, Trade, Opportunity, RunMetadata
+from praxis_engine.core.models import (
+    BacktestMetrics,
+    BacktestSummary,
+    Trade,
+    Opportunity,
+    RunMetadata,
+    DrawdownPeriod,
+)
 from praxis_engine.core.logger import get_logger
 from praxis_engine.utils import generate_ascii_histogram
+from praxis_engine.services.diagnostics_service import DiagnosticsService
 
 log = get_logger(__name__)
 
@@ -83,9 +91,46 @@ class ReportGenerator:
 ```
 {histogram}
 ```
-
 """
+        drawdown_period = DiagnosticsService.analyze_drawdown(trades_df)
+        drawdown_section = self._generate_drawdown_analysis_section(
+            trades_df, drawdown_period
+        )
+        report += drawdown_section
+
         return report
+
+    def _generate_drawdown_analysis_section(
+        self, trades_df: pd.DataFrame, drawdown_period: Optional[DrawdownPeriod]
+    ) -> str:
+        """Generates the Maximum Drawdown Analysis markdown section."""
+        if not drawdown_period:
+            return "\n### Maximum Drawdown Analysis\n\nCould not determine drawdown period."
+
+        section = f"""
+### Maximum Drawdown Analysis
+**Period:** {drawdown_period.start_date.date()} to {drawdown_period.end_date.date()}
+**Max Drawdown:** {drawdown_period.max_drawdown_pct:.2%} (Equity dropped from {drawdown_period.peak_value:.2f} to {drawdown_period.trough_value:.2f})
+
+**Trades within this period:**
+"""
+        drawdown_trades = trades_df.loc[drawdown_period.trade_indices]
+
+        if drawdown_trades.empty:
+            return section + "\nNo trades found within the maximum drawdown period."
+
+        # Summary table of trades in the drawdown
+        summary = (
+            drawdown_trades.groupby("exit_reason")["net_return_pct"]
+            .agg(["count", "sum"])
+            .rename(columns={"sum": "total_return_pct"})
+        )
+        summary["total_return_pct"] = summary["total_return_pct"].apply(
+            lambda x: f"{x:.2%}"
+        )
+
+        section += summary.to_markdown()
+        return section
 
     def _calculate_kpis(
         self, trades_df: pd.DataFrame, start_date: str, end_date: str

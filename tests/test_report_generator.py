@@ -41,6 +41,7 @@ def sample_trades_df() -> pd.DataFrame:
             "exit_date": pd.Timestamp("2023-01-22"),
             "holding_period_days": 20,
             "net_return_pct": 0.10,
+            "exit_reason": "PROFIT_TARGET",
         },
         {
             "stock": "RELIANCE.NS",
@@ -48,6 +49,7 @@ def sample_trades_df() -> pd.DataFrame:
             "exit_date": pd.Timestamp("2023-02-21"),
             "holding_period_days": 20,
             "net_return_pct": -0.05,
+            "exit_reason": "ATR_STOP_LOSS",
         },
     ]
     return pd.DataFrame(trades_data)
@@ -129,3 +131,41 @@ def test_generate_per_stock_report(
     # Compounded return: (1 + 0.10) * (1 - 0.05) - 1 = 1.1 * 0.95 - 1 = 1.045 - 1 = 0.045
     assert "| STOCKA | 4.50% | 2 | 10 | 3 | 1 |" in report
     assert "| STOCKB | 0.00% | 0 | 0 | 0 | 0 |" in report
+
+
+def test_generate_drawdown_analysis_section_in_report(
+    report_generator: ReportGenerator, sample_metrics: BacktestMetrics
+) -> None:
+    """
+    Tests that the main report correctly includes the drawdown analysis section.
+    """
+    trades_data = [
+        {
+            "stock": "A", "exit_date": "2023-01-02", "net_return_pct": 0.1,
+            "exit_reason": "PROFIT_TARGET", "holding_period_days": 5,
+        },
+        {
+            "stock": "B", "exit_date": "2023-01-03", "net_return_pct": -0.15,
+            "exit_reason": "ATR_STOP_LOSS", "holding_period_days": 5,
+        },
+        {
+            "stock": "C", "exit_date": "2023-01-04", "net_return_pct": -0.1,
+            "exit_reason": "ATR_STOP_LOSS", "holding_period_days": 5,
+        },
+    ]
+    trades_df = pd.DataFrame(trades_data)
+    trades_df["exit_date"] = pd.to_datetime(trades_df["exit_date"])
+
+
+    report = report_generator.generate_backtest_report(
+        trades_df, sample_metrics, "2023-01-01", "2023-01-31"
+    )
+
+    assert "### Maximum Drawdown Analysis" in report
+    assert "2023-01-02 to 2023-01-04" in report
+    # Use regex to make the float check more robust
+    import re
+    assert re.search(r"\*?\*?Max Drawdown:\*?\*? -23.5\d*%", report)
+    assert "| exit_reason   |   count | total_return_pct   |" in report
+    assert "| PROFIT_TARGET |       1 | 10.00%             |" in report
+    assert "| ATR_STOP_LOSS |       2 | -25.00%            |" in report

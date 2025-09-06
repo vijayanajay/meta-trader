@@ -200,3 +200,17 @@ class Config(BaseModel):
     cost_model: CostModelConfig
     exit_logic: ExitLogicConfig
     sensitivity_analysis: Optional[SensitivityAnalysisConfig] = None
+
+
+class DrawdownPeriod(BaseModel):
+    """
+    Represents a single, significant drawdown period.
+    """
+    start_date: pd.Timestamp
+    end_date: pd.Timestamp
+    peak_value: float
+    trough_value: float
+    max_drawdown_pct: float
+    trade_indices: List[int]
+
+    model_config = {"arbitrary_types_allowed": True}
