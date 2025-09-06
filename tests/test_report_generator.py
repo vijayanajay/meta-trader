@@ -41,6 +41,9 @@ def sample_trades_df() -> pd.DataFrame:
             "exit_date": pd.Timestamp("2023-01-22"),
             "holding_period_days": 20,
             "net_return_pct": 0.10,
+            "exit_reason": "PROFIT_TARGET",
+            "composite_score": 0.7,
+            "entry_sector_vol": 15.0,
         },
         {
             "stock": "RELIANCE.NS",
@@ -48,6 +51,9 @@ def sample_trades_df() -> pd.DataFrame:
             "exit_date": pd.Timestamp("2023-02-21"),
             "holding_period_days": 20,
             "net_return_pct": -0.05,
+            "exit_reason": "ATR_STOP_LOSS",
+            "composite_score": 0.6,
+            "entry_sector_vol": 20.0,
         },
     ]
     return pd.DataFrame(trades_data)
@@ -129,3 +135,27 @@ def test_generate_per_stock_report(
     # Compounded return: (1 + 0.10) * (1 - 0.05) - 1 = 1.1 * 0.95 - 1 = 1.045 - 1 = 0.045
     assert "| STOCKA | 4.50% | 2 | 10 | 3 | 1 |" in report
     assert "| STOCKB | 0.00% | 0 | 0 | 0 | 0 |" in report
+
+
+def test_generate_backtest_report_with_drawdown_section(
+    report_generator: ReportGenerator,
+    sample_trades_with_drawdown: pd.DataFrame,
+    sample_metrics: BacktestMetrics,
+) -> None:
+    """
+    Tests that the drawdown analysis section is correctly generated in the report.
+    """
+    report = report_generator.generate_backtest_report(
+        sample_trades_with_drawdown,
+        sample_metrics,
+        "2023-01-01",
+        "2023-01-31",
+    )
+
+    assert "### Maximum Drawdown Analysis" in report
+    # Drawdown is (0.9801 - 1.21) / 1.21 = -0.19
+    assert "| Max Drawdown | -19.00% |" in report
+    assert "| Period | 2023-01-03 to 2023-01-05 |" in report
+    assert "| Trade Count | 3 |" in report
+    assert "- **ATR_STOP_LOSS:** 2" in report
+    assert "- **PROFIT_TARGET:** 1" in report

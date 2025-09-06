@@ -5,9 +5,17 @@ from typing import List, Optional, Dict
 import pandas as pd
 import numpy as np
 
-from praxis_engine.core.models import BacktestMetrics, BacktestSummary, Trade, Opportunity, RunMetadata
+from praxis_engine.core.models import (
+    BacktestMetrics,
+    BacktestSummary,
+    Trade,
+    Opportunity,
+    RunMetadata,
+    DrawdownPeriod,
+)
 from praxis_engine.core.logger import get_logger
 from praxis_engine.utils import generate_ascii_histogram
+from praxis_engine.services.diagnostics_service import DiagnosticsService
 
 log = get_logger(__name__)
 
@@ -85,7 +93,39 @@ class ReportGenerator:
 ```
 
 """
+        drawdown_period = DiagnosticsService.analyze_drawdown(trades_df)
+        drawdown_section = self._generate_drawdown_analysis_section(
+            trades_df, drawdown_period
+        )
+        report += drawdown_section
+
         return report
+
+    def _generate_drawdown_analysis_section(
+        self, trades_df: pd.DataFrame, drawdown_period: Optional[DrawdownPeriod]
+    ) -> str:
+        """Generates the markdown section for the maximum drawdown analysis."""
+        if not drawdown_period:
+            return ""
+
+        drawdown_trades = trades_df.loc[drawdown_period.trade_indices]
+        exit_reason_counts = drawdown_trades["exit_reason"].value_counts().to_dict()
+
+        return f"""
+### Maximum Drawdown Analysis
+| Metric | Value |
+| --- | --- |
+| Max Drawdown | {drawdown_period.max_drawdown_pct:.2%} |
+| Period | {drawdown_period.start_date.date()} to {drawdown_period.end_date.date()} |
+| Peak Equity | {drawdown_period.peak_value:.2f} |
+| Trough Equity | {drawdown_period.trough_value:.2f} |
+| Trade Count | {len(drawdown_trades)} |
+
+**Exit Reasons During Drawdown:**
+- **ATR_STOP_LOSS:** {exit_reason_counts.get('ATR_STOP_LOSS', 0)}
+- **PROFIT_TARGET:** {exit_reason_counts.get('PROFIT_TARGET', 0)}
+- **MAX_HOLD_TIMEOUT:** {exit_reason_counts.get('MAX_HOLD_TIMEOUT', 0)}
+"""
 
     def _calculate_kpis(
         self, trades_df: pd.DataFrame, start_date: str, end_date: str

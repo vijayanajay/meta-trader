@@ -557,7 +557,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   This is a one-off analysis script. A full test suite is over-engineering. The primary test is to run the script on the existing `results/trade_log.csv` and manually verify that it produces a sensible equity curve and correctly identifies the drawdown trades.
 *   **Time estimate:** 3 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
@@ -577,7 +577,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   Again, the test is the output. Run the enhanced script and verify that the cohort tables are generated correctly and provide clear, actionable insights into the characteristics of the failing trades.
 *   **Time estimate:** 2 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
@@ -605,7 +605,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Create a unit test with a sample DataFrame of trades containing a known drawdown.
     *   Call `DiagnosticsService.analyze_drawdown` and assert that the returned `DrawdownPeriod` object has the correct start/end dates, drawdown percentage, and trade indices.
 *   **Time estimate:** 3 hours
-*   **Status:** To Do
+*   **Status:** Done
 
 ---
 
@@ -627,4 +627,4 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Create a new test that passes a sample `trades_df` to `generate_backtest_report`.
     *   Assert that the final report string contains the "Maximum Drawdown Analysis" header and a table with the correct data for the drawdown trades.
 *   **Time estimate:** 2 hours
-*   **Status:** To Do
+*   **Status:** Done
