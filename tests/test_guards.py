@@ -84,31 +84,29 @@ def test_liquidity_guard_scoring(scoring_config: ScoringConfig, strategy_params:
 
 # --- RegimeGuard Tests ---
 
-def test_regime_guard_scoring(scoring_config: ScoringConfig, sample_signal: Signal) -> None:
-    """Test the inverse linear scoring of the RegimeGuard."""
-    guard = RegimeGuard(scoring=scoring_config)
-    df = create_test_df(days=200, close_price=100, volume=1_000_000) # df is not used by this guard
+from praxis_engine.services.regime_model_service import RegimeModelService
+
+def test_regime_guard_uses_model_service(scoring_config: ScoringConfig, sample_signal: Signal) -> None:
+    """Test that the RegimeGuard correctly uses the RegimeModelService."""
+    # Arrange
+    mock_regime_service = MagicMock(spec=RegimeModelService)
+    mock_regime_service.predict_proba.return_value = 0.75
+
+    guard = RegimeGuard(scoring=scoring_config, regime_model_service=mock_regime_service)
+
+    df = create_test_df(days=200, close_price=100, volume=1_000_000)
     current_index = len(df) - 1
 
-    # Test case 1: Vol is at the minimum (high vol), score should be 0.0
-    sample_signal.sector_vol = 25.0
-    assert guard.validate(df, current_index, sample_signal) == pytest.approx(0.0)
+    # Act
+    score = guard.validate(df, current_index, sample_signal)
 
-    # Test case 2: Vol is at the maximum (low vol), score should be 1.0
-    sample_signal.sector_vol = 10.0
-    assert guard.validate(df, current_index, sample_signal) == pytest.approx(1.0)
-
-    # Test case 3: Vol is in the middle, score should be 0.5
-    sample_signal.sector_vol = 17.5
-    assert guard.validate(df, current_index, sample_signal) == pytest.approx(0.5)
-
-    # Test case 4: Vol is above min, score should be 0.0 (clamped)
-    sample_signal.sector_vol = 30.0
-    assert guard.validate(df, current_index, sample_signal) == pytest.approx(0.0)
-
-    # Test case 5: Vol is below max, score should be 1.0 (clamped)
-    sample_signal.sector_vol = 5.0
-    assert guard.validate(df, current_index, sample_signal) == pytest.approx(1.0)
+    # Assert
+    assert score == 0.75
+    mock_regime_service.predict_proba.assert_called_once()
+    # Check that the dataframe passed to predict_proba is the correct window
+    call_args, _ = mock_regime_service.predict_proba.call_args
+    passed_df = call_args[0]
+    pd.testing.assert_frame_equal(passed_df, df.iloc[0 : current_index + 1])
 
 # --- StatGuard Tests ---
 

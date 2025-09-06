@@ -59,6 +59,9 @@ def sample_signal() -> Signal:
     )
 
 
+from praxis_engine.services.regime_model_service import RegimeModelService
+
+
 @patch("praxis_engine.services.validation_service.StatGuard")
 @patch("praxis_engine.services.validation_service.RegimeGuard")
 @patch("praxis_engine.services.validation_service.LiquidityGuard")
@@ -84,9 +87,15 @@ def test_validation_service_aggregation(
     mock_stat_guard = mock_stat_guard_cls.return_value
     mock_stat_guard.validate.return_value = 0.9
 
+    mock_regime_service = MagicMock(spec=RegimeModelService)
+
     # Act: Instantiate the service (which will use the mocked guard classes)
     # and call the validate method.
-    validation_service = ValidationService(scoring=scoring_config, params=strategy_params)
+    validation_service = ValidationService(
+        scoring_config=scoring_config,
+        strategy_params=strategy_params,
+        regime_model_service=mock_regime_service
+    )
     df = pd.DataFrame({"Close": [100]}, index=[pd.to_datetime("2023-01-01")])
     current_index = 0
     result = validation_service.validate(df, current_index, sample_signal)

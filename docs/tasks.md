@@ -650,7 +650,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Write a unit test that mocks `yfinance.download` and verifies that the service correctly fetches, caches, and loads data from the cache.
 *   **Time estimate:** 3 hours
 *   **Status:** Done
-*   **Resolution:** A new `MarketDataService` was created in `praxis_engine/services/` to handle fetching and caching of market-wide data like indices. This service mirrors the caching logic of the existing `DataService` and is fully unit-tested. The configuration for this service was added to `config.ini` and the Pydantic models.
+*   **Resolution (Reviewer):** Confirmed. A new `MarketDataService` was created in `praxis_engine/services/` to handle fetching and caching of market-wide data. The implementation adheres to architectural principles (`[H-12]`) and is fully unit-tested with mocked I/O, following project best practices.
 
 ---
 
@@ -669,7 +669,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Write unit tests for `calculate_market_features` with a sample input DataFrame and assert that the output features are calculated correctly.
 *   **Time estimate:** 2 hours
 *   **Status:** Done
-*   **Resolution:** A new module `praxis_engine/core/features.py` was created with the `calculate_market_features` function. The function correctly calculates `nifty_vs_200ma`, `vix_level`, and `vix_roc_10d` from the provided market data. Comprehensive unit tests were added in `tests/test_features.py` to validate the correctness of the calculations and error handling.
+*   **Resolution (Reviewer):** Confirmed. A new pure function `calculate_market_features` was created in `praxis_engine/core/features.py`. The logic is clean, deterministic, and correctly placed in the `core` module as per the architecture. The function is well-tested with clear, specific assertions.
 
 ---
 
@@ -689,8 +689,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   This is primarily tested by its integration in the following tasks. The manual run capability serves as a functional test.
 *   **Time estimate:** 4 hours
-*   **Status:** In Progress
-*   **Resolution:** A stub script `scripts/train_regime_model.py` has been created. It correctly loads the configuration, fetches market data using the `MarketDataService`, and calculates the required features using `calculate_market_features`. The actual model training and saving logic is yet to be implemented.
+*   **Status:** Stubbed - Not Implemented
+*   **Resolution (Reviewer):** The script `scripts/train_regime_model.py` exists but is a stub. It correctly fetches data and calculates features but explicitly states that model training and saving are not implemented. The core logic of this task remains incomplete.
 
 ---
 
@@ -713,7 +713,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Test the service's behavior when the model file *does not* exist. Assert that `self.model` is `None` and that `predict_proba` returns `1.0`.
     *   Test the service's behavior when a dummy model file *does* exist. Assert that `predict_proba` calls the mock model's method.
 *   **Time estimate:** 3 hours
-*   **Status:** To Do
+*   **Status:** Not Started
 
 ---
 
@@ -736,7 +736,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Patch `scripts.train_regime_model.train_and_save_model`.
     *   Run the CLI command and assert that the `train_and_save_model` function was called.
 *   **Time estimate:** 2 hours
-*   **Status:** To Do
+*   **Status:** Not Started
 
 ---
 
@@ -752,4 +752,14 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Running `python run.py backtest` with no `regime_model.pkl` present successfully trains and saves a model before executing the backtest.
     *   The Maximum Drawdown in the final report is significantly reduced compared to the baseline.
 *   **Time estimate:** 2 hours
-*   **Status:** To Do
+*   **Status:** Not Started
+
+---
+### Reviewer's Note on Epic 13 (2025-09-06)
+*   **Finding:** Epic 13 is critically incomplete. While the foundational data components (Tasks 49, 50) are done, the core logic for training, serving, and integrating the regime model (Tasks 51-54) is either a stub or not started.
+*   **Impact:** The system's primary advertised improvement—the automated regime meta-model—does not exist in the current codebase. The `RegimeGuard` still uses the old, simplistic sector volatility logic.
+*   **Path Forward:** The remaining tasks (51-54) must be implemented to complete the epic. This involves:
+    1.  Implementing the model training and saving logic in `scripts/train_regime_model.py`.
+    2.  Creating the `RegimeModelService` as specified in Task 52.
+    3.  Implementing the "train-if-needed" workflow in the CLI (Task 53).
+    4.  Refactoring the `RegimeGuard` to use the new service and validating the performance uplift (Task 54).
