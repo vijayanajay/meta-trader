@@ -45,7 +45,7 @@ class Orchestrator:
         self.config = config
         self.data_service = DataService(config.data.cache_dir)
         self.market_data_service = MarketDataService(config.market_data.cache_dir)
-        self.regime_model_service = RegimeModelService() # Uses default path
+        self.regime_model_service = RegimeModelService(config.regime_model.model_path)
         self.signal_engine = SignalEngine(config.strategy_params, config.signal_logic)
         self.validation_service = ValidationService(
             scoring_config=config.scoring,

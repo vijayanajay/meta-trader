@@ -1,86 +1,65 @@
-"""
-This service is responsible for loading and serving the trained market regime model.
-"""
-from pathlib import Path
-from typing import Optional, Dict, Any, List
-
 import joblib
-import pandas as pd
-
+from pathlib import Path
+from typing import Optional, Any
 from praxis_engine.core.logger import get_logger
 
 log = get_logger(__name__)
 
-
+# impure
 class RegimeModelService:
     """
     A resilient, fallback-aware service for the market regime model.
+    It attempts to load a model and falls back to a neutral behavior if the model is missing.
     """
 
-    def __init__(self, model_path: str = "results/regime_model.joblib"):
+    def __init__(self, model_path: str):
         """
         Initializes the service and loads the model if it exists.
 
         Args:
             model_path: The path to the saved regime model file.
         """
-        self.model_path = Path(model_path)
         self.model: Optional[Any] = None
-        self.feature_columns: Optional[List[str]] = None
-
-        if self.model_path.exists():
-            try:
-                log.info(f"Loading regime model from: {self.model_path}")
-                model_data: Dict[str, Any] = joblib.load(self.model_path)
-                self.model = model_data.get("model")
-                self.feature_columns = model_data.get("feature_columns")
-                if not self.model or not self.feature_columns:
-                    log.error("Model file is corrupt or missing 'model' or 'feature_columns' keys.")
-                    self.model = None # Ensure model is None if file is invalid
-            except Exception as e:
-                log.error(f"Failed to load regime model from {self.model_path}: {e}")
-                self.model = None
-        else:
+        try:
+            # [H-9] Catch specific, anticipated exceptions.
+            self.model = joblib.load(model_path)
+            log.info(f"Regime model loaded successfully from {model_path}")
+        except FileNotFoundError:
+            # [H-9] Failures must be logged with context and handled gracefully.
             log.warning(
-                f"Regime model not found at {self.model_path}. "
-                "RegimeGuard will fall back to a neutral score of 1.0."
+                f"Regime model file not found at {model_path}. "
+                "The service will fall back to a neutral regime prediction (1.0)."
             )
+            # self.model is already None, no need to set it again.
+        except Exception as e:
+            # Catch other potential errors during file loading (e.g., corrupt file)
+            log.error(f"An unexpected error occurred while loading model from {model_path}: {e}")
+            self.model = None # Ensure model is None on other failures.
 
-    def predict_proba(self, features_df: pd.DataFrame) -> Optional[float]:
+
+    def predict_proba(self, features: Any) -> float:
         """
-        Predicts the probability of a "good" regime (class 1).
+        Predicts the probability of a "good" regime.
+
+        If the model is not loaded, it returns a neutral probability of 1.0.
+        Otherwise, it uses the model to predict and returns the probability for the "good" class.
 
         Args:
-            features_df: A DataFrame containing the necessary features for prediction.
-                         Should contain a single row of the latest features.
+            features: The input features for the model.
 
         Returns:
-            The probability of class 1 (good regime), or 1.0 if the model is not loaded.
-            Returns None if prediction fails.
+            The probability of a "good" regime (class 1), which is assumed to be at index 1.
         """
-        if self.model is None or self.feature_columns is None:
-            return 1.0  # Fallback to neutral score
-
-        if features_df.empty:
-            log.warning("Cannot predict regime on empty features DataFrame.")
-            return None
-
-        # Ensure all required columns are present
-        if not all(col in features_df.columns for col in self.feature_columns):
-            log.error(f"Missing required feature columns for regime model prediction.")
-            return None
-
-        # Reorder columns to match training order and handle potential NaNs
-        latest_features = features_df[self.feature_columns].iloc[-1:]
-        if latest_features.isnull().values.any():
-            log.warning("NaN values found in features for regime prediction. Cannot predict.")
-            return None
+        if self.model is None:
+            return 1.0
 
         try:
-            # predict_proba returns probabilities for [class 0, class 1]
-            probabilities = self.model.predict_proba(latest_features)
-            good_regime_proba = probabilities[0, 1]
-            return good_regime_proba
+            # predict_proba usually returns an array of shape (n_samples, n_classes)
+            # e.g., [[prob_class_0, prob_class_1]] for a single sample.
+            probabilities = self.model.predict_proba(features)
+            # Assuming "good regime" is class 1.
+            return probabilities[0, 1]
         except Exception as e:
             log.error(f"Error during regime model prediction: {e}")
-            return None
+            # Fallback to a neutral score on prediction failure.
+            return 1.0
