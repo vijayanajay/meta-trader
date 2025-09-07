@@ -689,8 +689,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
 *   **Tests to cover:**
     *   This is primarily tested by its integration in the following tasks. The manual run capability serves as a functional test.
 *   **Time estimate:** 4 hours
-*   **Status:** Stubbed - Not Implemented
-*   **Resolution (Reviewer):** The script `scripts/train_regime_model.py` exists but is a stub. It correctly fetches data and calculates features but explicitly states that model training and saving are not implemented. The core logic of this task remains incomplete.
+*   **Status:** Done
+*   **Resolution:** Re-implemented the `scripts/train_regime_model.py` script to be robust and configurable. Added the `[regime_model]` section to `config.ini` and updated the Pydantic models accordingly. Added missing dependencies to `requirements.txt`. Added a functional test for the script and fixed all related test failures in the suite. The script now runs successfully and saves a trained model.
 
 ---
 
