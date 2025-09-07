@@ -713,7 +713,7 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Test the service's behavior when the model file *does not* exist. Assert that `self.model` is `None` and that `predict_proba` returns `1.0`.
     *   Test the service's behavior when a dummy model file *does* exist. Assert that `predict_proba` calls the mock model's method.
 *   **Time estimate:** 3 hours
-*   **Status:** Not Started
+*   **Status:** Done
 
 ---
 

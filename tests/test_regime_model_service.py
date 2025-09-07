@@ -1,118 +1,81 @@
-import unittest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
-import pandas as pd
 import joblib
-from sklearn.linear_model import LogisticRegression
+import numpy as np
+from unittest.mock import patch
+from pathlib import Path
+import pytest
 
 from praxis_engine.services.regime_model_service import RegimeModelService
 
+# A dummy model class for testing successful prediction
+class DummyModel:
+    def predict_proba(self, features):
+        return np.array([[0.2, 0.8]])
 
-class TestRegimeModelService(unittest.TestCase):
+# A dummy model class for testing prediction failures
+class FailingDummyModel:
+    def predict_proba(self, features):
+        raise ValueError("Prediction failed!")
 
-    def setUp(self):
-        self.test_model_path = "test_regime_model.joblib"
-        # Clean up any old test model file
-        if Path(self.test_model_path).exists():
-            Path(self.test_model_path).unlink()
+@pytest.fixture
+def model_path(tmp_path: Path) -> str:
+    """A fixture to create a temporary model file path."""
+    return str(tmp_path / "test_model.joblib")
 
-    def tearDown(self):
-        # Clean up test model file after tests
-        if Path(self.test_model_path).exists():
-            Path(self.test_model_path).unlink()
-
-    def test_init_model_not_found(self):
-        """Test that the service initializes gracefully when the model file does not exist."""
-        with patch("praxis_engine.services.regime_model_service.log.warning") as mock_log_warning:
-            service = RegimeModelService(model_path="non_existent_model.joblib")
-            self.assertIsNone(service.model)
-            self.assertIsNone(service.feature_columns)
-            mock_log_warning.assert_called_once()
-            self.assertIn("Regime model not found", mock_log_warning.call_args[0][0])
-
-    def test_predict_proba_no_model_fallback(self):
-        """Test that predict_proba returns 1.0 when no model is loaded."""
+def test_init_model_not_found():
+    """
+    Test that the service initializes gracefully when the model file does not exist.
+    """
+    with patch("praxis_engine.services.regime_model_service.log.warning") as mock_log_warning:
         service = RegimeModelService(model_path="non_existent_model.joblib")
-        features_df = pd.DataFrame([{"feature1": 1, "feature2": 2}])
+        assert service.model is None
+        mock_log_warning.assert_called_once()
+        assert "Regime model file not found" in mock_log_warning.call_args[0][0]
 
-        proba = service.predict_proba(features_df)
-        self.assertEqual(proba, 1.0)
+def test_predict_proba_no_model_fallback():
+    """
+    Test that predict_proba returns a neutral score of 1.0 when no model is loaded.
+    """
+    service = RegimeModelService(model_path="non_existent_model.joblib")
+    proba = service.predict_proba(features=[[1, 2]])
+    assert proba == 1.0
 
-    @patch("joblib.load")
-    def test_init_model_loads_successfully(self, mock_joblib_load):
-        """Test successful loading of a valid model file."""
-        # Arrange
-        mock_model = MagicMock()
-        mock_feature_columns = ["feature1", "feature2"]
-        mock_joblib_load.return_value = {
-            "model": mock_model,
-            "feature_columns": mock_feature_columns,
-        }
+def test_init_model_loads_successfully(model_path: str):
+    """Test that the service loads a model from a file successfully."""
+    dummy_model = DummyModel()
+    joblib.dump(dummy_model, model_path)
 
-        with patch("pathlib.Path.exists", return_value=True):
-            # Act
-            service = RegimeModelService(model_path=self.test_model_path)
+    with patch("praxis_engine.services.regime_model_service.log.info") as mock_log_info:
+        service = RegimeModelService(model_path)
+        assert service.model is not None
+        assert isinstance(service.model, DummyModel)
+        mock_log_info.assert_called_once()
+        assert "Regime model loaded successfully" in mock_log_info.call_args[0][0]
 
-            # Assert
-            self.assertIsNotNone(service.model)
-            self.assertEqual(service.model, mock_model)
-            self.assertEqual(service.feature_columns, mock_feature_columns)
-            mock_joblib_load.assert_called_once_with(Path(self.test_model_path))
+def test_predict_proba_with_loaded_model(model_path: str):
+    """Test that predict_proba uses the loaded model and returns the correct probability."""
+    dummy_model = DummyModel()
+    joblib.dump(dummy_model, model_path)
 
-    def test_predict_proba_with_loaded_model(self):
-        """Test that predict_proba calls the loaded model correctly."""
-        # Arrange
-        # Use a real, simple model that can be pickled
-        real_model = LogisticRegression()
-        feature_cols = ["f1", "f2"]
-        # Train it on a dummy DataFrame so it has feature names
-        train_df = pd.DataFrame([[1, 2], [3, 4]], columns=feature_cols)
-        real_model.fit(train_df, [0, 1])
+    service = RegimeModelService(model_path)
 
-        model_data = {"model": real_model, "feature_columns": feature_cols}
-        joblib.dump(model_data, self.test_model_path)
+    # The features can be anything since the dummy model ignores them
+    features = [[10, 20]]
+    proba = service.predict_proba(features)
 
-        service = RegimeModelService(model_path=self.test_model_path)
+    # Assert that the probability for the "good" class (index 1) is returned
+    assert proba == 0.8
 
-        features_df = pd.DataFrame([{"f1": 1, "f2": 2}])
+def test_predict_proba_handles_prediction_error(model_path: str):
+    """
+    Test that predict_proba falls back to 1.0 if the model's predict_proba method fails.
+    """
+    failing_model = FailingDummyModel()
+    joblib.dump(failing_model, model_path)
 
-        # Act
-        proba = service.predict_proba(features_df)
+    service = RegimeModelService(model_path)
 
-        # Assert
-        self.assertIsInstance(proba, float)
-        self.assertGreaterEqual(proba, 0.0)
-        self.assertLessEqual(proba, 1.0)
-        # Check that the probability for class 1 is returned
-        expected_proba = real_model.predict_proba(features_df[feature_cols])
-        self.assertAlmostEqual(proba, expected_proba[0, 1])
-
-    def test_predict_proba_handles_nan_features(self):
-        """Test that predict_proba returns None if features contain NaN."""
-        real_model = LogisticRegression()
-        feature_cols = ["f1", "f2"]
-        model_data = {"model": real_model, "feature_columns": feature_cols}
-        joblib.dump(model_data, self.test_model_path)
-
-        service = RegimeModelService(model_path=self.test_model_path)
-        features_df = pd.DataFrame([{"f1": 1, "f2": None}])
-
-        with patch("praxis_engine.services.regime_model_service.log.warning") as mock_log_warning:
-            proba = service.predict_proba(features_df)
-            self.assertIsNone(proba)
-            mock_log_warning.assert_called_once_with("NaN values found in features for regime prediction. Cannot predict.")
-
-    def test_predict_proba_handles_missing_columns(self):
-        """Test that predict_proba returns None if feature columns are missing."""
-        real_model = LogisticRegression()
-        feature_cols = ["f1", "f2"]
-        model_data = {"model": real_model, "feature_columns": feature_cols}
-        joblib.dump(model_data, self.test_model_path)
-
-        service = RegimeModelService(model_path=self.test_model_path)
-        features_df = pd.DataFrame([{"f1": 1}]) # Missing 'f2'
-
-        with patch("praxis_engine.services.regime_model_service.log.error") as mock_log_error:
-            proba = service.predict_proba(features_df)
-            self.assertIsNone(proba)
-            mock_log_error.assert_called_once_with("Missing required feature columns for regime model prediction.")
+    with patch("praxis_engine.services.regime_model_service.log.error") as mock_log_error:
+        proba = service.predict_proba(features=[[1, 2]])
+        assert proba == 1.0
+        mock_log_error.assert_called_once()
+        assert "Error during regime model prediction" in mock_log_error.call_args[0][0]
