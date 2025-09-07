@@ -736,7 +736,8 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Patch `scripts.train_regime_model.train_and_save_model`.
     *   Run the CLI command and assert that the `train_and_save_model` function was called.
 *   **Time estimate:** 2 hours
-*   **Status:** Not Started
+*   **Status:** Done
+*   **Resolution:** Implemented the "train-if-needed" logic directly into the `backtest` CLI command in `main.py`. The command now checks for the existence of the model file (path specified in `config.ini`) before starting the backtest. If the model is missing, it automatically calls the `train_and_save_model` script. The `--force-retrain` flag was removed to simplify the CLI, making the file's presence the sole trigger. An integration test (`test_backtest_cli_trains_model_if_not_exists`) was added to `tests/test_workers.py` to verify this behavior.
 
 ---
 

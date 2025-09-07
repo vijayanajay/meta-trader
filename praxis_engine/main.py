@@ -66,11 +66,6 @@ def backtest(
         "-c",
         help="Path to the configuration file.",
     ),
-    force_retrain: bool = typer.Option(
-        False,
-        "--force-retrain",
-        help="Force the regime model to be retrained even if it exists.",
-    ),
 ) -> None:
     """
     Runs a backtest for stocks defined in the config file.
@@ -82,17 +77,13 @@ def backtest(
 
     # --- Automated Regime Model Training ---
     from scripts.train_regime_model import train_and_save_model
-    model_path = Path("results/regime_model.joblib")
-    if not model_path.exists() or force_retrain:
-        if force_retrain:
-            logger.info("`--force-retrain` specified. Training new regime model...")
-        else:
-            logger.info("Regime model not found. Attempting to train a new one...")
-
+    model_path = Path(config.regime_model.model_path)
+    if not model_path.exists():
+        logger.info("Regime model not found. Attempting to train a new one...")
         success = train_and_save_model(config)
         if not success:
-            logger.error("Failed to train regime model. Backtest cannot proceed with regime analysis.")
-            # This is a soft failure; the backtest can still run, but the RegimeGuard will use its fallback.
+            logger.critical("Failed to train regime model. Backtest cannot proceed without a model.")
+            raise typer.Exit(code=1)
     # -------------------------------------
 
     all_trades_dicts: List[Dict] = []
