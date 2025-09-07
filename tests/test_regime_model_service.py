@@ -64,10 +64,10 @@ class TestRegimeModelService(unittest.TestCase):
         # Arrange
         # Use a real, simple model that can be pickled
         real_model = LogisticRegression()
-        # Train it on dummy data so it can predict
-        real_model.fit([[1, 2], [3, 4]], [0, 1])
-
         feature_cols = ["f1", "f2"]
+        # Train it on a dummy DataFrame so it has feature names
+        train_df = pd.DataFrame([[1, 2], [3, 4]], columns=feature_cols)
+        real_model.fit(train_df, [0, 1])
 
         model_data = {"model": real_model, "feature_columns": feature_cols}
         joblib.dump(model_data, self.test_model_path)

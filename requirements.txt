@@ -12,6 +12,8 @@ pyarrow
 openai
 tqdm
 numba
+scikit-learn
+joblib
 
 # Development & Testing
 pytest

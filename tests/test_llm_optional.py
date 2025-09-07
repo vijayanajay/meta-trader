@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import datetime
-from praxis_engine.core.models import Config, DataConfig, StrategyParamsConfig, FiltersConfig, ScoringConfig, SignalLogicConfig, LLMConfig, CostModelConfig, ExitLogicConfig, MarketDataConfig
+from praxis_engine.core.models import Config, DataConfig, StrategyParamsConfig, FiltersConfig, ScoringConfig, SignalLogicConfig, LLMConfig, CostModelConfig, ExitLogicConfig, MarketDataConfig, RegimeModelConfig
 from praxis_engine.core.orchestrator import Orchestrator
 
 
@@ -80,9 +80,15 @@ def make_minimal_config(tmp_cache_dir: str) -> Config:
         cache_dir=tmp_cache_dir,
     )
 
+    regime_model = RegimeModelConfig(
+        model_path="results/regime_model.joblib",
+        volatility_threshold_percentile=0.75,
+    )
+
     return Config(
         data=data,
         market_data=market_data,
+        regime_model=regime_model,
         strategy_params=strategy_params,
         filters=filters,
         scoring=scoring,

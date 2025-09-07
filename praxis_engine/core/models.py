@@ -204,6 +204,10 @@ class MarketDataConfig(BaseModel):
     training_start_date: str
     cache_dir: str
 
+class RegimeModelConfig(BaseModel):
+    model_path: str
+    volatility_threshold_percentile: float = Field(..., ge=0, le=1)
+
 
 class Config(BaseModel):
     """
@@ -211,6 +215,7 @@ class Config(BaseModel):
     """
     data: DataConfig
     market_data: MarketDataConfig
+    regime_model: RegimeModelConfig
     strategy_params: StrategyParamsConfig
     filters: FiltersConfig
     scoring: ScoringConfig

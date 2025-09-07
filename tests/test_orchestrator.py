@@ -38,6 +38,10 @@ vix_ticker = "^INDIAVIX"
 training_start_date = "2010-01-01"
 cache_dir = "test_cache/market"
 
+[regime_model]
+model_path = "results/regime_model.joblib"
+volatility_threshold_percentile = 0.75
+
 [strategy_params]
 bb_length = 20
 bb_std = 2.0

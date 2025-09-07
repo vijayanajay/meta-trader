@@ -17,6 +17,7 @@ from praxis_engine.core.features import calculate_market_features
 
 app = typer.Typer()
 
+# impure
 def train_and_save_model(config: Config) -> bool:
     """
     Trains a market regime model and saves it to a file.
@@ -29,7 +30,9 @@ def train_and_save_model(config: Config) -> bool:
     """
     print("Initializing services...")
     market_data_service = MarketDataService(config.market_data.cache_dir)
-    model_path = Path("results/regime_model.joblib")
+
+    # Define and create model directory
+    model_path = Path(config.regime_model.model_path)
     model_path.parent.mkdir(parents=True, exist_ok=True)
 
     print("Fetching market data for training...")
@@ -52,21 +55,23 @@ def train_and_save_model(config: Config) -> bool:
     )
 
     # --- Define the Target Variable (y) ---
-    # Heuristic: A "bad regime" (0) is when the 20-day forward volatility of Nifty is high.
-    # A "good regime" (1) is when it's low.
+    # Heuristic: A "bad regime" (target=0) is when the 20-day forward volatility of Nifty is high.
+    # A "good regime" (target=1) is when it's low. This aligns with the strategy's goal
+    # of operating in low-volatility, mean-reverting environments.
     nifty_df = market_data[config.market_data.index_ticker]
+
+    # Calculate forward-looking volatility
     forward_vol = (
         nifty_df["Close"].pct_change().rolling(window=20).std().shift(-20) * np.sqrt(252)
     )
 
-    # Define a threshold for high volatility, e.g., the 75th percentile of historical volatility
-    vol_threshold = forward_vol.quantile(0.75)
+    # Define high volatility threshold as the 75th percentile of historical volatility
+    vol_threshold = forward_vol.quantile(config.regime_model.volatility_threshold_percentile)
 
     # Target: 1 for good regime (low future vol), 0 for bad regime (high future vol)
     target_series = (forward_vol < vol_threshold).astype(int)
     target = pd.DataFrame(target_series)
     target.columns = ["target"]
-
 
     # --- Prepare Data for Training ---
     full_df = features_df.join(target).dropna()
@@ -79,9 +84,12 @@ def train_and_save_model(config: Config) -> bool:
     X = full_df[feature_columns]
     y = full_df["target"]
 
+    if len(y.unique()) < 2:
+        print(f"[bold red]Not enough classes to train model. Only found class: {y.unique()}[/bold red]")
+        return False
+
     print(f"Training model on {len(X)} samples...")
     print(f"Regime distribution:\n{y.value_counts(normalize=True)}")
-
 
     # --- Train and Save Model ---
     model = LogisticRegression(class_weight="balanced", random_state=42)
@@ -101,6 +109,11 @@ def main(config_path: str = "config.ini"):
     """
     print("Loading configuration...")
     config = load_config(config_path)
+
+    # Add a simple check for the regime_model config section
+    if not hasattr(config, 'regime_model'):
+        print("[bold red]Missing [regime_model] section in config.ini[/bold red]")
+        raise typer.Exit(code=1)
 
     success = train_and_save_model(config)
     if not success:
