@@ -28,8 +28,8 @@ class StatGuard:
         Calculates a statistical score based on pre-computed ADF and Hurst values.
         This method relies on the Orchestrator having run precompute_indicators.
         """
-        hurst_col = f"HURST_{self.params.hurst_length}"
-        adf_col = f"ADF_{self.params.hurst_length}"
+        hurst_col = f"hurst_{self.params.hurst_length}"
+        adf_col = "adf_p_value"
 
         adf_p_value = None
         hurst = None

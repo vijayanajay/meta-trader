@@ -97,9 +97,8 @@ class Orchestrator:
 
         try:
             full_df = precompute_indicators(full_df, self.config)
-            full_df = self._pre_calculate_historical_performance(full_df)
         except Exception as e:
-            log.error(f"Precomputation failed for {stock}: {e}", exc_info=True)
+            log.error(f"Indicator precomputation failed for {stock}: {e}", exc_info=True)
             return {"trades": [], "metrics": metrics}
 
         for i in range(min_history_days, len(full_df) - 1):
