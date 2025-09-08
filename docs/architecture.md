@@ -62,13 +62,14 @@ The `praxis_engine` package is organized as follows:
         -   `report_generator.py`: Generates all user-facing Markdown reports from the backtest results.
         -   `diagnostics_service.py`: Provides tools for analyzing backtest results, such as drawdown analysis.
         -   `llm_audit_service.py`: Handles communication with the external LLM API (OpenRouter) to get a final confidence score.
-        -   `regime_model_service.py`: **(Planned)** A resilient service to load and serve the trained regime model.
+        -   `regime_model_service.py`: A resilient service to load and serve the trained regime classification model. It gracefully falls back to a neutral score if the model file is not found.
     -   `utils.py`: Contains small, stateless helper functions used across the codebase.
 
 ---
 
 ## 4. Key Architectural Decisions & Patterns
 
+-   **Automated "Train-if-Needed" Workflow:** The `backtest` command in `main.py` includes logic to automatically train the regime model if the model file (`regime_model.joblib`) does not exist. This ensures the system is self-sufficient and removes manual steps from the backtesting process. The training is orchestrated by the CLI before any parallel backtesting work begins.
 -   **Vectorized Pre-computation:** To avoid O(N^2) complexity, the `Orchestrator` pre-calculates all necessary indicators for the entire historical dataset in a single vectorized operation before starting the walk-forward loop. The loop then becomes a series of fast O(1) lookups.
 -   **Parallelization via `multiprocessing`:** The `backtest` and `sensitivity-analysis` commands in `main.py` use a `multiprocessing.Pool` to parallelize the work across multiple CPU cores. Each stock is processed independently, making the problem "embarrassingly parallel."
 -   **Trade Log as Ground Truth:** The backtester's primary output is the `results/trade_log.csv`. This machine-readable file contains a detailed record of every trade and is the foundational dataset for all subsequent analysis and reporting. The Markdown report is a human-readable summary of this data.

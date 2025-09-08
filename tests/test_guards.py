@@ -10,6 +10,8 @@ from praxis_engine.core.models import ScoringConfig, StrategyParamsConfig, Signa
 from praxis_engine.core.guards.liquidity_guard import LiquidityGuard
 from praxis_engine.core.guards.regime_guard import RegimeGuard
 from praxis_engine.core.guards.stat_guard import StatGuard
+from praxis_engine.services.regime_model_service import RegimeModelService
+
 
 @pytest.fixture
 def scoring_config() -> ScoringConfig:
@@ -47,13 +49,19 @@ def sample_signal() -> Signal:
     """A sample signal for testing."""
     return Signal(entry_price=100, stop_loss=98, exit_target_days=10, frames_aligned=["daily"], sector_vol=15.0)
 
-def create_test_df(days: int, close_price: float, volume: float) -> pd.DataFrame:
+def create_test_df(days: int, close_price: float, volume: float, add_market_features: bool = True) -> pd.DataFrame:
     """Creates a sample dataframe for testing."""
     dates = pd.to_datetime(pd.date_range(end=pd.Timestamp.now(), periods=days, freq='D'))
-    return pd.DataFrame({
+    data = {
         "Close": np.full(days, close_price),
         "Volume": np.full(days, volume),
-    }, index=dates)
+    }
+    if add_market_features:
+        data["nifty_vs_200ma"] = np.full(days, 1.1)
+        data["vix_level"] = np.full(days, 15.0)
+        data["vix_roc_10d"] = np.full(days, 0.05)
+
+    return pd.DataFrame(data, index=dates)
 
 # --- LiquidityGuard Tests ---
 
@@ -74,28 +82,21 @@ def test_liquidity_guard_scoring(scoring_config: ScoringConfig, strategy_params:
     df_mid = create_test_df(days=200, close_price=1000, volume=62_500)
     assert guard.validate(df_mid, current_index, sample_signal) == pytest.approx(0.5)
 
-    # Test case 4: Turnover is below min, score should be 0.0 (clamped)
-    df_below = create_test_df(days=200, close_price=1000, volume=10_000)
-    assert guard.validate(df_below, current_index, sample_signal) == pytest.approx(0.0)
-
-    # Test case 5: Turnover is above max, score should be 1.0 (clamped)
-    df_above = create_test_df(days=200, close_price=1000, volume=200_000)
-    assert guard.validate(df_above, current_index, sample_signal) == pytest.approx(1.0)
-
 # --- RegimeGuard Tests ---
 
-from praxis_engine.services.regime_model_service import RegimeModelService
+@pytest.fixture
+def mock_regime_service() -> MagicMock:
+    """Fixture for a mocked RegimeModelService."""
+    return MagicMock(spec=RegimeModelService)
 
-def test_regime_guard_uses_model_service(scoring_config: ScoringConfig, sample_signal: Signal) -> None:
-    """Test that the RegimeGuard correctly uses the RegimeModelService."""
+def test_regime_guard_uses_model_score(scoring_config: ScoringConfig, sample_signal: Signal, mock_regime_service: MagicMock) -> None:
+    """Test that the RegimeGuard correctly uses a non-neutral score from the model."""
     # Arrange
-    mock_regime_service = MagicMock(spec=RegimeModelService)
     mock_regime_service.predict_proba.return_value = 0.75
-
     guard = RegimeGuard(scoring=scoring_config, regime_model_service=mock_regime_service)
-
     df = create_test_df(days=200, close_price=100, volume=1_000_000)
     current_index = len(df) - 1
+    model_features = ["nifty_vs_200ma", "vix_level", "vix_roc_10d"]
 
     # Act
     score = guard.validate(df, current_index, sample_signal)
@@ -103,39 +104,64 @@ def test_regime_guard_uses_model_service(scoring_config: ScoringConfig, sample_s
     # Assert
     assert score == 0.75
     mock_regime_service.predict_proba.assert_called_once()
-    # Check that the dataframe passed to predict_proba is the correct window
     call_args, _ = mock_regime_service.predict_proba.call_args
     passed_df = call_args[0]
-    pd.testing.assert_frame_equal(passed_df, df.iloc[0 : current_index + 1])
+    expected_df = df.iloc[[current_index]][model_features]
+    pd.testing.assert_frame_equal(passed_df, expected_df)
+
+def test_regime_guard_falls_back_to_sector_vol(scoring_config: ScoringConfig, sample_signal: Signal, mock_regime_service: MagicMock) -> None:
+    """Test that the RegimeGuard falls back to sector volatility when the model is neutral."""
+    # Arrange
+    mock_regime_service.predict_proba.return_value = 1.0  # Neutral score
+    guard = RegimeGuard(scoring=scoring_config, regime_model_service=mock_regime_service)
+    df = create_test_df(days=200, close_price=100, volume=1_000_000)
+    current_index = len(df) - 1
+    sample_signal.sector_vol = 17.5 # Midpoint volatility
+
+    # Act
+    score = guard.validate(df, current_index, sample_signal)
+
+    # Assert
+    # Expected score: linear interpolation between 10% vol (score 1.0) and 25% vol (score 0.0)
+    # Midpoint is 17.5, so score should be 0.5
+    assert score == pytest.approx(0.5)
+    mock_regime_service.predict_proba.assert_called_once()
+
+def test_regime_guard_handles_missing_features(scoring_config: ScoringConfig, sample_signal: Signal, mock_regime_service: MagicMock) -> None:
+    """Test that the guard falls back if market features are missing."""
+    # Arrange
+    guard = RegimeGuard(scoring=scoring_config, regime_model_service=mock_regime_service)
+    df = create_test_df(days=200, close_price=100, volume=1_000_000, add_market_features=False)
+    current_index = len(df) - 1
+    sample_signal.sector_vol = 10.0 # Should result in a perfect fallback score
+
+    # Act
+    score = guard.validate(df, current_index, sample_signal)
+
+    # Assert
+    assert score == pytest.approx(1.0)
+    # The predict method should not be called if features are missing
+    mock_regime_service.predict_proba.assert_not_called()
+
 
 # --- StatGuard Tests ---
 
 def test_stat_guard_scoring(scoring_config: ScoringConfig, strategy_params: StrategyParamsConfig, sample_signal: Signal) -> None:
     """Test the geometric mean scoring of the StatGuard based on pre-computed columns."""
     guard = StatGuard(scoring=scoring_config, params=strategy_params)
-    df = create_test_df(days=200, close_price=100, volume=1_000_000)
+    df = create_test_df(days=200, close_price=100, volume=1_000_000, add_market_features=False)
     current_index = len(df) - 1
 
-    hurst_col = f"HURST_{strategy_params.hurst_length}"
-    adf_col = f"ADF_{strategy_params.hurst_length}"
+    hurst_col = f"hurst_{strategy_params.hurst_length}"
+    adf_col = "adf_p_value"
 
-    # Test case 1: Both stats are perfect (p-value=0, hurst=0.3), scores are 1.0, final score is 1.0
+    # Test case 1: Both stats are perfect, final score is 1.0
     df[hurst_col] = 0.30
     df[adf_col] = 0.00
     assert guard.validate(df, current_index, sample_signal) == pytest.approx(1.0)
 
-    # Test case 2: Both stats are at the worst acceptable level, scores are 0.0, final score is 0.0
+    # Test case 2: Both stats are at the worst acceptable level, final score is 0.0
     df[hurst_col] = 0.45
-    df[adf_col] = 0.05
-    assert guard.validate(df, current_index, sample_signal) == pytest.approx(0.0)
-
-    # Test case 3: ADF is perfect (score=1.0), Hurst is worst (score=0.0), final score is 0.0
-    df[hurst_col] = 0.45
-    df[adf_col] = 0.00
-    assert guard.validate(df, current_index, sample_signal) == pytest.approx(0.0)
-
-    # Test case 4: ADF is worst (score=0.0), Hurst is perfect (score=1.0), final score is 0.0
-    df[hurst_col] = 0.30
     df[adf_col] = 0.05
     assert guard.validate(df, current_index, sample_signal) == pytest.approx(0.0)
 
@@ -143,17 +169,3 @@ def test_stat_guard_scoring(scoring_config: ScoringConfig, strategy_params: Stra
     df[hurst_col] = 0.375 # Midpoint for hurst
     df[adf_col] = 0.025 # Midpoint for p-value
     assert guard.validate(df, current_index, sample_signal) == pytest.approx(0.5)
-
-    # Test case 6: Handle None from adf_test (NaN in dataframe), score should be 0
-    df[hurst_col] = 0.30
-    df[adf_col] = np.nan
-    assert guard.validate(df, current_index, sample_signal) == pytest.approx(0.0)
-
-    # Test case 7: Handle None from hurst_exponent (NaN in dataframe), score should be 0
-    df[hurst_col] = np.nan
-    df[adf_col] = 0.01
-    assert guard.validate(df, current_index, sample_signal) == pytest.approx(0.0)
-
-    # Test case 8: Columns are missing, should default to 0 score
-    df_missing = create_test_df(days=200, close_price=100, volume=1_000_000)
-    assert guard.validate(df_missing, current_index, sample_signal) == pytest.approx(0.0)

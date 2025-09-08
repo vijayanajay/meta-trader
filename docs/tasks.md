@@ -753,6 +753,22 @@ Below are short, pragmatic summaries for Tasks 1 through 15: rationale, what was
     *   Running `python run.py backtest` with no `regime_model.pkl` present successfully trains and saves a model before executing the backtest.
     *   The Maximum Drawdown in the final report is significantly reduced compared to the baseline.
 *   **Time estimate:** 2 hours
+*   **Status:** Done & Falsified
+*   **Resolution & Learnings:** The automated training and integration of the regime meta-model was successfully implemented. However, the backtest results conclusively **falsified** the hypothesis that this model would reduce drawdowns. The model failed to provide any improvement in risk management and significantly worsened overall returns. The full analysis and learnings have been documented in `docs/memory.md` under "Epic 13 Learnings".
+
+---
+
+### Task 55 — Re-evaluate or Revert the Regime Guard
+
+*   **Rationale:** (Hinton) The multi-factor regime model (Epic 13) was a failure. It did not reduce drawdowns and worsened performance. We must now take action based on this scientific finding. (Nadh) The current implementation adds complexity without benefit. The most pragmatic next step is to either revert the `RegimeGuard` to its original, simple heuristic (sector volatility) or explore a new, equally simple alternative. We must remove the failed complexity.
+*   **Items to implement:**
+    1.  **Analyze:** Decide on the best path forward. Should the `RegimeGuard` be reverted to only use the sector volatility score? Should the model be removed entirely? Should a different simple heuristic be tested?
+    2.  **Implement:** Based on the decision, refactor the `RegimeGuard` and potentially remove the now-unused services (`RegimeModelService`, `MarketDataService`) and training scripts.
+    3.  **Validate:** Run a new backtest to confirm that the change has the intended effect (e.g., restoring the baseline performance if reverting).
+*   **Acceptance Criteria (AC):**
+    *   The complexity of the failed regime model is removed from the active strategy logic.
+    *   The system is left in a state that is either identical to the baseline or has a new, simple, and validated regime filter.
+*   **Time estimate:** 3 hours
 *   **Status:** Not Started
 
 ---
