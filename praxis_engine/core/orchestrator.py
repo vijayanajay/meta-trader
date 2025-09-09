@@ -55,20 +55,42 @@ class Orchestrator:
         self.execution_simulator = ExecutionSimulator(config.cost_model)
 
     def _get_market_features(self, start_date: str, end_date: str) -> Optional[pd.DataFrame]:
-        """Fetches market data and calculates features."""
+        """
+        Fetches market data and calculates features.
+
+        It fetches data from an earlier start date to ensure indicators like a
+        200-day moving average are "warmed up" by the time the actual backtest
+        start date is reached.
+        """
+        # Buffer to ensure enough historical data for long-period indicators (e.g., 200-day SMA)
+        SMA_WARM_UP_DAYS = 250
+
+        try:
+            backtest_start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+        except ValueError:
+            log.error(f"Invalid start_date format: {start_date}. Expected YYYY-MM-DD.")
+            return None
+
+        market_data_start_date = backtest_start_date_obj - datetime.timedelta(days=SMA_WARM_UP_DAYS)
+        market_data_start_date_str = market_data_start_date.strftime("%Y-%m-%d")
+
         market_tickers = [self.config.market_data.index_ticker, self.config.market_data.vix_ticker]
         market_data = self.market_data_service.get_market_data(
-            tickers=market_tickers, start=start_date, end=end_date
+            tickers=market_tickers, start=market_data_start_date_str, end=end_date
         )
+
         if not market_data:
             log.error("Could not fetch market data for feature calculation.")
             return None
 
-        return calculate_market_features(
+        features_df = calculate_market_features(
             market_data=market_data,
             nifty_ticker=self.config.market_data.index_ticker,
             vix_ticker=self.config.market_data.vix_ticker,
         )
+
+        # Trim the features dataframe to start from the original backtest start date
+        return features_df.loc[start_date:]
 
     def run_backtest(self, stock: str, start_date: str, end_date: str) -> Dict[str, Any]:
         """
