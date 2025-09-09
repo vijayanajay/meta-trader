@@ -214,3 +214,5 @@ run_state.json
 *.csv
 *.parquet
 config.bak
+results/*.joblib
+results/*.log

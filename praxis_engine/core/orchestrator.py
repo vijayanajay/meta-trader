@@ -113,6 +113,12 @@ class Orchestrator:
         else:
             # Join market features into the main dataframe
             full_df = full_df.join(market_features_df, how="left")
+            # Forward-fill missing market data on days the market was closed but the stock traded
+            if not market_features_df.empty:
+                feature_cols = list(market_features_df.columns)
+                # Use a loop to avoid potential pandas assignment errors with whole blocks
+                for col in feature_cols:
+                    full_df[col] = full_df[col].ffill()
 
         trades: List[Trade] = []
         min_history_days = self.config.strategy_params.min_history_days
